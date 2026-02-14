@@ -1,0 +1,23 @@
+.clinic-order-handle {
+    cursor: move;
+    display: inline-block;
+    padding: 4px 6px;
+}
+
+.clinic-order-notice {
+    margin: 10px 0 0;
+    font-size: 13px;
+    color: #555;
+}
+
+.clinic-order-notice.is-success {
+    color: #1d7f1d;
+}
+
+.clinic-order-notice.is-error {
+    color: #a00;
+}
+#doctor_order {
+    width: 4%;
+    min-width: 85px;
+}

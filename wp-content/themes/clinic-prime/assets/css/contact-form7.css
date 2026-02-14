@@ -1,0 +1,27 @@
+/**
+ * Стили для Contact Form 7
+ */
+
+/* Скрываем стандартные сообщения CF7 */
+.wpcf7-response-output {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    width: 0 !important;
+    overflow: hidden !important;
+    position: absolute !important;
+    left: -9999px !important;
+}
+
+/* Скрываем другие элементы CF7 */
+.wpcf7-mail-sent-ok,
+.wpcf7-mail-sent-ng,
+.wpcf7-spam-blocked {
+    display: none !important;
+}
+
+/* Скрываем спиннер загрузки если нужно */
+.wpcf7-spinner {
+    display: none !important;
+}

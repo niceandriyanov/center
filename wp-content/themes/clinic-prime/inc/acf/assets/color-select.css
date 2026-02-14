@@ -1,0 +1,55 @@
+/**
+ * Стили для кастомного поля выбора цвета ACF
+ */
+
+.acf-color-select {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 10px 0;
+}
+
+.acf-color-select .color-option {
+    cursor: pointer;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    padding: 8px;
+    transition: all 0.2s ease;
+    min-width: 40px;
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+}
+
+.acf-color-select .color-option:hover {
+    border-color: #0073aa;
+    box-shadow: 0 2px 8px rgba(0, 115, 170, 0.2);
+    transform: translateY(-1px);
+}
+
+.acf-color-select .color-option.selected {
+    border-color: #0073aa;
+    background: #f0f8ff;
+    box-shadow: 0 0 0 2px rgba(0, 115, 170, 0.2);
+}
+
+.acf-color-select .color-option span {
+    display: block;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+    .acf-color-select {
+        gap: 8px;
+    }
+    
+    .acf-color-select .color-option {
+        min-width: 35px;
+        min-height: 35px;
+        padding: 6px;
+    }
+}

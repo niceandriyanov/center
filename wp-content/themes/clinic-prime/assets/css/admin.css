@@ -1,0 +1,89 @@
+/* Стили для админки темы клиники */
+
+.clinic-admin-notice {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 15px;
+    border-radius: 5px;
+    margin: 10px 0;
+    border-left: 4px solid #fff;
+}
+
+.clinic-admin-notice p {
+    margin: 0;
+    color: white;
+}
+
+.clinic-admin-notice strong {
+    color: white;
+}
+
+/* Стили для метабоксов */
+.clinic-meta-box {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin: 10px 0;
+    border-radius: 5px;
+}
+
+.clinic-meta-box h3 {
+    margin-top: 0;
+    color: #333;
+}
+
+.clinic-meta-box input,
+.clinic-meta-box textarea,
+.clinic-meta-box select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    margin: 5px 0;
+}
+
+.clinic-meta-box label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
+}
+
+/* Стили для кастомных колонок */
+.column-clinic_meta {
+    width: 120px;
+}
+
+/* Стили для уведомлений */
+.clinic-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 20px;
+    border-radius: 5px;
+    color: white;
+    z-index: 9999;
+    max-width: 300px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.clinic-notification-info {
+    background: #17a2b8;
+}
+
+.clinic-notification-success {
+    background: #28a745;
+}
+
+.clinic-notification-warning {
+    background: #ffc107;
+    color: #333;
+}
+
+.clinic-notification-error {
+    background: #dc3545;
+}
+
+
+#adminmenu .wp-menu-image img {
+    max-width: 22px;
+}
