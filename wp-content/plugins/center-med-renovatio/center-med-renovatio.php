@@ -31,7 +31,9 @@ add_action( 'plugins_loaded', function () {
 // Страница настроек (только в админке).
 if ( is_admin() ) {
 	require_once CENTER_MED_RENOVATIO_PLUGIN_DIR . '/admin/class-renovatio-admin-settings.php';
+	require_once CENTER_MED_RENOVATIO_PLUGIN_DIR . '/admin/class-renovatio-doctor-metabox.php';
 	Renovatio_Admin_Settings::register();
+	Renovatio_Doctor_Metabox::register();
 }
 
 register_activation_hook( __FILE__, [ 'Renovatio_Db_Schema', 'install' ] );

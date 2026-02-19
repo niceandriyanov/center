@@ -307,7 +307,7 @@ class Renovatio_Admin_Settings {
 		}
 
 		$client = center_med_renovatio_api_client();
-		$list   = $client->request( 'getClinics', [] );
+		$list   = $client->request( 'getClinics', ['show_all' => true] );
 
 		if ( is_wp_error( $list ) ) {
 			echo '<input type="hidden" name="' . esc_attr( self::OPTION_NAME ) . '[clinic_id]" value="' . esc_attr( $saved_id ) . '" />';
@@ -509,7 +509,7 @@ class Renovatio_Admin_Settings {
 		}
 
 		$client = center_med_renovatio_api_client();
-		$result = $client->request( 'getClinics', [] );
+		$result = $client->request( 'getClinics', ['show_all' => true] );
 
 		if ( is_wp_error( $result ) ) {
 			return '<div class="notice notice-error inline"><p><span class="dashicons dashicons-warning"></span> '
