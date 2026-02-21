@@ -16,6 +16,10 @@ if (!defined('ABSPATH')) {
 function clinic_enqueue_styles() {    
     // Подключение основных стилей приложения
     wp_enqueue_style('clinic-app', THEME_URI . '/assets/css/app.css', array(), THEME_VERSION);
+
+    if(is_page_template('template-parts/online-form.php')) {
+        wp_enqueue_style('online-form', THEME_URI . '/assets/css/online-form.css', array(), THEME_VERSION);
+    }
     
     // Подключение стилей для Contact Form 7
     wp_enqueue_style('clinic-cf7', THEME_URI . '/assets/css/contact-form7.css', array(), THEME_VERSION);

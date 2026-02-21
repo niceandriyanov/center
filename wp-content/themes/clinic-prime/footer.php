@@ -88,6 +88,7 @@
         
     </div>
 </div>
+<?php /*
 <!-- Yandex.Metrika counter -->
 <script type="text/javascript">
     (function(m,e,t,r,i,k,a){
@@ -101,6 +102,6 @@
 </script>
 <noscript><div><img src="https://mc.yandex.ru/watch/104100346" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
 <!-- /Yandex.Metrika counter -->
-
+*/ ?>
 </body>
 </html>
