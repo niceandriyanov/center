@@ -175,127 +175,30 @@
                         <!-- Вопрос 1 -->
                         <div class="online-question-group" data-question="1">
                             <div class="online-checkbox-group">
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="1">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Тревога, страх, беспокойство</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="2">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Сниженное настроение, апатия</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="3">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Проблемы в отношениях</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="4">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Проблемы с самооценкой</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="5">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Проблемы с вниманием, концентрацией, гиперактивность (в т.ч. СДВГ)</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="6">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Недовольство своей внешностью</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="7">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Переедание и/или булимия</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="8">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Систематическое ограничение в пище (анорексия)</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="9">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Травмирующий опыт</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="10">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Навязчивые мысли, проверки, ритуалы  (в т.ч. ОКР и ОКР-спектр)</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="11">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Тревога о здоровье</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="12">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Эмоциональная нестабильность, перепады настроения</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="13">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Биполярное расстройство</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="14">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Зависимость от ПАВ (в т.ч. алкоголь и наркотики)</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="16">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Никотиновая зависимость</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="17">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Поведенческая зависимость (порно-зависимость, азартные игры)</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="18">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Проблемы сексуального характера</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="19">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Беременность и послеродовой период</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="20">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Трудности во взаимодействии со своими несовершеннолетними детьми/ детско-родительские отношения</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="21">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Утрата и горе</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="22">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Хроническая боль</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="23">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">СРК</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="24">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Расстройства аутистического спектра</span>
-                                </label>
-                                <label class="online-checkbox-label">
-                                    <input type="checkbox" name="question1[]" value="25">
-                                    <span class="online-checkbox-custom"></span>
-                                    <span class="online-checkbox-text">Другие жизненные проблемы</span>
-                                </label>
-
+                                <?php
+                                $questions = get_terms(array(
+                                    'taxonomy' => 'doctor_diseases',
+                                    'hide_empty' => false,
+                                    'meta_key' => 'taxonomy_order',
+                                    'orderby' => 'meta_value_num',
+                                    'order' => 'ASC',
+                                    'meta_query' => array(
+                                        array(
+                                            'key' => 'form_to',
+                                            'value' => 0,
+                                            'compare' => '=',
+                                            'type'    => 'NUMERIC'
+                                        )
+                                    )
+                                ));
+                                foreach($questions as $question) {
+                                    echo '<label class="online-checkbox-label">';
+                                    echo '<input type="checkbox" name="question1[]" value="'.$question->term_id.'">';
+                                    echo '<span class="online-checkbox-custom"></span>';
+                                    echo '<span class="online-checkbox-text">'.$question->name.'</span>';
+                                    echo '</label>';
+                                }
+                                ?>
                             </div>
                             <div class="online-question-error">Пожалуйста, выберите хотя бы один вариант ответа</div>
                         </div>
@@ -339,13 +242,18 @@
                             </div>
                             <div class="online-select-options" id="selectOptions">
                                 <div class="online-select-option" data-value="">Выберите специалиста</div>
-                                <div class="online-select-option" data-value="ivanov">Иванов Иван Иванович</div>
-                                <div class="online-select-option" data-value="petrova">Петрова Анна Сергеевна</div>
-                                <div class="online-select-option" data-value="sidorov">Сидоров Алексей Петрович</div>
-                                <div class="online-select-option" data-value="smirnova">Смирнова Елена Владимировна</div>
-                                <div class="online-select-option" data-value="petrova">Петрова Анна Сергеевна</div>
-                                <div class="online-select-option" data-value="sidorov">Сидоров Алексей Петрович</div>
-                                <div class="online-select-option" data-value="smirnova">Смирнова Елена Владимировна</div>
+                                <?php
+                                $specialists = get_posts(array(
+                                    'post_type' => 'doctors',
+                                    'posts_per_page' => -1,
+                                    'orderby' => 'menu_order',
+                                    'order' => 'ASC',
+                                    'post_status' => 'publish',
+                                ));
+                                foreach($specialists as $specialist) {
+                                    echo '<div class="online-select-option" data-value="'.$specialist->ID.'">'.$specialist->post_title.'</div>';
+                                }
+                                ?>
                             </div>
                             <input type="hidden" id="specialistName" name="specialistName">
                         </div>

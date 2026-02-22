@@ -204,3 +204,124 @@ function center_med_renovatio_handle_payment_paid_action( $booking_public_id, $p
 	);
 }
 add_action( 'center_med_renovatio_payment_paid', 'center_med_renovatio_handle_payment_paid_action', 10, 5 );
+
+/**
+ * Склонение слова "год" для вывода стажа.
+ *
+ * @param int $years Количество лет.
+ * @return string
+ */
+function center_med_renovatio_years_label( $years ) {
+	$years = (int) $years;
+
+	if ( $years % 100 >= 11 && $years % 100 <= 14 ) {
+		return 'лет';
+	}
+
+	$last_digit = $years % 10;
+	if ( $last_digit === 1 ) {
+		return 'год';
+	}
+	if ( $last_digit >= 2 && $last_digit <= 4 ) {
+		return 'года';
+	}
+
+	return 'лет';
+}
+
+/**
+ * Ajax: подбор врачей для онлайн-формы по отмеченным проблемам.
+ *
+ * @return void
+ */
+function center_med_renovatio_ajax_filter_online_doctors() {
+	check_ajax_referer( 'clinic_nonce', 'nonce' );
+
+	$concerns = isset( $_POST['concerns'] ) ? (array) wp_unslash( $_POST['concerns'] ) : [];
+	$concerns = array_values(
+		array_filter(
+			array_map( 'absint', $concerns ),
+			static function( $term_id ) {
+				return $term_id > 0;
+			}
+		)
+	);
+
+	$args = [
+		'post_type'      => 'doctors',
+		'post_status'    => 'publish',
+		'posts_per_page' => -1,
+		'orderby'        => [
+			'menu_order' => 'ASC',
+			'date'       => 'ASC',
+		],
+	];
+
+	if ( ! empty( $concerns ) ) {
+		$args['tax_query'] = [
+			[
+				'taxonomy' => 'doctor_diseases',
+				'field'    => 'term_id',
+				'terms'    => $concerns,
+			],
+		];
+	}
+
+	$query     = new WP_Query( $args );
+	$available = [];
+
+	if ( $query->have_posts() ) {
+		foreach ( $query->posts as $doctor_post ) {
+			$doctor_id = (int) $doctor_post->ID;
+			if ( $doctor_id <= 0 ) {
+				continue;
+			}
+
+			$specialties = get_the_terms( $doctor_id, 'doctor_specialty' );
+			$position = get_field( 'specialist_type', $doctor_id );
+			$position_titles = [
+				'psychologist' => 'Психолог',
+				'clinical' => 'Клинический психолог',
+			];
+
+			$position_title = !empty($position_titles[$position]) ? $position_titles[$position] : '';
+
+			$price_raw = get_post_meta( $doctor_id, 'cost_1', true );
+			$price = is_numeric( $price_raw ) ? (int) $price_raw : 0;
+
+			$age_work = (int) get_post_meta( $doctor_id, 'age_work', true );
+			$experience = 'Не указан';
+			if ( $age_work > 0 ) {
+				$current_year = (int) gmdate( 'Y' );
+				$years = $current_year - $age_work;
+				if ( $years > 0 ) {
+					$experience = sprintf( '%d %s', $years, center_med_renovatio_years_label( $years ) );
+				}
+			}
+
+			$avatar = get_field	( 'img', $doctor_id );
+			$avatar = !empty($avatar) ? $avatar['url'] : '';
+
+			$available[] = [
+				'id'           => $doctor_id,
+				'name'         => get_the_title( $doctor_id ),
+				'position'     => $position,
+				'positionTitle'=> $position_title,
+				'experience'   => $experience,
+				'avatar'       => $avatar,
+				'price'        => $price,
+				'nearestSlot'  => '',
+				'description'  => wp_strip_all_tags( get_the_excerpt( $doctor_id ) ),
+			];
+		}
+	}
+
+	wp_send_json_success(
+		[
+			'available'   => $available,
+			'waitingList' => [],
+		]
+	);
+}
+add_action( 'wp_ajax_center_med_renovatio_filter_online_doctors', 'center_med_renovatio_ajax_filter_online_doctors' );
+add_action( 'wp_ajax_nopriv_center_med_renovatio_filter_online_doctors', 'center_med_renovatio_ajax_filter_online_doctors' );

@@ -1656,6 +1656,47 @@ add_action( 'acf/include_fields', function() {
 			'bidirectional_target' => array(
 			),
 		),
+		//добавь сюда acf select для выбора специальности
+		array(
+			'key' => 'field_68va3db1ce182',
+			'label' => 'Тип специалиста',
+			'name' => 'specialist_type',
+			'aria-label' => '',
+			'type' => 'select',
+			'instructions' => '',
+			'required' => 0,
+			'conditional_logic' => 0,
+			'wrapper' => array(
+				'width' => '',
+				'class' => '',
+				'id' => '',
+			),
+			'choices' => array(
+				'psychologist' => 'Психолог',
+				'clinical' => 'Клинический психолог',
+			),
+			'default_value' => '',
+		),
+		array(
+			'key' => 'field_68va3db2ce184',
+			'label' => 'Описание специалиста',
+			'name' => 'specialist_description',
+			'aria-label' => '',
+			'type' => 'textarea',
+			'instructions' => '',
+			'required' => 0,
+			'conditional_logic' => 0,
+			'wrapper' => array(
+				'width' => '',
+				'class' => '',
+				'id' => '',
+			),
+			'default_value' => '',
+			'maxlength' => '',
+			'rows' => 3,
+			'placeholder' => '',
+			'new_lines' => 'br',
+		),
 		array(
 			'key' => 'field_68ba3dbbce182',
 			'label' => 'Специальность',

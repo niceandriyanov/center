@@ -279,6 +279,8 @@ class BookingSystem {
         this.specialistManager = null;
         this.stepManager = null;
         this.manyStepManager = null;
+        this.selfSpecialistsDebounceTimer = null;
+        this.selfSpecialistsRequestToken = 0;
         this.init();
     }
 
@@ -984,6 +986,7 @@ class BookingSystem {
         }
 
         this.validateQuestionGroup(group);
+        this.scheduleSelfSpecialistsPreparation();
     }
 
     onManyConcernsChange(checkbox) {
@@ -1544,13 +1547,131 @@ class BookingSystem {
     // ==================== СПЕЦИАЛИСТЫ ====================
     async loadSelfSpecialists() {
         try {
-            const mockData = this.getMockSpecialistsData();
-            this.state.selfForm.specialists = mockData;
+            await this.fetchSelfSpecialists();
             this.renderSelfSpecialists();
         } catch (error) {
             console.error('Ошибка загрузки специалистов:', error);
             this.showOnlyWaitingList('self');
         }
+    }
+
+    scheduleSelfSpecialistsPreparation() {
+        if (this.state.screen !== CONFIG.CONSULTATION_TYPES.SELF) return;
+
+        if (this.selfSpecialistsDebounceTimer) {
+            clearTimeout(this.selfSpecialistsDebounceTimer);
+        }
+
+        this.selfSpecialistsDebounceTimer = setTimeout(() => {
+            this.fetchSelfSpecialists()
+                .then(() => {
+                    if (this.stepManager.currentStep === 3) {
+                        this.renderSelfSpecialists();
+                        this.updateUI();
+                    }
+                })
+                .catch((error) => {
+                    console.error('Ошибка подготовки списка специалистов:', error);
+                });
+        }, 250);
+    }
+
+    getSelfSelectedConcernIds() {
+        const concerns = this.state.selfForm?.data?.concerns?.question1;
+        if (!Array.isArray(concerns)) return [];
+        return concerns.filter(Boolean).map(String);
+    }
+
+    async fetchSelfSpecialists() {
+        const ajaxUrl = window.clinic_ajax?.ajax_url;
+        const nonce = window.clinic_ajax?.nonce;
+
+        if (!ajaxUrl || !nonce) {
+            throw new Error('Не настроен clinic_ajax для загрузки специалистов');
+        }
+
+        const requestToken = ++this.selfSpecialistsRequestToken;
+        const concerns = this.getSelfSelectedConcernIds();
+        const body = new URLSearchParams();
+
+        body.append('action', 'center_med_renovatio_filter_online_doctors');
+        body.append('nonce', nonce);
+        concerns.forEach((termId) => body.append('concerns[]', termId));
+
+        const response = await fetch(ajaxUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+            },
+            body: body.toString()
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (requestToken !== this.selfSpecialistsRequestToken) return;
+
+        if (!result?.success || !result?.data) {
+            throw new Error(result?.data?.message || 'Сервер вернул некорректный ответ');
+        }
+
+        const normalized = this.normalizeSpecialistsResponse(result.data);
+        this.state.selfForm.specialists = normalized;
+        this.ensureSelectedSelfSpecialistExists();
+    }
+
+    normalizeSpecialistsResponse(data) {
+        const normalizeArray = (items) => {
+            if (!Array.isArray(items)) return [];
+
+            return items
+                .map((item) => {
+                    const id = Number(item?.id);
+                    if (!id) return null;
+
+                    return {
+                        id,
+                        name: String(item?.name || ''),
+                        position: String(item?.position || 'psychologist'),
+                        positionTitle: String(item?.positionTitle || 'Психолог'),
+                        experience: String(item?.experience || 'Не указан'),
+                        avatar: String(item?.avatar || ''),
+                        price: Number(item?.price || 0),
+                        nearestSlot: String(item?.nearestSlot || ''),
+                        description: String(item?.description || '')
+                    };
+                })
+                .filter(Boolean);
+        };
+
+        return {
+            available: normalizeArray(data.available),
+            waitingList: normalizeArray(data.waitingList)
+        };
+    }
+
+    ensureSelectedSelfSpecialistExists() {
+        const selfData = this.state.selfForm.data;
+        if (!selfData.selectedSpecialistId) return;
+
+        const pool = selfData.selectedSpecialistIsWaitingList
+            ? this.state.selfForm.specialists.waitingList
+            : this.state.selfForm.specialists.available;
+
+        const stillExists = Array.isArray(pool) && pool.some(
+            (specialist) => specialist.id === Number(selfData.selectedSpecialistId)
+        );
+
+        if (stillExists) return;
+
+        selfData.selectedSpecialistId = null;
+        selfData.selectedSpecialistIsWaitingList = false;
+        selfData.selectedSpecialistName = '';
+        selfData.selectedSpecialistPrice = null;
+        this.state.selfForm.appointment = null;
     }
 
     async loadManySpecialists() {
