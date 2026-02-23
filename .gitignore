@@ -58,4 +58,6 @@ wp-config.php
 
 .cursorrules
 /.cursorrules
+/.osp/
+/.vscode/
 /docs/
