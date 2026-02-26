@@ -276,6 +276,8 @@ class BookingSystem {
         this.state = this.getInitialState();
         this.elements = {};
         this.calendarInstance = null;
+        this.calendarAvailabilityCache = new Map();
+        this.calendarLoadingRequests = 0;
         this.specialistManager = null;
         this.stepManager = null;
         this.manyStepManager = null;
@@ -340,6 +342,7 @@ class BookingSystem {
                 currentStep: CONFIG.STEPS.STEP_1,
                 data: this.getInitialSelfFormData(),
                 specialists: { available: [], waitingList: [] },
+                isLoadingSpecialists: false,
                 appointment: null
             },
 
@@ -462,6 +465,7 @@ class BookingSystem {
         e.calendarSpecialistName = null;
         e.timeSlotsContainer = null;
         e.calendarConfirmBtn = null;
+        e.calendarLoadingOverlay = null;
 
         this.elements = e;
     }
@@ -899,7 +903,8 @@ class BookingSystem {
 
     onSelfStepChange(newStep, oldStep) {
         if (newStep === 3) {
-            this.loadSelfSpecialists();
+            this.renderSelfSpecialists();
+            //this.loadSelfSpecialists();
         } else if (newStep === 4) {
             this.prepareSelfStep4();
         }
@@ -1562,6 +1567,11 @@ class BookingSystem {
             clearTimeout(this.selfSpecialistsDebounceTimer);
         }
 
+        this.state.selfForm.isLoadingSpecialists = true;
+        if (this.stepManager.currentStep === 3) {
+            this.renderSelfSpecialists();
+        }
+
         this.selfSpecialistsDebounceTimer = setTimeout(() => {
             this.fetchSelfSpecialists()
                 .then(() => {
@@ -1591,6 +1601,7 @@ class BookingSystem {
         }
 
         const requestToken = ++this.selfSpecialistsRequestToken;
+        this.state.selfForm.isLoadingSpecialists = true;
         const concerns = this.getSelfSelectedConcernIds();
         const body = new URLSearchParams();
 
@@ -1598,29 +1609,38 @@ class BookingSystem {
         body.append('nonce', nonce);
         concerns.forEach((termId) => body.append('concerns[]', termId));
 
-        const response = await fetch(ajaxUrl, {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
-            },
-            body: body.toString()
-        });
+        try {
+            const response = await fetch(ajaxUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+                },
+                body: body.toString()
+            });
 
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+            if (requestToken !== this.selfSpecialistsRequestToken) return;
+
+            if (!result?.success || !result?.data) {
+                throw new Error(result?.data?.message || 'Сервер вернул некорректный ответ');
+            }
+
+            const normalized = this.normalizeSpecialistsResponse(result.data);
+            this.state.selfForm.specialists = normalized;
+            this.ensureSelectedSelfSpecialistExists();
+        } finally {
+            if (requestToken === this.selfSpecialistsRequestToken) {
+                this.state.selfForm.isLoadingSpecialists = false;
+                if (this.state.screen === CONFIG.CONSULTATION_TYPES.SELF && this.stepManager.currentStep === 3) {
+                    this.renderSelfSpecialists();
+                }
+            }
         }
-
-        const result = await response.json();
-        if (requestToken !== this.selfSpecialistsRequestToken) return;
-
-        if (!result?.success || !result?.data) {
-            throw new Error(result?.data?.message || 'Сервер вернул некорректный ответ');
-        }
-
-        const normalized = this.normalizeSpecialistsResponse(result.data);
-        this.state.selfForm.specialists = normalized;
-        this.ensureSelectedSelfSpecialistExists();
     }
 
     normalizeSpecialistsResponse(data) {
@@ -1729,6 +1749,12 @@ class BookingSystem {
     renderSelfSpecialists() {
         const { available, waitingList } = this.state.selfForm.specialists;
         const { selectedSpecialistId, selectedSpecialistIsWaitingList } = this.state.selfForm.data;
+        const isLoading = !!this.state.selfForm.isLoadingSpecialists;
+
+        if (isLoading && available.length === 0 && waitingList.length === 0) {
+            this.showSelfSpecialistsLoading();
+            return;
+        }
 
         if (available.length > 0) {
             this.specialistManager.self.available.render(available, selectedSpecialistId, false);
@@ -1769,6 +1795,53 @@ class BookingSystem {
     showNoSpecialistsMessage(formType) {
         Utils.hide(this.elements.availableSpecialists);
         Utils.show(this.elements.noSpecialistsMessage);
+    }
+
+    showSelfSpecialistsLoading() {
+        this.ensureSelfSpecialistsLoaderStyles();
+        Utils.show(this.elements.availableSpecialists);
+        Utils.hide(this.elements.noSpecialistsMessage);
+        Utils.hide(this.elements.waitingListSection);
+
+        if (this.elements.availableSpecialistsGrid) {
+            this.elements.availableSpecialistsGrid.innerHTML = `
+                <div class="online-specialists-loading" role="status" aria-live="polite">
+                    <span class="online-specialists-loading-spinner" aria-hidden="true"></span>
+                    <span class="online-specialists-loading-text">Подбираем специалистов...</span>
+                </div>
+            `;
+        }
+    }
+
+    ensureSelfSpecialistsLoaderStyles() {
+        if (document.getElementById('onlineFormSpecialistsLoaderStyles')) return;
+
+        const style = document.createElement('style');
+        style.id = 'onlineFormSpecialistsLoaderStyles';
+        style.textContent = `
+            .online-specialists-loading {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                min-height: 120px;
+                color: #3f3e40;
+                font-size: 16px;
+            }
+            .online-specialists-loading-spinner {
+                width: 22px;
+                height: 22px;
+                border: 3px solid #e2e8f0;
+                border-top-color: #f6007f;
+                border-radius: 50%;
+                animation: online-form-specialists-spin 0.9s linear infinite;
+            }
+            @keyframes online-form-specialists-spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
     }
 
     showNoManySpecialistsMessage() {
@@ -2013,6 +2086,8 @@ class BookingSystem {
         };
 
         this.state.shared.currentFormType = formType;
+        this.state.shared.availableDaysByMonth = {};
+        this.state.shared.availableTimeSlotsByDate = {};
 
         this.elements.calendarSpecialistName.textContent = specialist.name;
         this.elements.calendarSpecialistAvatar.innerHTML = specialist.avatar ?
@@ -2031,6 +2106,8 @@ class BookingSystem {
         if (this.calendarInstance) {
             this.calendarInstance.clear();
         }
+
+        this.prefetchCalendarAvailabilityForMonth(new Date().getFullYear(), new Date().getMonth());
 
         Utils.addClass(this.elements.calendarModal, CSS_CLASSES.ACTIVE);
         document.body.style.overflow = 'hidden';
@@ -2059,6 +2136,9 @@ class BookingSystem {
         modal.className = 'calendar-modal';
         modal.innerHTML = `
             <div class="calendar-modal-content">
+                <div id="calendarLoadingOverlay" class="calendar-loading-overlay" aria-hidden="true">
+                    <div class="calendar-loading-spinner" aria-hidden="true"></div>
+                </div>
                 <div class="calendar-modal-header">
                     <div class="calendar-specialist-info">
                         <div class="calendar-specialist-avatar" id="calendarSpecialistAvatar"></div>
@@ -2097,9 +2177,60 @@ class BookingSystem {
         this.elements.calendarSpecialistName = Utils.$('#calendarSpecialistName', modal);
         this.elements.timeSlotsContainer = Utils.$('#timeSlotsContainer', modal);
         this.elements.calendarConfirmBtn = Utils.$('#calendarConfirmBtn', modal);
+        this.elements.calendarLoadingOverlay = Utils.$('#calendarLoadingOverlay', modal);
 
+        this.ensureCalendarLoaderStyles();
         this.bindCalendarEvents();
         this.initCalendar();
+    }
+
+    ensureCalendarLoaderStyles() {
+        if (document.getElementById('onlineFormCalendarLoaderStyles')) return;
+
+        const style = document.createElement('style');
+        style.id = 'onlineFormCalendarLoaderStyles';
+        style.textContent = `
+            .calendar-modal-content { position: relative; }
+            .calendar-loading-overlay {
+                position: absolute;
+                inset: 0;
+                display: none;
+                align-items: center;
+                justify-content: center;
+                background: rgba(255, 255, 255, 0.72);
+                backdrop-filter: blur(1px);
+                z-index: 20;
+            }
+            .calendar-loading-overlay.active { display: flex; }
+            .calendar-loading-spinner {
+                width: 40px;
+                height: 40px;
+                border: 3px solid #e2e8f0;
+                border-top-color: #f6007f;
+                border-radius: 50%;
+                animation: online-form-calendar-spin 0.9s linear infinite;
+            }
+            @keyframes online-form-calendar-spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    showCalendarLoading() {
+        this.calendarLoadingRequests += 1;
+        if (this.elements.calendarLoadingOverlay) {
+            Utils.addClass(this.elements.calendarLoadingOverlay, CSS_CLASSES.ACTIVE);
+        }
+    }
+
+    hideCalendarLoading() {
+        this.calendarLoadingRequests = Math.max(0, this.calendarLoadingRequests - 1);
+        if (this.calendarLoadingRequests > 0) return;
+        if (this.elements.calendarLoadingOverlay) {
+            Utils.removeClass(this.elements.calendarLoadingOverlay, CSS_CLASSES.ACTIVE);
+        }
     }
 
     bindCalendarEvents() {
@@ -2122,8 +2253,6 @@ class BookingSystem {
         const minDate = new Date();
         minDate.setHours(0, 0, 0, 0);
 
-        const disabledDates = this.generateRandomDisabledDates();
-
         this.calendarInstance = flatpickr(this.elements.calendarContainer, {
             inline: true,
             locale: "ru",
@@ -2132,17 +2261,47 @@ class BookingSystem {
             monthSelectorType: 'static',
             nextArrow: '<svg width="11" height="10" viewBox="0 0 11 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.59402 9.2777L4.69913 8.39276L7.80637 5.28551H0.000976562V3.9929H7.80637L4.69913 0.890625L5.59402 0.000709772L10.2325 4.6392L5.59402 9.2777Z"/></svg>',
             prevArrow: '<svg width="11" height="10" viewBox="0 0 11 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.63876 9.2777L0.000266373 4.6392L4.63876 0.000709772L5.53365 0.885653L2.4264 3.9929H10.2318V5.28551H2.4264L5.53365 8.38778L4.63876 9.2777Z"/></svg>',
-            disable: disabledDates,
+            disable: [
+                (date) => !this.isCalendarDateAvailable(date)
+            ],
 
             onReady: (selectedDates, dateStr, instance) => {
                 this.makeMonthYearReadOnly(instance);
                 this.addDisabledDateTitles(instance);
+                this.prefetchCalendarAvailabilityForMonth(instance.currentYear, instance.currentMonth);
             },
 
             onChange: (selectedDates) => {
                 this.onDateSelected(selectedDates[0]);
+            },
+
+            onMonthChange: (selectedDates, dateStr, instance) => {
+                this.prefetchCalendarAvailabilityForMonth(instance.currentYear, instance.currentMonth);
             }
         });
+    }
+
+    isCalendarDateAvailable(date) {
+        if (!(date instanceof Date)) return false;
+
+        const normalizedDate = new Date(date);
+        normalizedDate.setHours(0, 0, 0, 0);
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (normalizedDate < today) {
+            return false;
+        }
+
+        const monthKey = this.getMonthKey(normalizedDate.getFullYear(), normalizedDate.getMonth());
+        const availableDays = this.state.shared.availableDaysByMonth?.[monthKey];
+        if (!Array.isArray(availableDays)) {
+            return false;
+        }
+
+        const dateKey = this.formatDateForFlatpickr(normalizedDate);
+        return availableDays.includes(dateKey);
     }
 
     generateRandomDisabledDates() {
@@ -2169,6 +2328,122 @@ class BookingSystem {
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
+    }
+
+    getMonthKey(year, monthIndex) {
+        return `${year}-${String(monthIndex + 1).padStart(2, '0')}`;
+    }
+
+    async prefetchCalendarAvailabilityForMonth(year, monthIndex) {
+        const specialistId = Number(this.state.shared.selectedSpecialist?.id || 0);
+        if (!specialistId) return [];
+
+        try {
+            const availabilityData = await this.fetchCalendarAvailableDays(specialistId, year, monthIndex);
+            const availableDays = Array.isArray(availabilityData?.availableDays) ? availabilityData.availableDays : [];
+            const slotsByDate = availabilityData?.slotsByDate && typeof availabilityData.slotsByDate === 'object'
+                ? availabilityData.slotsByDate
+                : {};
+            const monthKey = this.getMonthKey(year, monthIndex);
+            this.state.shared.availableDaysByMonth[monthKey] = availableDays;
+            Object.keys(slotsByDate).forEach((dateKey) => {
+                this.state.shared.availableTimeSlotsByDate[dateKey] = slotsByDate[dateKey];
+            });
+            console.info('[online-form] Доступные дни получены:', { specialistId, monthKey, availableDays });
+
+            if (this.calendarInstance) {
+                this.calendarInstance.redraw();
+                this.addDisabledDateTitles(this.calendarInstance);
+            }
+
+            if (this.state.shared.calendar.selectedDate instanceof Date) {
+                this.renderTimeSlots(this.state.shared.calendar.selectedDate);
+            }
+            return availableDays;
+        } catch (error) {
+            console.error('[online-form] Ошибка загрузки доступных дней:', error);
+            return [];
+        }
+    }
+
+    async fetchCalendarAvailableDays(doctorId, year, monthIndex) {
+        const monthStart = new Date(year, monthIndex, 1);
+        monthStart.setHours(0, 0, 0, 0);
+
+        const currentMonthStart = new Date();
+        currentMonthStart.setDate(1);
+        currentMonthStart.setHours(0, 0, 0, 0);
+
+        if (monthStart < currentMonthStart) {
+            return { availableDays: [], slotsByDate: {} };
+        }
+
+        const monthKey = this.getMonthKey(year, monthIndex);
+        const formType = this.state.shared.currentFormType || 'self';
+        const cacheKey = `${doctorId}:${formType}:${monthKey}`;
+        if (this.calendarAvailabilityCache.has(cacheKey)) {
+            return this.calendarAvailabilityCache.get(cacheKey);
+        }
+
+        const ajaxUrl = window.clinic_ajax?.ajax_url;
+        const nonce = window.clinic_ajax?.nonce;
+        if (!ajaxUrl || !nonce) {
+            throw new Error('Не настроен clinic_ajax для загрузки доступных дней календаря');
+        }
+
+        const body = new URLSearchParams();
+        body.append('action', 'center_med_renovatio_get_online_doctor_available_days');
+        body.append('nonce', nonce);
+        body.append('doctor_id', String(doctorId));
+        body.append('month', monthKey);
+        body.append('form_type', formType);
+
+        this.showCalendarLoading();
+        try {
+            const response = await fetch(ajaxUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+                },
+                body: body.toString()
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+            if (!result?.success || !result?.data) {
+                throw new Error(result?.data?.message || 'Сервер вернул некорректный ответ по доступным дням');
+            }
+
+            const availableDays = Array.isArray(result.data.availableDays)
+                ? result.data.availableDays.map((day) => String(day))
+                : [];
+            const slotsByDateRaw = result.data.slotsByDate && typeof result.data.slotsByDate === 'object'
+                ? result.data.slotsByDate
+                : {};
+            const slotsByDate = {};
+
+            Object.keys(slotsByDateRaw).forEach((dateKey) => {
+                if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateKey))) return;
+
+                const daySlotsRaw = Array.isArray(slotsByDateRaw[dateKey]) ? slotsByDateRaw[dateKey] : [];
+                const uniqueSlots = [...new Set(daySlotsRaw.map((slot) => String(slot).trim()))]
+                    .filter((slot) => /^\d{2}:\d{2}$/.test(slot))
+                    .sort();
+
+                slotsByDate[dateKey] = uniqueSlots;
+            });
+
+            const payload = { availableDays, slotsByDate };
+
+            this.calendarAvailabilityCache.set(cacheKey, payload);
+            return payload;
+        } finally {
+            this.hideCalendarLoading();
+        }
     }
 
     addDisabledDateTitles(calendarInstance) {
@@ -2282,24 +2557,14 @@ class BookingSystem {
     }
 
     getAvailableTimeSlots(date) {
-        const slots = [
-            { time: '09:00', available: true },
-            { time: '10:00', available: true },
-            { time: '11:00', available: false },
-            { time: '12:00', available: true },
-            { time: '13:00', available: true },
-            { time: '14:00', available: true },
-            { time: '15:00', available: false },
-            { time: '16:00', available: true },
-            { time: '17:00', available: true }
-        ];
+        const dateKey = this.formatDateForFlatpickr(date);
+        const slots = this.state.shared.availableTimeSlotsByDate?.[dateKey];
 
-        const day = date.getDate();
-        if (day % 3 === 0) {
-            return slots.slice(0, 5);
+        if (!Array.isArray(slots) || slots.length === 0) {
+            return [];
         }
 
-        return slots;
+        return slots.map((time) => ({ time, available: true }));
     }
 
     onTimeSlotSelect(time) {
@@ -2357,6 +2622,72 @@ class BookingSystem {
     }
 
     // ==================== ОТПРАВКА ФОРМ ====================
+    buildSelfAjaxPayload() {
+        const step1 = this.state.selfForm?.data || {};
+        const appointment = this.state.selfForm?.appointment || {};
+        const specialist = this.getSelectedSelfSpecialist();
+
+        return {
+            name: String(step1.clientName || '').trim(),
+            phone: String(step1.clientPhone || '').trim(),
+            email: String(step1.clientEmail || '').trim(),
+            service: specialist?.name ? `Онлайн-консультация: ${specialist.name}` : 'Онлайн-консультация',
+            date: appointment?.formattedDate && appointment?.time
+                ? `${appointment.formattedDate}, ${appointment.time}`
+                : '',
+            message: JSON.stringify({
+                formType: 'self',
+                isWaitingList: !!step1.selectedSpecialistIsWaitingList,
+                specialistId: step1.selectedSpecialistId || null,
+                specialistName: step1.selectedSpecialistName || '',
+                specialistPrice: step1.selectedSpecialistPrice || null,
+                concerns: this.getSelfSelectedConcernIds(),
+                appointmentDate: appointment?.date ? this.formatDateForFlatpickr(new Date(appointment.date)) : '',
+                appointmentTime: appointment?.time || '',
+                telegram: step1.clientTelegram || ''
+            })
+        };
+    }
+
+    async sendSelfFormAjax() {
+        const ajaxUrl = window.clinic_ajax?.ajax_url;
+        const nonce = window.clinic_ajax?.nonce;
+        if (!ajaxUrl || !nonce) {
+            throw new Error('Не настроен clinic_ajax для отправки формы');
+        }
+
+        const payload = this.buildSelfAjaxPayload();
+        const body = new URLSearchParams();
+        body.append('action', 'clinic_create_appointment_request');
+        body.append('nonce', nonce);
+        body.append('name', payload.name);
+        body.append('phone', payload.phone);
+        body.append('email', payload.email);
+        body.append('service', payload.service);
+        body.append('date', payload.date);
+        body.append('message', payload.message);
+
+        const response = await fetch(ajaxUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+            },
+            body: body.toString()
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (!result?.success) {
+            throw new Error(result?.data?.message || 'Сервер вернул ошибку при отправке формы');
+        }
+
+        return result;
+    }
+
     async submitSelfForm() {
         const originalText = this.elements.nextBtn.textContent;
         this.elements.nextBtn.disabled = true;
@@ -2364,27 +2695,24 @@ class BookingSystem {
 
         try {
             const isWaitingList = this.state.selfForm.data.selectedSpecialistIsWaitingList;
+            await this.sendSelfFormAjax();
 
-            // ДЕМО-РЕЖИМ
-            setTimeout(() => {
-                if (isWaitingList) {
-                    this.showWaitingListSuccessModal('self');
-                } else {
-                    this.showBookingSuccessModal('self');
-                }
-                // ИСПРАВЛЕНО: сбрасываем только форму, но не показываем главный экран
-                setTimeout(() => {
-                    this.reset(); // сбрасываем состояние
-                    this.showMain(); // показываем главный экран
-                }, CONFIG.TIMEOUTS.RESET);
-            }, CONFIG.TIMEOUTS.SUBMIT);
-
+            if (isWaitingList) {
+                this.showWaitingListSuccessModal('self');
+            }
+            else {
+                this.showBookingSuccessModal('self');
+            }
         } catch (error) {
             console.error('Ошибка отправки:', error);
             alert('Произошла ошибка при отправке. Пожалуйста, попробуйте ещё раз.');
             this.elements.nextBtn.disabled = false;
             this.elements.nextBtn.textContent = originalText;
+            return;
         }
+
+        //this.reset(); // сбрасываем состояние
+        //this.showMain(); // показываем главный экран
     }
 
     async submitManyForm() {

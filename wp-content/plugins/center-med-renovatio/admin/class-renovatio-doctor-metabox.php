@@ -23,6 +23,12 @@ class Renovatio_Doctor_Metabox {
 	const META_KEY_DOCTOR_ID = '_cmr_renovatio_doctor_id';
 
 	/**
+	 * Meta key для step врача в МИС.
+	 */
+	const META_KEY_STEP_PERSONAL = '_cmr_doctor_step_personal';
+	const META_KEY_STEP_PAIR = '_cmr_doctor_step_pair';
+
+	/**
 	 * Nonce action.
 	 */
 	const NONCE_ACTION = 'cmr_renovatio_doctor_metabox_save';
@@ -69,18 +75,26 @@ class Renovatio_Doctor_Metabox {
 		wp_nonce_field( self::NONCE_ACTION, self::NONCE_NAME );
 
 		$saved_doctor_id = (int) get_post_meta( $post->ID, self::META_KEY_DOCTOR_ID, true );
+
+		$saved_step_personal = (int) get_post_meta( $post->ID, self::META_KEY_STEP_PERSONAL, true );
+		$saved_step_pair = (int) get_post_meta( $post->ID, self::META_KEY_STEP_PAIR, true );
+
 		$api_key         = (string) center_med_renovatio_get_setting( 'api_key', '' );
 		$clinic_id       = (int) center_med_renovatio_get_setting( 'clinic_id', 0 );
 
 		if ( $api_key === '' ) {
 			echo '<p>' . esc_html__( 'Сначала укажите API ключ в настройках плагина Renovatio.', 'center-med-renovatio' ) . '</p>';
-			self::render_hidden_field( $saved_doctor_id );
+			self::render_hidden_field( $saved_doctor_id, 'cmr_renovatio_doctor_id' );
+			self::render_hidden_field( $saved_step_personal, 'cmr_doctor_step_personal' );
+			self::render_hidden_field( $saved_step_pair, 'cmr_doctor_step_pair' );
 			return;
 		}
 
 		if ( $clinic_id <= 0 ) {
 			echo '<p>' . esc_html__( 'Сначала выберите рабочую клинику в настройках плагина Renovatio.', 'center-med-renovatio' ) . '</p>';
-			self::render_hidden_field( $saved_doctor_id );
+			self::render_hidden_field( $saved_doctor_id, 'cmr_renovatio_doctor_id' );
+			self::render_hidden_field( $saved_step_personal, 'cmr_doctor_step_personal' );
+			self::render_hidden_field( $saved_step_pair, 'cmr_doctor_step_pair' );
 			return;
 		}
 
@@ -94,22 +108,26 @@ class Renovatio_Doctor_Metabox {
 
 		if ( is_wp_error( $users ) ) {
 			echo '<p style="color:#b32d2e;">' . esc_html__( 'Ошибка загрузки врачей из API:', 'center-med-renovatio' ) . ' ' . esc_html( $users->get_error_message() ) . '</p>';
-			self::render_hidden_field( $saved_doctor_id );
+			self::render_hidden_field( $saved_doctor_id, 'cmr_renovatio_doctor_id' );
+			self::render_hidden_field( $saved_step_personal, 'cmr_doctor_step_personal' );
+			self::render_hidden_field( $saved_step_pair, 'cmr_doctor_step_pair' );
 			return;
 		}
 
 		if ( ! is_array( $users ) || empty( $users ) ) {
 			echo '<p>' . esc_html__( 'В выбранной клинике не найдено врачей.', 'center-med-renovatio' ) . '</p>';
-			self::render_hidden_field( $saved_doctor_id );
+			self::render_hidden_field( $saved_doctor_id, 'cmr_renovatio_doctor_id' );
+			self::render_hidden_field( $saved_step_personal, 'cmr_doctor_step_personal' );
+			self::render_hidden_field( $saved_step_pair, 'cmr_doctor_step_pair' );
 			return;
 		}
 
+		//echo '<div style="display:flex;gap:10px;">';
 		echo '<label for="cmr-renovatio-doctor-id" style="display:block;margin-bottom:6px;">'
 			. esc_html__( 'Врач в МИС', 'center-med-renovatio' )
-			. '</label>';
+			. '</label><br>';
 		echo '<select id="cmr-renovatio-doctor-id" class="cmr-select2-doctor" name="cmr_renovatio_doctor_id" style="width:100%;">';
 		echo '<option value="0">' . esc_html__( '— Не выбрано —', 'center-med-renovatio' ) . '</option>';
-
 		foreach ( $users as $user ) {
 			if ( ! is_array( $user ) ) {
 				continue;
@@ -133,6 +151,21 @@ class Renovatio_Doctor_Metabox {
 		echo '<p style="margin-top:8px;color:#50575e;">'
 			. esc_html__( 'Сохраняется ID врача из МИС. Используется для записи и получения расписания.', 'center-med-renovatio' )
 			. '</p>';
+
+		echo '<br>';
+		//echo '<div style="display:flex;gap:10px;">';
+		echo '<label for="cmr-renovatio-doctor-step-personal" style="display:block;margin-bottom:6px;">'
+			. esc_html__( 'Шаг персонального приёма', 'center-med-renovatio' )
+			. '</label>';
+		echo '<input type="number" id="cmr-renovatio-doctor-step-personal" class="cmr-input-number" name="cmr_doctor_step_personal" value="' . esc_attr( $saved_step_personal ) . '" />';
+		echo '<br>';
+		echo '<br>';
+		//echo '<div style="display:flex;gap:10px;">';
+		echo '<label for="cmr-renovatio-doctor-step-pair" style="display:block;margin-bottom:6px;">'
+			. esc_html__( 'Шаг парного приёма', 'center-med-renovatio' )
+			. '</label>';
+		echo '<input type="number" id="cmr-renovatio-doctor-step-pair" class="cmr-input-number" name="cmr_doctor_step_pair" value="' . esc_attr( $saved_step_pair ) . '" />';
+		//echo '</div>';
 	}
 
 	/**
@@ -160,6 +193,20 @@ class Renovatio_Doctor_Metabox {
 		} else {
 			delete_post_meta( $post_id, self::META_KEY_DOCTOR_ID );
 		}
+
+		$step_personal = isset( $_POST['cmr_doctor_step_personal'] ) ? absint( wp_unslash( $_POST['cmr_doctor_step_personal'] ) ) : 0;
+		if ( $step_personal > 0 ) {
+			update_post_meta( $post_id, self::META_KEY_STEP_PERSONAL, $step_personal );
+		} else {
+			delete_post_meta( $post_id, self::META_KEY_STEP_PERSONAL );
+		}
+
+		$step_pair = isset( $_POST['cmr_doctor_step_pair'] ) ? absint( wp_unslash( $_POST['cmr_doctor_step_pair'] ) ) : 0;
+		if ( $step_pair > 0 ) {
+			update_post_meta( $post_id, self::META_KEY_STEP_PAIR, $step_pair );
+		} else {
+			delete_post_meta( $post_id, self::META_KEY_STEP_PAIR );
+		}
 	}
 
 	/**
@@ -168,8 +215,8 @@ class Renovatio_Doctor_Metabox {
 	 * @param int $value Значение ID врача.
 	 * @return void
 	 */
-	private static function render_hidden_field( $value ) {
-		echo '<input type="hidden" name="cmr_renovatio_doctor_id" value="' . esc_attr( (string) (int) $value ) . '" />';
+	private static function render_hidden_field( $value, $name ) {
+		echo '<input type="hidden" name="' . esc_attr( $name ) . '" value="' . esc_attr( (string) (int) $value ) . '" />';
 	}
 
 	/**

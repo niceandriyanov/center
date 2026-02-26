@@ -1,0 +1,24 @@
+{
+    "name": "conf-ru/tochka-bank-payment",
+    "description": "Плагин для приема платежей через API Точка Банка",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "authors": [
+        {
+            "name": "Conf.ru",
+            "email": "admin@conf.ru"
+        }
+    ],
+    "require": {
+        "php": ">=7.4",
+        "stdex/php-tochka-api-v2-sdk": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "TochkaBank\\": "includes/"
+        }
+    },
+    "config": {
+        "optimize-autoloader": true
+    }
+}

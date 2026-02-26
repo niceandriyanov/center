@@ -15,6 +15,57 @@ add_action( 'acf/include_fields', function() {
 	}
 
 	acf_add_local_field_group( array(
+		'key' => 'group_699a871662381',
+		'title' => 'Болезни',
+		'fields' => array(
+			array(
+				'key' => 'field_699a87160431c',
+				'label' => 'Для кого?',
+				'name' => 'form_to',
+				'aria-label' => '',
+				'type' => 'select',
+				'instructions' => '',
+				'required' => 0,
+				'conditional_logic' => 0,
+				'wrapper' => array(
+					'width' => '',
+					'class' => '',
+					'id' => '',
+				),
+				'choices' => array(
+					0 => 'Индивидуальная консультация',
+					1 => 'Парная консультация',
+				),
+				'default_value' => false,
+				'return_format' => 'value',
+				'multiple' => 0,
+				'allow_null' => 0,
+				'ui' => 0,
+				'ajax' => 0,
+				'placeholder' => '',
+			),
+		),
+		'location' => array(
+			array(
+				array(
+					'param' => 'taxonomy',
+					'operator' => '==',
+					'value' => 'doctor_diseases',
+				),
+			),
+		),
+		'menu_order' => 0,
+		'position' => 'normal',
+		'style' => 'default',
+		'label_placement' => 'top',
+		'instruction_placement' => 'label',
+		'hide_on_screen' => '',
+		'active' => true,
+		'description' => '',
+		'show_in_rest' => 0,
+	) );
+
+	acf_add_local_field_group( array(
 	'key' => 'group_68b983a4a892c',
 	'title' => 'FAQ',
 	'fields' => array(

@@ -15,6 +15,7 @@ if (!defined('ABSPATH')) {
  */
 function clinic_enqueue_styles() {    
     // Подключение основных стилей приложения
+    wp_enqueue_style('clinic-flatpickr', 'https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css', array(), null);
     wp_enqueue_style('clinic-app', THEME_URI . '/assets/css/app.css', array(), THEME_VERSION);
 
     if(is_page_template('template-parts/online-form.php')) {

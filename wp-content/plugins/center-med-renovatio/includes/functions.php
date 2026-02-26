@@ -206,6 +206,144 @@ function center_med_renovatio_handle_payment_paid_action( $booking_public_id, $p
 add_action( 'center_med_renovatio_payment_paid', 'center_med_renovatio_handle_payment_paid_action', 10, 5 );
 
 /**
+ * Получить бронь по ID (int) или public_id (UUID).
+ *
+ * @param string $identifier Идентификатор брони.
+ * @return array|null
+ */
+function center_med_renovatio_get_booking_for_tochka( $identifier ) {
+	global $wpdb;
+
+	$identifier = sanitize_text_field( (string) $identifier );
+	if ( $identifier === '' ) {
+		return null;
+	}
+
+	$tables = Renovatio_Db_Schema::get_table_names();
+	$table  = $tables['bookings'];
+
+	if ( ctype_digit( $identifier ) ) {
+		return $wpdb->get_row(
+			$wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d LIMIT 1", (int) $identifier ),
+			ARRAY_A
+		);
+	}
+
+	return $wpdb->get_row(
+		$wpdb->prepare( "SELECT * FROM {$table} WHERE public_id = %s LIMIT 1", $identifier ),
+		ARRAY_A
+	);
+}
+
+/**
+ * Извлечь сумму из payload_json брони.
+ *
+ * @param array $booking Бронь.
+ * @return float
+ */
+function center_med_renovatio_extract_booking_amount( array $booking ) {
+	$payload = [];
+	if ( ! empty( $booking['payload_json'] ) ) {
+		$decoded = json_decode( (string) $booking['payload_json'], true );
+		if ( is_array( $decoded ) ) {
+			$payload = $decoded;
+		}
+	}
+
+	$candidates = [ 'amount', 'price', 'sum', 'total' ];
+	foreach ( $candidates as $key ) {
+		if ( isset( $payload[ $key ] ) && is_numeric( $payload[ $key ] ) ) {
+			return (float) $payload[ $key ];
+		}
+	}
+
+	return 0.0;
+}
+
+/**
+ * Резолвинг entity-контекста для плагина Tochka.
+ *
+ * @param array  $context Текущий контекст.
+ * @param string $order_id Идентификатор сущности.
+ * @param array  $response Ответ API.
+ * @return array
+ */
+function center_med_renovatio_tochka_resolve_entity_context( $context, $order_id, $response ) {
+	$booking = center_med_renovatio_get_booking_for_tochka( $order_id );
+	if ( ! is_array( $booking ) || empty( $booking['public_id'] ) ) {
+		return $context;
+	}
+
+	$context['entity_type']      = 'booking';
+	$context['entity_id']        = (string) (int) $booking['id'];
+	$context['entity_public_id'] = sanitize_text_field( (string) $booking['public_id'] );
+
+	return $context;
+}
+add_filter( 'tochka_payment_resolve_entity_context', 'center_med_renovatio_tochka_resolve_entity_context', 10, 3 );
+
+/**
+ * Передать сущность брони в gateway Tochka.
+ *
+ * @param array|null $entity Сущность.
+ * @param string     $order_id Идентификатор сущности.
+ * @return array|null
+ */
+function center_med_renovatio_tochka_gateway_get_entity( $entity, $order_id ) {
+	$booking = center_med_renovatio_get_booking_for_tochka( $order_id );
+	if ( ! is_array( $booking ) ) {
+		return $entity;
+	}
+
+	$status_map = [
+		'paid'      => 'paid',
+		'canceled'  => 'cancelled',
+		'cancelled' => 'cancelled',
+		'failed'    => 'failed',
+	];
+
+	$booking_status = sanitize_text_field( (string) ( $booking['status'] ?? 'pending' ) );
+	$status         = $status_map[ $booking_status ] ?? 'pending';
+	$amount         = center_med_renovatio_extract_booking_amount( $booking );
+	$options        = [];
+	if ( $amount > 0 ) {
+		$options[] = [
+			'price'    => $amount,
+			'quantity' => 1,
+		];
+	}
+
+	return [
+		'status'  => $status,
+		'payment' => sanitize_text_field( (string) ( $booking['payment_provider'] ?? '' ) ),
+		'pay_at'  => sanitize_text_field( (string) ( $booking['paid_at'] ?? '' ) ),
+		'options' => wp_json_encode( $options ),
+		'_amount' => $amount,
+	];
+}
+add_filter( 'tochka_payment_gateway_get_entity', 'center_med_renovatio_tochka_gateway_get_entity', 10, 2 );
+
+/**
+ * Переопределить расчет суммы для gateway Tochka.
+ *
+ * @param float|null $amount Сумма.
+ * @param array      $entity Сущность.
+ * @return float|null
+ */
+function center_med_renovatio_tochka_gateway_calculate_amount( $amount, $entity ) {
+	if ( is_numeric( $amount ) ) {
+		return (float) $amount;
+	}
+
+	if ( isset( $entity['_amount'] ) && is_numeric( $entity['_amount'] ) ) {
+		return (float) $entity['_amount'];
+	}
+
+	return $amount;
+}
+add_filter( 'tochka_payment_gateway_calculate_amount', 'center_med_renovatio_tochka_gateway_calculate_amount', 10, 2 );
+
+/**
  * Склонение слова "год" для вывода стажа.
  *
  * @param int $years Количество лет.
@@ -237,6 +375,12 @@ function center_med_renovatio_years_label( $years ) {
 function center_med_renovatio_ajax_filter_online_doctors() {
 	check_ajax_referer( 'clinic_nonce', 'nonce' );
 
+	$types = [
+		Renovatio_Doctor_Metabox::META_KEY_STEP_PERSONAL, 
+		Renovatio_Doctor_Metabox::META_KEY_STEP_PAIR
+	];
+	$current_type = $types[0];
+
 	$concerns = isset( $_POST['concerns'] ) ? (array) wp_unslash( $_POST['concerns'] ) : [];
 	$concerns = array_values(
 		array_filter(
@@ -263,21 +407,72 @@ function center_med_renovatio_ajax_filter_online_doctors() {
 				'taxonomy' => 'doctor_diseases',
 				'field'    => 'term_id',
 				'terms'    => $concerns,
+				'operator' => 'AND',
 			],
 		];
+		if( !empty ( $concerns ) ) {
+			$concern = $concerns[0];
+			$type = get_field( 'form_to', 'doctor_diseases_' . $concern );
+			$current_type = $types[$type];
+		}
 	}
+	else {
+		wp_send_json_success(
+			[
+				'available'   => [],
+				'waitingList' => [],
+			]
+		);
+	}
+	
+	$query     	= new WP_Query( $args );
 
-	$query     = new WP_Query( $args );
-	$available = [];
-
+	$available 	= [];
+	$waiting	= [];
 	if ( $query->have_posts() ) {
+		$api_doctors = new Renovatio_Doctor_Service( center_med_renovatio_api_client() );
 		foreach ( $query->posts as $doctor_post ) {
 			$doctor_id = (int) $doctor_post->ID;
-			if ( $doctor_id <= 0 ) {
-				continue;
+			$doctor_api_id = (int) get_post_meta( $doctor_id, Renovatio_Doctor_Metabox::META_KEY_DOCTOR_ID, true );
+			$doctor_step = (int) get_post_meta( $doctor_id, $current_type, true );
+			$shedule = [];
+			$nearestSlot = '';
+			if( !empty( $doctor_api_id ) ) {
+				$shedule = $api_doctors->get_schedule( [ 
+					'user_ids' 	=> [$doctor_api_id], 
+					'time_end' 	=> date( 'd.m.Y H:i', strtotime( '+30 day' ) ), 
+					'step' 		=> $doctor_step,
+					'show_all' 	=> 1 
+				] );
+				if( !is_wp_error( $shedule ) && !empty( $shedule[$doctor_api_id] ) ) {
+					foreach( $shedule[$doctor_api_id] as $slot ) {
+						if( empty( $slot['is_busy'] ) && !empty( $slot['category_id'] ) && $slot['category_id'] == 2910 ) {
+							$slot_timestamp = strtotime( (string) $slot['time_start'] );
+							if ( $slot_timestamp ) {
+								$months = [
+									1  => 'янв',
+									2  => 'фев',
+									3  => 'мар',
+									4  => 'апр',
+									5  => 'мая',
+									6  => 'июн',
+									7  => 'июл',
+									8  => 'авг',
+									9  => 'сен',
+									10 => 'окт',
+									11 => 'ноя',
+									12 => 'дек',
+								];
+								$month_num = (int) wp_date( 'n', $slot_timestamp );
+								$month     = isset( $months[ $month_num ] ) ? $months[ $month_num ] : '';
+								$nearestSlot = sprintf( '%s %s, %s', wp_date( 'j', $slot_timestamp ), $month, wp_date( 'H:i', $slot_timestamp ) );
+							}
+							break;
+						}
+					}
+				}
 			}
 
-			$specialties = get_the_terms( $doctor_id, 'doctor_specialty' );
 			$position = get_field( 'specialist_type', $doctor_id );
 			$position_titles = [
 				'psychologist' => 'Психолог',
@@ -286,7 +481,8 @@ function center_med_renovatio_ajax_filter_online_doctors() {
 
 			$position_title = !empty($position_titles[$position]) ? $position_titles[$position] : '';
 
-			$price_raw = get_post_meta( $doctor_id, 'cost_1', true );
+			$price_raw = get_field( 'cost_1', $doctor_id );
+			$price_raw = str_replace(' ', '', $price_raw);
 			$price = is_numeric( $price_raw ) ? (int) $price_raw : 0;
 
 			$age_work = (int) get_post_meta( $doctor_id, 'age_work', true );
@@ -301,27 +497,460 @@ function center_med_renovatio_ajax_filter_online_doctors() {
 
 			$avatar = get_field	( 'img', $doctor_id );
 			$avatar = !empty($avatar) ? $avatar['url'] : '';
-
-			$available[] = [
-				'id'           => $doctor_id,
-				'name'         => get_the_title( $doctor_id ),
-				'position'     => $position,
-				'positionTitle'=> $position_title,
-				'experience'   => $experience,
-				'avatar'       => $avatar,
-				'price'        => $price,
-				'nearestSlot'  => '',
-				'description'  => wp_strip_all_tags( get_the_excerpt( $doctor_id ) ),
-			];
+			if( empty( $doctor_api_id ) || empty( $shedule[$doctor_api_id] ) || empty( $nearestSlot ) ) {
+				$waiting[] = [
+					'id'           => $doctor_id,
+					'name'         => get_the_title( $doctor_id ),
+					'position'     => $position,
+					'positionTitle'=> $position_title,
+					'experience'   => $experience,
+					'avatar'       => $avatar,
+					'price'        => $price,
+					'nearestSlot'  => '',
+					'description'  => wp_strip_all_tags( get_field( 'specialist_description', $doctor_id ) ),
+				];
+			}
+			else {
+				$available[] = [
+					'id'           => $doctor_id,
+					'name'         => get_the_title( $doctor_id ),
+					'position'     => $position,
+					'positionTitle'=> $position_title,
+					'experience'   => $experience,
+					'avatar'       => $avatar,
+					'price'        => $price,
+					'nearestSlot'  => $nearestSlot,
+					'description'  => wp_strip_all_tags( get_field( 'specialist_description', $doctor_id ) ),
+				];
+			}
+			
 		}
 	}
 
 	wp_send_json_success(
 		[
 			'available'   => $available,
-			'waitingList' => [],
+			'waitingList' => $waiting,
 		]
 	);
 }
 add_action( 'wp_ajax_center_med_renovatio_filter_online_doctors', 'center_med_renovatio_ajax_filter_online_doctors' );
 add_action( 'wp_ajax_nopriv_center_med_renovatio_filter_online_doctors', 'center_med_renovatio_ajax_filter_online_doctors' );
+
+/**
+ * Ajax: доступные дни врача для календаря онлайн-формы по конкретному месяцу.
+ *
+ * @return void
+ */
+function center_med_renovatio_ajax_get_online_doctor_available_days() {
+	check_ajax_referer( 'clinic_nonce', 'nonce' );
+
+	$doctor_id = isset( $_POST['doctor_id'] ) ? absint( wp_unslash( $_POST['doctor_id'] ) ) : 0;
+	$month     = isset( $_POST['month'] ) ? sanitize_text_field( wp_unslash( $_POST['month'] ) ) : '';
+	$form_type = isset( $_POST['form_type'] ) ? sanitize_text_field( wp_unslash( $_POST['form_type'] ) ) : 'self';
+
+	if ( $doctor_id <= 0 || empty( $month ) ) {
+		wp_send_json_error(
+			[
+				'message' => 'Не переданы обязательные параметры doctor_id/month.',
+			],
+			400
+		);
+	}
+
+	if ( ! preg_match( '/^\d{4}\-\d{2}$/', $month ) ) {
+		wp_send_json_error(
+			[
+				'message' => 'Некорректный формат month. Ожидается YYYY-MM.',
+			],
+			400
+		);
+	}
+
+	if ( 'doctors' !== get_post_type( $doctor_id ) ) {
+		wp_send_json_error(
+			[
+				'message' => 'Специалист не найден.',
+			],
+			404
+		);
+	}
+
+	$timezone            = wp_timezone();
+	$requested_month     = date_create_immutable_from_format( 'Y-m-d H:i:s', $month . '-01 00:00:00', $timezone );
+	$current_month_start = new DateTimeImmutable( 'first day of this month 00:00:00', $timezone );
+	$today_start         = new DateTimeImmutable( 'today 00:00:00', $timezone );
+
+	if ( false === $requested_month ) {
+		wp_send_json_error(
+			[
+				'message' => 'Не удалось распарсить month.',
+			],
+			400
+		);
+	}
+
+	if ( $requested_month < $current_month_start ) {
+		wp_send_json_success(
+			[
+				'doctorId'      => $doctor_id,
+				'month'         => $month,
+				'availableDays' => [],
+				'slotsByDate'   => [],
+			]
+		);
+	}
+
+	$is_current_month = ( $requested_month->format( 'Y-m' ) === $today_start->format( 'Y-m' ) );
+	$range_start      = $is_current_month ? $today_start : $requested_month;
+	$range_end        = $requested_month->modify( 'last day of this month 23:59:59' );
+
+	$doctor_api_id = (int) get_post_meta( $doctor_id, Renovatio_Doctor_Metabox::META_KEY_DOCTOR_ID, true );
+	if ( $doctor_api_id <= 0 ) {
+		wp_send_json_success(
+			[
+				'doctorId'      => $doctor_id,
+				'month'         => $month,
+				'availableDays' => [],
+				'slotsByDate'   => [],
+			]
+		);
+	}
+
+	$step_meta_key = ( 'many' === $form_type )
+		? Renovatio_Doctor_Metabox::META_KEY_STEP_PAIR
+		: Renovatio_Doctor_Metabox::META_KEY_STEP_PERSONAL;
+	$doctor_step = (int) get_post_meta( $doctor_id, $step_meta_key, true );
+
+	$params = [
+		'user_ids' 		=> [ $doctor_api_id ],
+		'time_start' 	=> $range_start->format( 'd.m.Y H:i' ),
+		'time_end' 		=> $range_end->format( 'd.m.Y H:i' ),
+		'clinic_id' 	=> center_med_renovatio_get_setting( 'clinic_id', 0 ),
+		'show_all' 		=> 1,
+	];
+	if ( $doctor_step > 0 ) {
+		$params['step'] = $doctor_step;
+	}
+	else {
+		$params['step'] = 60;
+	}
+
+	$api_doctors = new Renovatio_Doctor_Service( center_med_renovatio_api_client() );
+	$schedule    = $api_doctors->get_schedule( $params );
+
+	if ( is_wp_error( $schedule ) ) {
+		wp_send_json_error(
+			[
+				'message' => $schedule->get_error_message(),
+			],
+			500
+		);
+	}
+
+	$slots           = ! empty( $schedule[ $doctor_api_id ] ) ? $schedule[ $doctor_api_id ] : [];
+	$days_index      = [];
+	$slots_by_day    = [];
+	$range_start_day = $range_start->format( 'Y-m-d' );
+	$range_end_day   = $range_end->format( 'Y-m-d' );
+
+	foreach ( $slots as $slot ) {
+		if ( !empty( $slot['is_busy'] ) ) {
+			continue;
+		}
+		if ( empty( $slot['category_id'] ) || (int) $slot['category_id'] != 2910 ) {
+			continue;
+		}
+
+		$slot_time_raw = isset( $slot['time_start_short'] ) ? sanitize_text_field( (string) $slot['time_start_short'] ) : '';
+		if ( ! preg_match( '/^\d{2}:\d{2}$/', $slot_time_raw ) ) {
+			continue;
+		}
+
+		$slot_day = $slot['_date'];
+
+		if ( $slot_day < $range_start_day || $slot_day > $range_end_day ) {
+			continue;
+		}
+
+		$days_index[ $slot_day ] = true;
+		if ( empty( $slots_by_day[ $slot_day ] ) ) {
+			$slots_by_day[ $slot_day ] = [];
+		}
+
+		if ( ! in_array( $slot_time_raw, $slots_by_day[ $slot_day ], true ) ) {
+			$slots_by_day[ $slot_day ][] = $slot_time_raw;
+		}
+	}
+
+	$available_days = array_keys( $days_index );
+	sort( $available_days );
+	foreach ( $slots_by_day as $day => $day_slots ) {
+		sort( $day_slots );
+		$slots_by_day[ $day ] = array_values( $day_slots );
+	}
+
+	wp_send_json_success(
+		[
+			'doctorId'      => $doctor_id,
+			'month'         => $month,
+			'rangeStart'    => $range_start->format( 'Y-m-d' ),
+			'rangeEnd'      => $range_end->format( 'Y-m-d' ),
+			'availableDays' => $available_days,
+			'slotsByDate'   => $slots_by_day,
+		]
+	);
+}
+add_action( 'wp_ajax_center_med_renovatio_get_online_doctor_available_days', 'center_med_renovatio_ajax_get_online_doctor_available_days' );
+add_action( 'wp_ajax_nopriv_center_med_renovatio_get_online_doctor_available_days', 'center_med_renovatio_ajax_get_online_doctor_available_days' );
+
+/**
+ * Ajax: создать заявку на запись (и визит в Renovatio при наличии слота).
+ *
+ * @return void
+ */
+function center_med_renovatio_ajax_create_appointment_request() {
+	check_ajax_referer( 'clinic_nonce', 'nonce' );
+
+	$name        = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
+	$phone       = isset( $_POST['phone'] ) ? sanitize_text_field( wp_unslash( $_POST['phone'] ) ) : '';
+	$email       = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
+	$service     = isset( $_POST['service'] ) ? sanitize_text_field( wp_unslash( $_POST['service'] ) ) : '';
+	$date_string = isset( $_POST['date'] ) ? sanitize_text_field( wp_unslash( $_POST['date'] ) ) : '';
+	$message_raw = isset( $_POST['message'] ) ? trim( (string) wp_unslash( $_POST['message'] ) ) : '';
+	$message     = json_decode( $message_raw, true );
+
+	// Иногда message приходит с дополнительным экранированием.
+	if ( ! is_array( $message ) && '' !== $message_raw ) {
+		$message_unescaped = stripslashes( $message_raw );
+		$message           = json_decode( $message_unescaped, true );
+	}
+
+	if ( '' === $name || '' === $phone ) {
+		wp_send_json_error(
+			[
+				'message' => __( 'Не заполнены обязательные поля: имя и телефон.', 'center-med-renovatio' ),
+			],
+			400
+		);
+	}
+
+	if ( '' !== $email && ! is_email( $email ) ) {
+		wp_send_json_error(
+			[
+				'message' => __( 'Укажите корректный email.', 'center-med-renovatio' ),
+			],
+			400
+		);
+	}
+
+	if ( ! is_array( $message ) ) {
+		$message = [];
+	}
+
+	$form_type          = isset( $message['formType'] ) ? sanitize_text_field( (string) $message['formType'] ) : 'self';
+	$is_waiting_list    = ! empty( $message['isWaitingList'] );
+	$specialist_post_id = isset( $message['specialistId'] ) ? absint( $message['specialistId'] ) : 0;
+	$specialist_name    = isset( $message['specialistName'] ) ? sanitize_text_field( (string) $message['specialistName'] ) : '';
+	$appointment_date   = isset( $message['appointmentDate'] ) ? sanitize_text_field( (string) $message['appointmentDate'] ) : '';
+	$appointment_time   = isset( $message['appointmentTime'] ) ? sanitize_text_field( (string) $message['appointmentTime'] ) : '';
+	$telegram           = isset( $message['telegram'] ) ? sanitize_text_field( (string) $message['telegram'] ) : '';
+
+	$booking_public_id = wp_generate_uuid4();
+	$appointment_id    = 0;
+	$slot_start_mysql  = null;
+	$slot_end_mysql    = null;
+	$clinic_id         = absint( center_med_renovatio_get_setting( 'clinic_id', 0 ) );
+	$doctor_api_id     = 0;
+	$api_response      = null;
+	$last_name         = '';
+
+
+
+	if ( ! $is_waiting_list && $specialist_post_id > 0 && preg_match( '/^\d{4}-\d{2}-\d{2}$/', $appointment_date ) && preg_match( '/^\d{2}:\d{2}$/', $appointment_time ) ) {
+		if ( 'doctors' !== get_post_type( $specialist_post_id ) ) {
+			wp_send_json_error(
+				[
+					'message' => __( 'Выбранный специалист не найден.', 'center-med-renovatio' ),
+				],
+				404
+			);
+		}
+
+		if ( $clinic_id <= 0 ) {
+			wp_send_json_error(
+				[
+					'message' => __( 'Не настроен clinic_id в плагине Renovatio.', 'center-med-renovatio' ),
+				],
+				500
+			);
+		}
+
+		$doctor_api_id = (int) get_post_meta( $specialist_post_id, Renovatio_Doctor_Metabox::META_KEY_DOCTOR_ID, true );
+		if ( $doctor_api_id <= 0 ) {
+			wp_send_json_error(
+				[
+					'message' => __( 'У специалиста не заполнен ID врача в Renovatio.', 'center-med-renovatio' ),
+				],
+				500
+			);
+		}
+
+		$step_meta_key = ( 'many' === $form_type )
+			? Renovatio_Doctor_Metabox::META_KEY_STEP_PAIR
+			: Renovatio_Doctor_Metabox::META_KEY_STEP_PERSONAL;
+		$doctor_step   = (int) get_post_meta( $specialist_post_id, $step_meta_key, true );
+		if ( $doctor_step <= 0 ) {
+			$doctor_step = 60;
+		}
+
+		$timezone   = wp_timezone();
+		$start_date = date_create_immutable_from_format( 'Y-m-d H:i', $appointment_date . ' ' . $appointment_time, $timezone );
+		if ( false === $start_date ) {
+			wp_send_json_error(
+				[
+					'message' => __( 'Некорректная дата или время записи.', 'center-med-renovatio' ),
+				],
+				400
+			);
+		}
+		$end_date = $start_date->modify( '+' . $doctor_step . ' minutes' );
+
+		$slot_start_mysql = $start_date->format( 'Y-m-d H:i:s' );
+		$slot_end_mysql   = $end_date->format( 'Y-m-d H:i:s' );
+
+		$name_parts = preg_split( '/\s+/', $name );
+		$first_name = ! empty( $name_parts[0] ) ? sanitize_text_field( $name_parts[0] ) : '';
+		$last_name  = ! empty( $name_parts[1] ) ? sanitize_text_field( $name_parts[1] ) : '';
+
+		$request_params = [
+			'doctor_id'  			=> $doctor_api_id,
+			'time_start' 			=> $start_date->format( 'd.m.Y H:i' ),
+			'time_end'   			=> $end_date->format( 'd.m.Y H:i' ),
+			'clinic_id'  			=> $clinic_id,
+			'first_name' 			=> $first_name,
+			'last_name'  			=> $last_name,
+			'mobile'     			=> $phone,
+			'email'      			=> $email,
+			'source'     			=> 'website',
+			'comment'    			=> $service,
+			'check_intersection' 	=> 1,
+		];
+
+
+		$api_response = center_med_renovatio_api_client()->request( 'createAppointment', $request_params );
+		if ( is_wp_error( $api_response ) ) {
+			wp_send_json_error(
+				[
+					'message' => $api_response->get_error_message(),
+				],
+				500
+			);
+		}
+
+		if ( is_scalar( $api_response ) ) {
+			$appointment_id = absint( $api_response );
+		} elseif ( is_array( $api_response ) && isset( $api_response['appointment_id'] ) ) {
+			$appointment_id = absint( $api_response['appointment_id'] );
+		}
+	}
+
+	global $wpdb;
+	$tables = Renovatio_Db_Schema::get_table_names();
+
+	$stored_payload = [
+		'formType'        => $form_type,
+		'isWaitingList'   => $is_waiting_list ? 1 : 0,
+		'specialistPostId' => $specialist_post_id,
+		'specialistName'  => $specialist_name,
+		'appointmentDate' => $appointment_date,
+		'appointmentTime' => $appointment_time,
+		'telegram'        => $telegram,
+		'service'         => $service,
+		'dateString'      => $date_string,
+	];
+
+	$booking_status          = $appointment_id > 0 ? 'created' : 'request';
+	$created_at              = current_datetime()->format( 'Y-m-d H:i:s' );
+	$updated_at              = $created_at;
+	$reservation_expires_at  = '';
+	if ( 'created' === $booking_status ) {
+		$ttl_minutes = absint( center_med_renovatio_get_setting( 'reservation_ttl_minutes', 15 ) );
+		if ( $ttl_minutes <= 0 ) {
+			$ttl_minutes = 15;
+		}
+		$reservation_expires_at = current_datetime()->modify( '+' . $ttl_minutes . ' minutes' )->format( 'Y-m-d H:i:s' );
+	}
+
+	$insert_data = [
+		'public_id'             => $booking_public_id,
+		'status'                => $booking_status,
+		'clinic_id'             => $clinic_id,
+		'doctor_id'             => $doctor_api_id,
+		'slot_start'            => $slot_start_mysql,
+		'slot_end'              => $slot_end_mysql,
+		'first_name'            => $name,
+		'last_name'             => $last_name,
+		'phone'                 => $phone,
+		'email'                 => $email,
+		'telegram'              => $telegram,
+		'consent_personal_data' => 1,
+		'consent_offer'         => 0,
+		'consent_marketing'     => 0,
+		'consent_text_version'  => '',
+		'payload_json'          => wp_json_encode( $stored_payload ),
+		'created_at'            => $created_at,
+		'updated_at'            => $updated_at,
+	];
+
+	$insert_format = [
+		'%s', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%s',
+		'%s', '%s', '%d', '%d', '%d', '%s', '%s', '%s', '%s',
+	];
+
+	if ( $appointment_id > 0 ) {
+		$insert_data['appointment_id'] = $appointment_id;
+		$insert_format[]               = '%d';
+	}
+
+	if ( '' !== $reservation_expires_at ) {
+		$insert_data['reservation_expires_at'] = $reservation_expires_at;
+		$insert_format[]                       = '%s';
+	}
+
+	$inserted = $wpdb->insert( $tables['bookings'], $insert_data, $insert_format );
+	if ( false === $inserted ) {
+		wp_send_json_error(
+			[
+				'message' => __( 'Не удалось сохранить заявку в базе данных.', 'center-med-renovatio' ),
+			],
+			500
+		);
+	}
+
+	do_action(
+		'center_med_renovatio_appointment_request_created',
+		[
+			'booking_public_id' => $booking_public_id,
+			'appointment_id'    => $appointment_id,
+			'clinic_id'         => $clinic_id,
+			'doctor_id'         => $doctor_api_id,
+			'name'              => $name,
+			'phone'             => $phone,
+			'email'             => $email,
+			'service'           => $service,
+			'message'           => $stored_payload,
+			'api_response'      => $api_response,
+		]
+	);
+
+	wp_send_json_success(
+		[
+			'message'         => __( 'Заявка успешно отправлена.', 'center-med-renovatio' ),
+			'bookingPublicId' => $booking_public_id,
+			'appointmentId'   => $appointment_id,
+		]
+	);
+}
+add_action( 'wp_ajax_clinic_create_appointment_request', 'center_med_renovatio_ajax_create_appointment_request' );
+add_action( 'wp_ajax_nopriv_clinic_create_appointment_request', 'center_med_renovatio_ajax_create_appointment_request' );

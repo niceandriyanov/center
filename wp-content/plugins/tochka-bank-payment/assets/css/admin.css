@@ -1,0 +1,156 @@
+/* Стили для админ-панели Точка Банка */
+
+.tochka-admin-page {
+    max-width: 800px;
+}
+
+.tochka-admin-page .form-table th {
+    width: 200px;
+}
+
+.tochka-admin-page .form-table td {
+    padding: 15px 10px;
+}
+
+.tochka-admin-page .regular-text {
+    width: 100%;
+    max-width: 400px;
+}
+
+.tochka-admin-page .description {
+    font-style: italic;
+    color: #666;
+    margin-top: 5px;
+}
+
+.tochka-info-card {
+    background: #f9f9f9;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.tochka-info-card h2 {
+    margin-top: 0;
+    color: #333;
+}
+
+.tochka-info-card code {
+    background: #fff;
+    border: 1px solid #ddd;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: monospace;
+    word-break: break-all;
+}
+
+.tochka-info-card .copy-url {
+    background: #0073aa;
+    color: white;
+    padding: 5px 10px;
+    text-decoration: none;
+    border-radius: 3px;
+    font-size: 12px;
+    margin-left: 10px;
+}
+
+.tochka-info-card .copy-url:hover {
+    background: #005a87;
+    color: white;
+}
+
+.test-connection-btn {
+    background: #00a32a;
+    color: white;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.test-connection-btn:hover {
+    background: #008a20;
+}
+
+.test-connection-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.password-field {
+    position: relative;
+    display: inline-block;
+}
+
+.password-field input {
+    padding-right: 40px;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.status-indicator.success {
+    background: #00a32a;
+}
+
+.status-indicator.error {
+    background: #d63638;
+}
+
+.status-indicator.warning {
+    background: #dba617;
+}
+
+.tochka-logs {
+    background: #f1f1f1;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 20px 0;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.tochka-logs pre {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .tochka-admin-page .form-table th,
+    .tochka-admin-page .form-table td {
+        display: block;
+        width: 100%;
+        padding: 10px 0;
+    }
+    
+    .tochka-admin-page .regular-text {
+        max-width: 100%;
+    }
+    
+    .tochka-info-card .copy-url {
+        display: block;
+        margin: 10px 0 0 0;
+        text-align: center;
+    }
+}
