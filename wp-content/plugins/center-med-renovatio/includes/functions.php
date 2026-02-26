@@ -114,7 +114,13 @@ function center_med_renovatio_mark_booking_paid( $booking_public_id, $provider =
 		return new WP_Error( 'booking_not_found', __( 'Бронь не найдена.', 'center-med-renovatio' ) );
 	}
 
-	if ( $booking['status'] !== 'paid' ) {
+	$current_status = sanitize_text_field( (string) ( $booking['status'] ?? '' ) );
+	if ( in_array( $current_status, [ 'canceled', 'cancelled' ], true ) ) {
+		return new WP_Error( 'booking_canceled', __( 'Бронь уже отменена. Оплата недоступна.', 'center-med-renovatio' ) );
+	}
+
+	$status_changed = false;
+	if ( $current_status !== 'paid' ) {
 		$updated = $wpdb->update(
 			$tables['bookings'],
 			[
@@ -132,12 +138,13 @@ function center_med_renovatio_mark_booking_paid( $booking_public_id, $provider =
 		if ( $updated === false ) {
 			return new WP_Error( 'db_update_failed', __( 'Не удалось обновить статус брони.', 'center-med-renovatio' ) );
 		}
+		$status_changed = true;
 
 		$wpdb->insert(
 			$tables['status_log'],
 			[
 				'booking_id'    => (int) $booking['id'],
-				'from_status'   => $booking['status'],
+				'from_status'   => $current_status,
 				'to_status'     => 'paid',
 				'source'        => 'payment_hook',
 				'message'       => __( 'Получено подтверждение оплаты.', 'center-med-renovatio' ),
@@ -166,16 +173,246 @@ function center_med_renovatio_mark_booking_paid( $booking_public_id, $provider =
 		);
 	}
 
-	/**
-	 * Хук после успешной смены статуса на paid.
-	 *
-	 * @param array $booking Бронь из БД.
-	 * @param array $payload Данные платежа.
-	 */
-	do_action( 'center_med_renovatio_booking_paid', $booking, $payload );
+	if ( $status_changed ) {
+		/**
+		 * Хук после успешной смены статуса на paid.
+		 *
+		 * @param array $booking Бронь из БД.
+		 * @param array $payload Данные платежа.
+		 */
+		do_action( 'center_med_renovatio_booking_paid', $booking, $payload );
+	}
 
 	return true;
 }
+
+/**
+ * Подтвердить визит в МИС после успешной оплаты.
+ *
+ * @param string $booking_public_id UUID брони.
+ * @param array  $payload Данные события.
+ * @return bool|WP_Error
+ */
+function center_med_renovatio_confirm_booking_appointment( $booking_public_id, array $payload = [] ) {
+	global $wpdb;
+
+	$booking_public_id = sanitize_text_field( (string) $booking_public_id );
+	if ( '' === $booking_public_id ) {
+		return new WP_Error( 'empty_booking_id', __( 'Не указан booking_public_id.', 'center-med-renovatio' ) );
+	}
+
+	$booking = center_med_renovatio_get_booking_for_tochka( $booking_public_id );
+	if ( ! is_array( $booking ) ) {
+		return new WP_Error( 'booking_not_found', __( 'Бронь не найдена.', 'center-med-renovatio' ) );
+	}
+
+	$appointment_id = ! empty( $booking['appointment_id'] ) ? absint( $booking['appointment_id'] ) : 0;
+	if ( $appointment_id <= 0 ) {
+		return new WP_Error( 'missing_appointment_id', __( 'У брони отсутствует appointment_id.', 'center-med-renovatio' ) );
+	}
+
+	$tables = Renovatio_Db_Schema::get_table_names();
+	$exists = $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT id FROM {$tables['status_log']} WHERE booking_id = %d AND source = %s LIMIT 1",
+			(int) $booking['id'],
+			'appointment_confirm'
+		)
+	);
+	if ( $exists ) {
+		return true;
+	}
+
+	$confirm_result = center_med_renovatio_api_client()->request(
+		'confirmAppointment',
+		[
+			'appointment_id' => $appointment_id,
+			'source'         => 'website',
+		]
+	);
+	if ( is_wp_error( $confirm_result ) ) {
+		return $confirm_result;
+	}
+
+	$wpdb->insert(
+		$tables['status_log'],
+		[
+			'booking_id'   => (int) $booking['id'],
+			'from_status'  => sanitize_text_field( (string) ( $booking['status'] ?? 'paid' ) ),
+			'to_status'    => sanitize_text_field( (string) ( $booking['status'] ?? 'paid' ) ),
+			'source'       => 'appointment_confirm',
+			'message'      => __( 'Визит подтвержден в МИС после оплаты.', 'center-med-renovatio' ),
+			'context_json' => wp_json_encode( $payload ),
+			'created_at'   => current_time( 'mysql' ),
+		],
+		[ '%d', '%s', '%s', '%s', '%s', '%s', '%s' ]
+	);
+
+	return true;
+}
+
+/**
+ * Отменить неоплаченный визит в МИС и локально.
+ *
+ * @param string $booking_public_id UUID брони.
+ * @param string $reason Причина отмены.
+ * @param string $source Источник отмены.
+ * @param array  $payload Контекст.
+ * @return bool|WP_Error
+ */
+function center_med_renovatio_cancel_booking_unpaid( $booking_public_id, $reason = '', $source = 'payment_failed_hook', array $payload = [] ) {
+	global $wpdb;
+
+	$booking_public_id = sanitize_text_field( (string) $booking_public_id );
+	$source            = sanitize_text_field( (string) $source );
+	$reason            = sanitize_text_field( (string) $reason );
+	if ( '' === $reason ) {
+		$reason = sanitize_text_field( (string) center_med_renovatio_get_setting( 'cancel_reason_unpaid', 'Оплата не прошла' ) );
+	}
+
+	if ( '' === $booking_public_id ) {
+		return new WP_Error( 'empty_booking_id', __( 'Не указан booking_public_id.', 'center-med-renovatio' ) );
+	}
+
+	$tables  = Renovatio_Db_Schema::get_table_names();
+	$booking = $wpdb->get_row(
+		$wpdb->prepare(
+			"SELECT * FROM {$tables['bookings']} WHERE public_id = %s LIMIT 1",
+			$booking_public_id
+		),
+		ARRAY_A
+	);
+	if ( ! $booking ) {
+		return new WP_Error( 'booking_not_found', __( 'Бронь не найдена.', 'center-med-renovatio' ) );
+	}
+
+	$current_status = sanitize_text_field( (string) ( $booking['status'] ?? '' ) );
+	if ( in_array( $current_status, [ 'canceled', 'cancelled' ], true ) ) {
+		return true;
+	}
+	if ( 'paid' === $current_status ) {
+		return true;
+	}
+
+	$appointment_id = ! empty( $booking['appointment_id'] ) ? absint( $booking['appointment_id'] ) : 0;
+	if ( $appointment_id > 0 ) {
+		$cancel_result = center_med_renovatio_api_client()->request(
+			'cancelAppointment',
+			[
+				'appointment_id' => $appointment_id,
+				'comment'        => $reason,
+				'source'         => 'website',
+			]
+		);
+		if ( is_wp_error( $cancel_result ) ) {
+			return $cancel_result;
+		}
+	}
+
+	$updated = $wpdb->update(
+		$tables['bookings'],
+		[
+			'status'        => 'canceled',
+			'canceled_at'   => current_time( 'mysql' ),
+			'cancel_reason' => $reason,
+			'updated_at'    => current_time( 'mysql' ),
+		],
+		[ 'id' => (int) $booking['id'] ],
+		[ '%s', '%s', '%s', '%s' ],
+		[ '%d' ]
+	);
+	if ( false === $updated ) {
+		return new WP_Error( 'db_update_failed', __( 'Не удалось обновить статус брони.', 'center-med-renovatio' ) );
+	}
+
+	$payload['appointment_id'] = $appointment_id;
+	$wpdb->insert(
+		$tables['status_log'],
+		[
+			'booking_id'   => (int) $booking['id'],
+			'from_status'  => $current_status,
+			'to_status'    => 'canceled',
+			'source'       => $source !== '' ? $source : 'payment_failed_hook',
+			'message'      => __( 'Визит отменен: оплата не подтверждена.', 'center-med-renovatio' ),
+			'context_json' => wp_json_encode( $payload ),
+			'created_at'   => current_time( 'mysql' ),
+		],
+		[ '%d', '%s', '%s', '%s', '%s', '%s', '%s' ]
+	);
+
+	do_action( 'center_med_renovatio_booking_canceled_unpaid', $booking, $appointment_id );
+
+	return true;
+}
+
+/**
+ * Хук: после оплаты подтвердить визит в МИС.
+ *
+ * @param array $booking Бронь.
+ * @param array $payload Событие оплаты.
+ * @return void
+ */
+function center_med_renovatio_handle_booking_paid_confirm_appointment( $booking, $payload = [] ) {
+	if ( ! is_array( $booking ) || empty( $booking['public_id'] ) ) {
+		return;
+	}
+
+	if ( ! is_array( $payload ) ) {
+		$payload = [];
+	}
+
+	center_med_renovatio_confirm_booking_appointment( (string) $booking['public_id'], $payload );
+}
+add_action( 'center_med_renovatio_booking_paid', 'center_med_renovatio_handle_booking_paid_confirm_appointment', 10, 2 );
+
+/**
+ * Хук: отменить бронь при неуспешном статусе оплаты в Точке.
+ *
+ * @param array  $entity_context Контекст сущности.
+ * @param string $status Статус провайдера.
+ * @param mixed  $amount Сумма.
+ * @param array  $payload Payload.
+ * @return void
+ */
+function center_med_renovatio_handle_tochka_failed_status( $entity_context, $status, $amount, $payload ) {
+	if ( ! is_array( $entity_context ) ) {
+		return;
+	}
+
+	$entity_type = sanitize_text_field( (string) ( $entity_context['entity_type'] ?? '' ) );
+	if ( ! in_array( $entity_type, [ 'booking', 'visit' ], true ) ) {
+		return;
+	}
+
+	$booking_public_id = sanitize_text_field( (string) ( $entity_context['entity_public_id'] ?? '' ) );
+	if ( '' === $booking_public_id ) {
+		$booking_public_id = sanitize_text_field( (string) ( $entity_context['entity_id'] ?? '' ) );
+	}
+	if ( '' === $booking_public_id ) {
+		return;
+	}
+
+	$status_upper = strtoupper( sanitize_text_field( (string) $status ) );
+	if ( ! in_array( $status_upper, [ 'DECLINED', 'EXPIRED', 'FAILED', 'CANCELLED', 'CANCELED', 'FAIL' ], true ) ) {
+		return;
+	}
+
+	if ( ! is_array( $payload ) ) {
+		$payload = [];
+	}
+	if ( $amount !== null && $amount !== '' ) {
+		$payload['amount'] = $amount;
+	}
+	$payload['provider_status'] = $status_upper;
+
+	center_med_renovatio_cancel_booking_unpaid(
+		$booking_public_id,
+		center_med_renovatio_get_setting( 'cancel_reason_unpaid', 'Оплата не прошла' ),
+		'payment_failed_hook',
+		$payload
+	);
+}
+add_action( 'tochka_payment_entity_status_changed', 'center_med_renovatio_handle_tochka_failed_status', 10, 4 );
 
 /**
  * Обработчик входящего action-хука от внешних платежных интеграций.
@@ -717,6 +954,7 @@ function center_med_renovatio_ajax_create_appointment_request() {
 	$email       = isset( $_POST['email'] ) ? sanitize_email( wp_unslash( $_POST['email'] ) ) : '';
 	$service     = isset( $_POST['service'] ) ? sanitize_text_field( wp_unslash( $_POST['service'] ) ) : '';
 	$date_string = isset( $_POST['date'] ) ? sanitize_text_field( wp_unslash( $_POST['date'] ) ) : '';
+	$return_url_raw = isset( $_POST['return_url'] ) ? esc_url_raw( wp_unslash( $_POST['return_url'] ) ) : '';
 	$message_raw = isset( $_POST['message'] ) ? trim( (string) wp_unslash( $_POST['message'] ) ) : '';
 	$message     = json_decode( $message_raw, true );
 
@@ -752,9 +990,20 @@ function center_med_renovatio_ajax_create_appointment_request() {
 	$is_waiting_list    = ! empty( $message['isWaitingList'] );
 	$specialist_post_id = isset( $message['specialistId'] ) ? absint( $message['specialistId'] ) : 0;
 	$specialist_name    = isset( $message['specialistName'] ) ? sanitize_text_field( (string) $message['specialistName'] ) : '';
+	$specialist_price_raw = isset( $message['specialistPrice'] ) ? sanitize_text_field( (string) $message['specialistPrice'] ) : '';
 	$appointment_date   = isset( $message['appointmentDate'] ) ? sanitize_text_field( (string) $message['appointmentDate'] ) : '';
 	$appointment_time   = isset( $message['appointmentTime'] ) ? sanitize_text_field( (string) $message['appointmentTime'] ) : '';
 	$telegram           = isset( $message['telegram'] ) ? sanitize_text_field( (string) $message['telegram'] ) : '';
+
+	$specialist_price_normalized = str_replace( [ ' ', ',' ], [ '', '.' ], $specialist_price_raw );
+	$booking_amount = is_numeric( $specialist_price_normalized ) ? (float) $specialist_price_normalized : 0.0;
+	if ( $booking_amount <= 0 && $specialist_post_id > 0 ) {
+		$doctor_price_raw = (string) get_field( 'cost_1', $specialist_post_id );
+		$doctor_price_raw = str_replace( [ ' ', ',' ], [ '', '.' ], $doctor_price_raw );
+		if ( is_numeric( $doctor_price_raw ) ) {
+			$booking_amount = (float) $doctor_price_raw;
+		}
+	}
 
 	$booking_public_id = wp_generate_uuid4();
 	$appointment_id    = 0;
@@ -764,6 +1013,18 @@ function center_med_renovatio_ajax_create_appointment_request() {
 	$doctor_api_id     = 0;
 	$api_response      = null;
 	$last_name         = '';
+	$return_url_base   = home_url( '/' );
+
+	if ( '' !== $return_url_raw ) {
+		$parsed_return = wp_parse_url( $return_url_raw );
+		$parsed_home   = wp_parse_url( home_url( '/' ) );
+		$return_host   = isset( $parsed_return['host'] ) ? sanitize_text_field( (string) $parsed_return['host'] ) : '';
+		$home_host     = isset( $parsed_home['host'] ) ? sanitize_text_field( (string) $parsed_home['host'] ) : '';
+
+		if ( $return_host !== '' && $home_host !== '' && 0 === strcasecmp( $return_host, $home_host ) ) {
+			$return_url_base = $return_url_raw;
+		}
+	}
 
 
 
@@ -863,11 +1124,13 @@ function center_med_renovatio_ajax_create_appointment_request() {
 		'isWaitingList'   => $is_waiting_list ? 1 : 0,
 		'specialistPostId' => $specialist_post_id,
 		'specialistName'  => $specialist_name,
+		'specialistPrice' => $booking_amount,
 		'appointmentDate' => $appointment_date,
 		'appointmentTime' => $appointment_time,
 		'telegram'        => $telegram,
 		'service'         => $service,
 		'dateString'      => $date_string,
+		'amount'          => $booking_amount,
 	];
 
 	$booking_status          = $appointment_id > 0 ? 'created' : 'request';
@@ -927,6 +1190,48 @@ function center_med_renovatio_ajax_create_appointment_request() {
 			500
 		);
 	}
+	$booking_row_id = (int) $wpdb->insert_id;
+
+	$payment_url    = '';
+	$payment_id     = '';
+	$payment_status = 'not_created';
+	if ( $appointment_id > 0 && ! $is_waiting_list && class_exists( 'TochkaPayment' ) && $booking_amount > 0 ) {
+		$return_url = add_query_arg(
+			[
+				'clinic_payment_return' => 1,
+				'booking'               => $booking_public_id,
+			],
+			$return_url_base
+		);
+
+		$tochka_payment  = new TochkaPayment();
+		$payment_result  = $tochka_payment->create_payment(
+			$booking_public_id,
+			$booking_amount,
+			$service !== '' ? $service : ( 'Оплата консультации: ' . $specialist_name ),
+			$return_url
+		);
+
+		if ( ! is_wp_error( $payment_result ) ) {
+			$payment_url    = ! empty( $payment_result['Data']['paymentLink'] ) ? esc_url_raw( (string) $payment_result['Data']['paymentLink'] ) : '';
+			$payment_id     = ! empty( $payment_result['Data']['operationId'] ) ? sanitize_text_field( (string) $payment_result['Data']['operationId'] ) : '';
+			$payment_status = $payment_url !== '' ? 'created' : 'pending';
+
+			$wpdb->update(
+				$tables['bookings'],
+				[
+					'payment_provider'    => 'tochka',
+					'payment_external_id' => $payment_id,
+					'updated_at'          => current_time( 'mysql' ),
+				],
+				[ 'id' => $booking_row_id ],
+				[ '%s', '%s', '%s' ],
+				[ '%d' ]
+			);
+		} else {
+			$payment_status = 'failed';
+		}
+	}
 
 	do_action(
 		'center_med_renovatio_appointment_request_created',
@@ -941,6 +1246,9 @@ function center_med_renovatio_ajax_create_appointment_request() {
 			'service'           => $service,
 			'message'           => $stored_payload,
 			'api_response'      => $api_response,
+			'payment_url'       => $payment_url,
+			'payment_id'        => $payment_id,
+			'payment_status'    => $payment_status,
 		]
 	);
 
@@ -949,8 +1257,270 @@ function center_med_renovatio_ajax_create_appointment_request() {
 			'message'         => __( 'Заявка успешно отправлена.', 'center-med-renovatio' ),
 			'bookingPublicId' => $booking_public_id,
 			'appointmentId'   => $appointment_id,
+			'paymentUrl'      => $payment_url,
+			'paymentId'       => $payment_id,
+			'paymentStatus'   => $payment_status,
 		]
 	);
 }
 add_action( 'wp_ajax_clinic_create_appointment_request', 'center_med_renovatio_ajax_create_appointment_request' );
 add_action( 'wp_ajax_nopriv_clinic_create_appointment_request', 'center_med_renovatio_ajax_create_appointment_request' );
+
+/**
+ * Получить запись платежа Точки по public_id брони.
+ *
+ * @param string $booking_public_id UUID брони.
+ * @return array|null
+ */
+function center_med_renovatio_get_tochka_payment_row( $booking_public_id ) {
+	global $wpdb;
+
+	$booking_public_id = sanitize_text_field( (string) $booking_public_id );
+	if ( '' === $booking_public_id ) {
+		return null;
+	}
+
+	$table = $wpdb->prefix . 'tochka_payments';
+
+	return $wpdb->get_row(
+		$wpdb->prepare(
+			"SELECT * FROM {$table} WHERE order_id = %s LIMIT 1",
+			$booking_public_id
+		),
+		ARRAY_A
+	);
+}
+
+/**
+ * Нормализовать статус Точки.
+ *
+ * @param string $provider_status Статус провайдера.
+ * @return string
+ */
+function center_med_renovatio_normalize_tochka_status( $provider_status ) {
+	$status = strtolower( sanitize_text_field( (string) $provider_status ) );
+
+	if ( in_array( $status, [ 'completed', 'approved', 'paid', 'success' ], true ) ) {
+		return 'paid';
+	}
+
+	if ( in_array( $status, [ 'failed', 'declined', 'cancelled', 'canceled', 'expired' ], true ) ) {
+		return 'failed';
+	}
+
+	return 'pending';
+}
+
+/**
+ * Ajax: получить текущее состояние оплаты брони.
+ *
+ * @return void
+ */
+function center_med_renovatio_ajax_get_booking_payment_state() {
+	check_ajax_referer( 'clinic_nonce', 'nonce' );
+
+	$booking_public_id = isset( $_POST['booking_public_id'] ) ? sanitize_text_field( wp_unslash( $_POST['booking_public_id'] ) ) : '';
+	if ( '' === $booking_public_id ) {
+		wp_send_json_error(
+			[
+				'message' => __( 'Не передан booking_public_id.', 'center-med-renovatio' ),
+			],
+			400
+		);
+	}
+
+	$booking = center_med_renovatio_get_booking_for_tochka( $booking_public_id );
+	if ( ! is_array( $booking ) ) {
+		wp_send_json_error(
+			[
+				'message' => __( 'Бронь не найдена.', 'center-med-renovatio' ),
+			],
+			404
+		);
+	}
+
+	$payment_row     = center_med_renovatio_get_tochka_payment_row( $booking_public_id );
+	$provider_status = is_array( $payment_row ) ? sanitize_text_field( (string) ( $payment_row['status'] ?? '' ) ) : '';
+	$payment_status  = center_med_renovatio_normalize_tochka_status( $provider_status );
+	$payment_id      = is_array( $payment_row ) ? sanitize_text_field( (string) ( $payment_row['payment_id'] ?? '' ) ) : '';
+	$payment_url     = is_array( $payment_row ) ? esc_url_raw( (string) ( $payment_row['payment_url'] ?? '' ) ) : '';
+	$booking_status  = sanitize_text_field( (string) ( $booking['status'] ?? '' ) );
+	$is_canceled     = in_array( $booking_status, [ 'canceled', 'cancelled' ], true );
+
+	if ( $is_canceled ) {
+		$payment_status = 'failed';
+	}
+
+	if ( ! $is_canceled && 'paid' === $payment_status && $booking_status !== 'paid' ) {
+		center_med_renovatio_mark_booking_paid(
+			$booking_public_id,
+			'tochka',
+			$payment_id,
+			[
+				'source' => 'polling',
+			]
+		);
+		$booking = center_med_renovatio_get_booking_for_tochka( $booking_public_id );
+		$booking_status = sanitize_text_field( (string) ( $booking['status'] ?? '' ) );
+	}
+
+	wp_send_json_success(
+		[
+			'bookingPublicId' => $booking_public_id,
+			'bookingStatus'   => $booking_status,
+			'paymentStatus'   => $payment_status,
+			'providerStatus'  => $provider_status,
+			'paymentId'       => $payment_id,
+			'paymentUrl'      => $payment_url,
+		]
+	);
+}
+add_action( 'wp_ajax_clinic_get_booking_payment_state', 'center_med_renovatio_ajax_get_booking_payment_state' );
+add_action( 'wp_ajax_nopriv_clinic_get_booking_payment_state', 'center_med_renovatio_ajax_get_booking_payment_state' );
+
+/**
+ * Ajax: повторно создать ссылку оплаты для существующей брони.
+ *
+ * @return void
+ */
+function center_med_renovatio_ajax_retry_booking_payment() {
+	check_ajax_referer( 'clinic_nonce', 'nonce' );
+
+	$booking_public_id = isset( $_POST['booking_public_id'] ) ? sanitize_text_field( wp_unslash( $_POST['booking_public_id'] ) ) : '';
+	$return_url_raw    = isset( $_POST['return_url'] ) ? esc_url_raw( wp_unslash( $_POST['return_url'] ) ) : '';
+
+	if ( '' === $booking_public_id ) {
+		wp_send_json_error(
+			[
+				'message' => __( 'Не передан booking_public_id.', 'center-med-renovatio' ),
+			],
+			400
+		);
+	}
+
+	$booking = center_med_renovatio_get_booking_for_tochka( $booking_public_id );
+	if ( ! is_array( $booking ) ) {
+		wp_send_json_error(
+			[
+				'message' => __( 'Бронь не найдена.', 'center-med-renovatio' ),
+			],
+			404
+		);
+	}
+
+	if ( (string) ( $booking['status'] ?? '' ) === 'paid' ) {
+		wp_send_json_error(
+			[
+				'message' => __( 'Бронь уже оплачена.', 'center-med-renovatio' ),
+			],
+			409
+		);
+	}
+	if ( in_array( (string) ( $booking['status'] ?? '' ), [ 'canceled', 'cancelled' ], true ) ) {
+		wp_send_json_error(
+			[
+				'message' => __( 'Бронь отменена. Повторная оплата недоступна.', 'center-med-renovatio' ),
+			],
+			409
+		);
+	}
+
+	if ( empty( $booking['appointment_id'] ) ) {
+		wp_send_json_error(
+			[
+				'message' => __( 'Для этой заявки не создан визит в МИС.', 'center-med-renovatio' ),
+			],
+			409
+		);
+	}
+
+	if ( ! class_exists( 'TochkaPayment' ) ) {
+		wp_send_json_error(
+			[
+				'message' => __( 'Плагин Точка Банк не активен.', 'center-med-renovatio' ),
+			],
+			500
+		);
+	}
+
+	$amount = center_med_renovatio_extract_booking_amount( $booking );
+	if ( $amount <= 0 ) {
+		wp_send_json_error(
+			[
+				'message' => __( 'Не удалось определить сумму оплаты по заявке.', 'center-med-renovatio' ),
+			],
+			500
+		);
+	}
+
+	$payload = [];
+	if ( ! empty( $booking['payload_json'] ) ) {
+		$decoded_payload = json_decode( (string) $booking['payload_json'], true );
+		if ( is_array( $decoded_payload ) ) {
+			$payload = $decoded_payload;
+		}
+	}
+	$specialist_name = isset( $payload['specialistName'] ) ? sanitize_text_field( (string) $payload['specialistName'] ) : '';
+	$service_title   = isset( $payload['service'] ) ? sanitize_text_field( (string) $payload['service'] ) : '';
+
+	$return_url_base = home_url( '/' );
+	if ( '' !== $return_url_raw ) {
+		$parsed_return = wp_parse_url( $return_url_raw );
+		$parsed_home   = wp_parse_url( home_url( '/' ) );
+		$return_host   = isset( $parsed_return['host'] ) ? sanitize_text_field( (string) $parsed_return['host'] ) : '';
+		$home_host     = isset( $parsed_home['host'] ) ? sanitize_text_field( (string) $parsed_home['host'] ) : '';
+
+		if ( $return_host !== '' && $home_host !== '' && 0 === strcasecmp( $return_host, $home_host ) ) {
+			$return_url_base = $return_url_raw;
+		}
+	}
+
+	$return_url = add_query_arg(
+		[
+			'clinic_payment_return' => 1,
+			'booking'               => $booking_public_id,
+		],
+		$return_url_base
+	);
+
+	$description = $service_title !== '' ? $service_title : ( 'Оплата консультации: ' . $specialist_name );
+	$tochka      = new TochkaPayment();
+	$result      = $tochka->create_payment( $booking_public_id, $amount, $description, $return_url );
+	if ( is_wp_error( $result ) ) {
+		wp_send_json_error(
+			[
+				'message' => $result->get_error_message(),
+			],
+			500
+		);
+	}
+
+	$payment_url    = ! empty( $result['Data']['paymentLink'] ) ? esc_url_raw( (string) $result['Data']['paymentLink'] ) : '';
+	$payment_id     = ! empty( $result['Data']['operationId'] ) ? sanitize_text_field( (string) $result['Data']['operationId'] ) : '';
+	$payment_status = $payment_url !== '' ? 'created' : 'pending';
+
+	global $wpdb;
+	$tables = Renovatio_Db_Schema::get_table_names();
+	$wpdb->update(
+		$tables['bookings'],
+		[
+			'payment_provider'    => 'tochka',
+			'payment_external_id' => $payment_id,
+			'updated_at'          => current_time( 'mysql' ),
+		],
+		[ 'id' => (int) $booking['id'] ],
+		[ '%s', '%s', '%s' ],
+		[ '%d' ]
+	);
+
+	wp_send_json_success(
+		[
+			'bookingPublicId' => $booking_public_id,
+			'paymentUrl'      => $payment_url,
+			'paymentId'       => $payment_id,
+			'paymentStatus'   => $payment_status,
+		]
+	);
+}
+add_action( 'wp_ajax_clinic_retry_booking_payment', 'center_med_renovatio_ajax_retry_booking_payment' );
+add_action( 'wp_ajax_nopriv_clinic_retry_booking_payment', 'center_med_renovatio_ajax_retry_booking_payment' );

@@ -283,6 +283,9 @@ class BookingSystem {
         this.manyStepManager = null;
         this.selfSpecialistsDebounceTimer = null;
         this.selfSpecialistsRequestToken = 0;
+        this.paymentStatusPollTimer = null;
+        this.pendingPaymentStorageKey = 'clinic_pending_payment_snapshot_v1';
+        this.bookingModalActionHandler = null;
         this.init();
     }
 
@@ -293,6 +296,7 @@ class BookingSystem {
         this.bindEvents();
         this.initPhoneMasks();
         this.updateUI();
+        this.handlePaymentReturnFlow();
     }
 
     // ==================== МАСКИ ВВОДА ====================
@@ -2626,6 +2630,7 @@ class BookingSystem {
         const step1 = this.state.selfForm?.data || {};
         const appointment = this.state.selfForm?.appointment || {};
         const specialist = this.getSelectedSelfSpecialist();
+        const returnUrl = window.location?.href ? String(window.location.href) : '';
 
         return {
             name: String(step1.clientName || '').trim(),
@@ -2635,6 +2640,7 @@ class BookingSystem {
             date: appointment?.formattedDate && appointment?.time
                 ? `${appointment.formattedDate}, ${appointment.time}`
                 : '',
+            returnUrl: returnUrl,
             message: JSON.stringify({
                 formType: 'self',
                 isWaitingList: !!step1.selectedSpecialistIsWaitingList,
@@ -2665,6 +2671,7 @@ class BookingSystem {
         body.append('email', payload.email);
         body.append('service', payload.service);
         body.append('date', payload.date);
+        body.append('return_url', payload.returnUrl || '');
         body.append('message', payload.message);
 
         const response = await fetch(ajaxUrl, {
@@ -2695,12 +2702,32 @@ class BookingSystem {
 
         try {
             const isWaitingList = this.state.selfForm.data.selectedSpecialistIsWaitingList;
-            await this.sendSelfFormAjax();
+            const result = await this.sendSelfFormAjax();
 
             if (isWaitingList) {
                 this.showWaitingListSuccessModal('self');
             }
             else {
+                const paymentUrl = String(result?.data?.paymentUrl || '').trim();
+                const bookingPublicId = String(result?.data?.bookingPublicId || '').trim();
+                const appointmentId = Number(result?.data?.appointmentId || 0);
+
+                if (paymentUrl && bookingPublicId) {
+                    const appointmentDate = this.state.selfForm.appointment?.date
+                        ? this.formatDateForFlatpickr(new Date(this.state.selfForm.appointment.date))
+                        : '';
+                    this.savePendingPaymentSnapshot({
+                        bookingPublicId,
+                        appointmentId,
+                        specialistName: this.state.selfForm.data.selectedSpecialistName || '',
+                        formattedDate: this.state.selfForm.appointment?.formattedDate || '',
+                        time: this.state.selfForm.appointment?.time || '',
+                        appointmentDate
+                    });
+                    window.location.href = paymentUrl;
+                    return;
+                }
+
                 this.showBookingSuccessModal('self');
             }
         } catch (error) {
@@ -2745,6 +2772,380 @@ class BookingSystem {
         }
     }
 
+    // ==================== ОПЛАТА И ВОЗВРАТ ====================
+    savePendingPaymentSnapshot(data = {}) {
+        const snapshot = {
+            bookingPublicId: String(data.bookingPublicId || '').trim(),
+            appointmentId: Number(data.appointmentId || 0),
+            specialistName: String(data.specialistName || '').trim(),
+            formattedDate: String(data.formattedDate || '').trim(),
+            time: String(data.time || '').trim(),
+            appointmentDate: String(data.appointmentDate || '').trim(),
+            createdAt: Date.now()
+        };
+
+        if (!snapshot.bookingPublicId) return;
+
+        try {
+            sessionStorage.setItem(this.pendingPaymentStorageKey, JSON.stringify(snapshot));
+        } catch (e) {
+            console.warn('[online-form] Не удалось сохранить snapshot оплаты', e);
+        }
+    }
+
+    getPendingPaymentSnapshot() {
+        try {
+            const raw = sessionStorage.getItem(this.pendingPaymentStorageKey);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            return parsed && typeof parsed === 'object' ? parsed : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    clearPendingPaymentSnapshot() {
+        try {
+            sessionStorage.removeItem(this.pendingPaymentStorageKey);
+        } catch (e) {
+            // noop
+        }
+    }
+
+    clearPaymentStatusPolling() {
+        if (this.paymentStatusPollTimer) {
+            clearInterval(this.paymentStatusPollTimer);
+            this.paymentStatusPollTimer = null;
+        }
+    }
+
+    getCleanReturnUrl() {
+        try {
+            const url = new URL(window.location.href);
+            ['clinic_payment_return', 'booking', 'order_id', 'status', 'payment_id'].forEach((key) => {
+                url.searchParams.delete(key);
+            });
+            return url.toString();
+        } catch (e) {
+            return window.location.origin + window.location.pathname;
+        }
+    }
+
+    handlePaymentReturnFlow() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('clinic_payment_return') !== '1') return;
+
+        const bookingPublicId = String(params.get('booking') || params.get('order_id') || '').trim();
+        if (!bookingPublicId) return;
+
+        const statusParam = String(params.get('status') || '').toLowerCase();
+        const snapshotRaw = this.getPendingPaymentSnapshot();
+        const snapshot = {
+            bookingPublicId,
+            appointmentId: Number(snapshotRaw?.appointmentId || 0),
+            specialistName: String(snapshotRaw?.specialistName || ''),
+            formattedDate: String(snapshotRaw?.formattedDate || ''),
+            time: String(snapshotRaw?.time || ''),
+            appointmentDate: String(snapshotRaw?.appointmentDate || '')
+        };
+
+        const cleanUrl = this.getCleanReturnUrl();
+        window.history.replaceState({}, document.title, cleanUrl);
+
+        if (statusParam === 'fail' || statusParam === 'failed') {
+            this.showPaymentFailedModal(snapshot);
+            return;
+        }
+
+        this.showPaymentCheckingModal(snapshot);
+        this.startPaymentStatusPolling(snapshot);
+    }
+
+    setBookingModalAction(actionText = '', onClick = null) {
+        const actionButton = this.elements.bookingSuccessModal?.querySelector('.but-calendar');
+        if (!actionButton) return;
+
+        actionButton.onclick = null;
+        actionButton.removeAttribute('href');
+        actionButton.setAttribute('target', '_self');
+
+        if (!actionText || typeof onClick !== 'function') {
+            actionButton.style.display = 'none';
+            return;
+        }
+
+        const span = actionButton.querySelector('span');
+        if (span) {
+            span.textContent = actionText;
+        } else {
+            actionButton.textContent = actionText;
+        }
+
+        actionButton.style.display = '';
+        actionButton.setAttribute('href', '#');
+        actionButton.onclick = (event) => {
+            event.preventDefault();
+            onClick();
+        };
+    }
+
+    setBookingModalCalendarAction(snapshot) {
+        const actionButton = this.elements.bookingSuccessModal?.querySelector('.but-calendar');
+        if (!actionButton) return;
+
+        const calendarUrl = this.buildGoogleCalendarUrl(snapshot);
+        if (!calendarUrl) {
+            this.setBookingModalAction('', null);
+            return;
+        }
+
+        const span = actionButton.querySelector('span');
+        if (span) {
+            span.textContent = 'Добавить в календарь';
+        } else {
+            actionButton.textContent = 'Добавить в календарь';
+        }
+
+        actionButton.style.display = '';
+        actionButton.onclick = null;
+        actionButton.setAttribute('href', calendarUrl);
+        actionButton.setAttribute('target', '_blank');
+        actionButton.setAttribute('rel', 'noopener noreferrer');
+    }
+
+    buildGoogleCalendarUrl(snapshot) {
+        const dateString = String(snapshot?.appointmentDate || '').trim();
+        const timeString = String(snapshot?.time || '').trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString) || !/^\d{2}:\d{2}$/.test(timeString)) {
+            return '';
+        }
+
+        const [year, month, day] = dateString.split('-').map((v) => Number(v));
+        const [hours, minutes] = timeString.split(':').map((v) => Number(v));
+        const startDate = new Date(year, (month - 1), day, hours, minutes, 0);
+        if (Number.isNaN(startDate.getTime())) {
+            return '';
+        }
+
+        const endDate = new Date(startDate.getTime() + (60 * 60 * 1000));
+        const formatUtc = (date) => {
+            const y = date.getUTCFullYear();
+            const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+            const d = String(date.getUTCDate()).padStart(2, '0');
+            const h = String(date.getUTCHours()).padStart(2, '0');
+            const min = String(date.getUTCMinutes()).padStart(2, '0');
+            const s = String(date.getUTCSeconds()).padStart(2, '0');
+            return `${y}${m}${d}T${h}${min}${s}Z`;
+        };
+
+        const title = snapshot?.specialistName
+            ? `Онлайн-консультация: ${snapshot.specialistName}`
+            : 'Онлайн-консультация';
+        const details = 'Онлайн-консультация. Ссылка на видеозвонок будет отправлена за час до встречи.';
+
+        return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${formatUtc(startDate)}/${formatUtc(endDate)}&details=${encodeURIComponent(details)}`;
+    }
+
+    fillBookingModalContent(snapshot, title, message) {
+        const modal = this.elements.bookingSuccessModal;
+        if (!modal) return;
+
+        const titleElement = document.getElementById('successModalTitle');
+        if (titleElement) {
+            titleElement.innerHTML = title;
+        }
+
+        if (this.elements.successDateTime) {
+            const dateTime = snapshot?.formattedDate && snapshot?.time
+                ? `${snapshot.formattedDate}, ${snapshot.time}`
+                : 'Уточняется';
+            this.elements.successDateTime.textContent = dateTime;
+        }
+
+        if (this.elements.successSpecialistName) {
+            this.elements.successSpecialistName.textContent = snapshot?.specialistName || 'Уточняется';
+        }
+
+        const messageNode = modal.querySelector('.waiting-list-message');
+        if (messageNode) {
+            messageNode.textContent = message;
+        }
+    }
+
+    showPaymentCheckingModal(snapshot) {
+        this.fillBookingModalContent(
+            snapshot,
+            'Проверяем оплату...',
+            'Подтверждаем платеж. Это может занять до минуты, пожалуйста, не закрывайте страницу.'
+        );
+        this.setBookingModalAction('', null);
+        Utils.addClass(this.elements.bookingSuccessModal, CSS_CLASSES.ACTIVE);
+        document.body.style.overflow = 'hidden';
+    }
+
+    showPaymentFailedModal(snapshot) {
+        this.clearPaymentStatusPolling();
+        this.fillBookingModalContent(
+            snapshot,
+            'Оплата не прошла',
+            'Вы можете повторить оплату. Визит удерживается ограниченное время.'
+        );
+        this.setBookingModalAction('Повторить оплату', async () => {
+            try {
+                await this.retryPaymentForBooking(snapshot?.bookingPublicId);
+            } catch (error) {
+                console.error('[online-form] Ошибка повторной оплаты', error);
+                alert('Не удалось создать новую ссылку оплаты. Попробуйте еще раз.');
+            }
+        });
+        Utils.addClass(this.elements.bookingSuccessModal, CSS_CLASSES.ACTIVE);
+        document.body.style.overflow = 'hidden';
+    }
+
+    showPaymentCanceledModal(snapshot) {
+        this.clearPaymentStatusPolling();
+        this.fillBookingModalContent(
+            snapshot,
+            'Визит отменен',
+            'Срок удержания записи истек. Создайте новую запись для повторной оплаты.'
+        );
+        this.setBookingModalAction('', null);
+        Utils.addClass(this.elements.bookingSuccessModal, CSS_CLASSES.ACTIVE);
+        document.body.style.overflow = 'hidden';
+    }
+
+    showPaymentPaidModal(snapshot) {
+        this.clearPaymentStatusPolling();
+        this.clearPendingPaymentSnapshot();
+        this.fillBookingModalContent(
+            snapshot,
+            'Ваша консультация<br>забронирована!',
+            'Специалист направит вам ссылку на видеозвонок за час до встречи.'
+        );
+        this.setBookingModalCalendarAction(snapshot);
+        Utils.addClass(this.elements.bookingSuccessModal, CSS_CLASSES.ACTIVE);
+        document.body.style.overflow = 'hidden';
+    }
+
+    async fetchBookingPaymentState(bookingPublicId) {
+        const ajaxUrl = window.clinic_ajax?.ajax_url;
+        const nonce = window.clinic_ajax?.nonce;
+        if (!ajaxUrl || !nonce) {
+            throw new Error('Не настроен clinic_ajax для проверки статуса оплаты');
+        }
+
+        const body = new URLSearchParams();
+        body.append('action', 'clinic_get_booking_payment_state');
+        body.append('nonce', nonce);
+        body.append('booking_public_id', bookingPublicId);
+
+        const response = await fetch(ajaxUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+            },
+            body: body.toString()
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (!result?.success) {
+            throw new Error(result?.data?.message || 'Ошибка проверки статуса оплаты');
+        }
+
+        return result.data || {};
+    }
+
+    async retryPaymentForBooking(bookingPublicId) {
+        if (!bookingPublicId) {
+            throw new Error('Не указан bookingPublicId для повторной оплаты');
+        }
+
+        const ajaxUrl = window.clinic_ajax?.ajax_url;
+        const nonce = window.clinic_ajax?.nonce;
+        if (!ajaxUrl || !nonce) {
+            throw new Error('Не настроен clinic_ajax для повторной оплаты');
+        }
+
+        const body = new URLSearchParams();
+        body.append('action', 'clinic_retry_booking_payment');
+        body.append('nonce', nonce);
+        body.append('booking_public_id', bookingPublicId);
+        body.append('return_url', this.getCleanReturnUrl());
+
+        const response = await fetch(ajaxUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+            },
+            body: body.toString()
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (!result?.success) {
+            throw new Error(result?.data?.message || 'Ошибка повторной оплаты');
+        }
+
+        const paymentUrl = String(result?.data?.paymentUrl || '').trim();
+        if (!paymentUrl) {
+            throw new Error('Сервер не вернул ссылку оплаты');
+        }
+
+        window.location.href = paymentUrl;
+    }
+
+    startPaymentStatusPolling(snapshot) {
+        const bookingPublicId = String(snapshot?.bookingPublicId || '').trim();
+        if (!bookingPublicId) return;
+
+        this.clearPaymentStatusPolling();
+
+        let attempts = 0;
+        const maxAttempts = 40;
+
+        const check = async () => {
+            attempts += 1;
+            try {
+                const data = await this.fetchBookingPaymentState(bookingPublicId);
+                const status = String(data?.paymentStatus || '').toLowerCase();
+                const bookingStatus = String(data?.bookingStatus || '').toLowerCase();
+
+                if (status === 'paid') {
+                    this.showPaymentPaidModal(snapshot);
+                    return;
+                }
+
+                if (bookingStatus === 'canceled' || bookingStatus === 'cancelled') {
+                    this.showPaymentCanceledModal(snapshot);
+                    return;
+                }
+
+                if (status === 'failed') {
+                    this.showPaymentFailedModal(snapshot);
+                    return;
+                }
+            } catch (error) {
+                console.error('[online-form] Ошибка polling статуса оплаты', error);
+            }
+
+            if (attempts >= maxAttempts) {
+                this.showPaymentFailedModal(snapshot);
+            }
+        };
+
+        check();
+        this.paymentStatusPollTimer = setInterval(check, 4000);
+    }
+
     // ==================== МОДАЛЬНЫЕ ОКНА ====================
     showBookingSuccessModal(formType = 'self') {
         const e = this.elements;
@@ -2752,6 +3153,15 @@ class BookingSystem {
 
         const appointment = formType === 'self' ? this.state.selfForm.appointment : this.state.manyForm.appointment;
         const specialist = formType === 'self' ? this.getSelectedSelfSpecialist() : this.getSelectedManySpecialist();
+        const titleElement = document.getElementById('successModalTitle');
+        if (titleElement) {
+            titleElement.innerHTML = 'Ваша консультация<br>забронирована!';
+        }
+
+        const messageNode = e.bookingSuccessModal.querySelector('.waiting-list-message');
+        if (messageNode) {
+            messageNode.textContent = 'Специалист направит вам ссылку на видеозвонок за час до встречи.';
+        }
 
         if (e.successDateTime && appointment) {
             e.successDateTime.textContent = `${appointment.formattedDate || ''}, ${appointment.time || ''}`;
@@ -2761,6 +3171,15 @@ class BookingSystem {
             e.successSpecialistName.textContent = specialist.name;
         }
 
+        const appointmentDate = appointment?.date
+            ? this.formatDateForFlatpickr(new Date(appointment.date))
+            : '';
+        this.setBookingModalCalendarAction({
+            specialistName: specialist?.name || '',
+            formattedDate: appointment?.formattedDate || '',
+            time: appointment?.time || '',
+            appointmentDate
+        });
         Utils.addClass(e.bookingSuccessModal, CSS_CLASSES.ACTIVE);
         document.body.style.overflow = 'hidden';
     }
@@ -2781,6 +3200,8 @@ class BookingSystem {
 
     closeResultModal(type) {
         const e = this.elements;
+        this.clearPaymentStatusPolling();
+        this.setBookingModalAction('', null);
 
         if (type === 'booking' && e.bookingSuccessModal) {
             Utils.removeClass(e.bookingSuccessModal, CSS_CLASSES.ACTIVE);

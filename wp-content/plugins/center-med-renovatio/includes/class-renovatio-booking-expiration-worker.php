@@ -131,63 +131,22 @@ class Renovatio_Booking_Expiration_Worker {
 		}
 
 		foreach ( $bookings as $booking ) {
-			$appointment_id = isset( $booking['appointment_id'] ) ? absint( $booking['appointment_id'] ) : 0;
-			if ( $appointment_id <= 0 ) {
+			$booking_public_id = isset( $booking['public_id'] ) ? sanitize_text_field( (string) $booking['public_id'] ) : '';
+			if ( '' === $booking_public_id ) {
 				continue;
 			}
 
-			$cancel_result = center_med_renovatio_api_client()->request(
-				'cancelAppointment',
+			$cancel_result = center_med_renovatio_cancel_booking_unpaid(
+				$booking_public_id,
+				$cancel_reason,
+				'cron_unpaid',
 				[
-					'appointment_id' => $appointment_id,
-					'comment'        => $cancel_reason,
-					'source'         => 'website',
+					'ttl_minutes' => $ttl_minutes,
 				]
 			);
-
 			if ( is_wp_error( $cancel_result ) ) {
 				continue;
 			}
-
-			$wpdb->update(
-				$tables['bookings'],
-				[
-					'status'        => 'canceled',
-					'canceled_at'   => current_time( 'mysql' ),
-					'cancel_reason' => $cancel_reason,
-					'updated_at'    => current_time( 'mysql' ),
-				],
-				[ 'id' => (int) $booking['id'] ],
-				[ '%s', '%s', '%s', '%s' ],
-				[ '%d' ]
-			);
-
-			$wpdb->insert(
-				$tables['status_log'],
-				[
-					'booking_id'   => (int) $booking['id'],
-					'from_status'  => sanitize_text_field( (string) $booking['status'] ),
-					'to_status'    => 'canceled',
-					'source'       => 'cron_unpaid',
-					'message'      => __( 'Визит отменен автоматически: оплата не поступила в срок.', 'center-med-renovatio' ),
-					'context_json' => wp_json_encode(
-						[
-							'appointment_id' => $appointment_id,
-							'ttl_minutes'    => $ttl_minutes,
-						]
-					),
-					'created_at'   => current_time( 'mysql' ),
-				],
-				[ '%d', '%s', '%s', '%s', '%s', '%s', '%s' ]
-			);
-
-			/**
-			 * Хук после авто-отмены неоплаченного визита.
-			 *
-			 * @param array $booking Данные брони.
-			 * @param int   $appointment_id ID визита в МИС.
-			 */
-			do_action( 'center_med_renovatio_booking_canceled_unpaid', $booking, $appointment_id );
 		}
 	}
 }
