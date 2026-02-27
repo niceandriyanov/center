@@ -24,9 +24,11 @@ require_once CENTER_MED_RENOVATIO_PLUGIN_DIR . '/includes/class-renovatio-api-cl
 require_once CENTER_MED_RENOVATIO_PLUGIN_DIR . '/includes/class-renovatio-doctor-service.php';
 require_once CENTER_MED_RENOVATIO_PLUGIN_DIR . '/includes/class-renovatio-db-schema.php';
 require_once CENTER_MED_RENOVATIO_PLUGIN_DIR . '/includes/class-renovatio-booking-expiration-worker.php';
+require_once CENTER_MED_RENOVATIO_PLUGIN_DIR . '/includes/class-renovatio-appointment-notifier.php';
 require_once CENTER_MED_RENOVATIO_PLUGIN_DIR . '/includes/functions.php';
 
 Renovatio_Booking_Expiration_Worker::register();
+Renovatio_Appointment_Notifier::register();
 
 add_action( 'plugins_loaded', function () {
 	load_plugin_textdomain( 'center-med-renovatio', false, dirname( plugin_basename( __FILE__ ) ) . '/languages' );

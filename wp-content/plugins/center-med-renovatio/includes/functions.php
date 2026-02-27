@@ -617,6 +617,11 @@ function center_med_renovatio_ajax_filter_online_doctors() {
 		Renovatio_Doctor_Metabox::META_KEY_STEP_PAIR
 	];
 	$current_type = $types[0];
+	$form_type    = isset( $_POST['form_type'] ) ? sanitize_text_field( wp_unslash( $_POST['form_type'] ) ) : '';
+
+	if ( 'many' === $form_type ) {
+		$current_type = $types[1];
+	}
 
 	$concerns = isset( $_POST['concerns'] ) ? (array) wp_unslash( $_POST['concerns'] ) : [];
 	$concerns = array_values(
@@ -647,10 +652,12 @@ function center_med_renovatio_ajax_filter_online_doctors() {
 				'operator' => 'AND',
 			],
 		];
-		if( !empty ( $concerns ) ) {
+		if ( 'many' !== $form_type && ! empty( $concerns ) ) {
 			$concern = $concerns[0];
 			$type = get_field( 'form_to', 'doctor_diseases_' . $concern );
-			$current_type = $types[$type];
+			if ( isset( $types[ $type ] ) ) {
+				$current_type = $types[ $type ];
+			}
 		}
 	}
 	else {

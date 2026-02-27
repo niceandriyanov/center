@@ -442,36 +442,30 @@
 
                     <div class="online-form-group" id="manyConcernsGroup">
                         <div class="online-checkbox-group">
-                            <label class="online-checkbox-label">
-                                <input type="checkbox" name="manyConcerns[]" value="conflicts">
-                                <span class="online-checkbox-custom"></span>
-                                <span class="online-checkbox-text">Конфликты в паре</span>
-                            </label>
-                            <label class="online-checkbox-label">
-                                <input type="checkbox" name="manyConcerns[]" value="breakup">
-                                <span class="online-checkbox-custom"></span>
-                                <span class="online-checkbox-text">Мысли о расставании</span>
-                            </label>
-                            <label class="online-checkbox-label">
-                                <input type="checkbox" name="manyConcerns[]" value="sexual">
-                                <span class="online-checkbox-custom"></span>
-                                <span class="online-checkbox-text">Проблемы сексуального характера</span>
-                            </label>
-                            <label class="online-checkbox-label">
-                                <input type="checkbox" name="manyConcerns[]" value="jealousy">
-                                <span class="online-checkbox-custom"></span>
-                                <span class="online-checkbox-text">Ревность</span>
-                            </label>
-                            <label class="online-checkbox-label">
-                                <input type="checkbox" name="manyConcerns[]" value="children">
-                                <span class="online-checkbox-custom"></span>
-                                <span class="online-checkbox-text">Воспитание детей</span>
-                            </label>
-                            <label class="online-checkbox-label">
-                                <input type="checkbox" name="manyConcerns[]" value="pregnancy">
-                                <span class="online-checkbox-custom"></span>
-                                <span class="online-checkbox-text">Планирование беременности / родов</span>
-                            </label>
+                            <?php
+                            $questions = get_terms(array(
+                                'taxonomy' => 'doctor_diseases',
+                                'hide_empty' => false,
+                                'meta_key' => 'taxonomy_order',
+                                'orderby' => 'meta_value_num',
+                                'order' => 'ASC',
+                                'meta_query' => array(
+                                    array(
+                                        'key' => 'form_to',
+                                        'value' => 1,
+                                        'compare' => '=',
+                                        'type'    => 'NUMERIC'
+                                    )
+                                )
+                            ));
+                            ?>
+                            <?php foreach ($questions as $question) : ?>
+                                <label class="online-checkbox-label">
+                                    <input type="checkbox" name="manyConcerns[]" value="<?= $question->term_id; ?>">
+                                    <span class="online-checkbox-custom"></span>
+                                    <span class="online-checkbox-text"><?= $question->name; ?></span>
+                                </label>
+                            <?php endforeach; ?>
                         </div>
                         <div class="online-error-message" id="manyConcernsError">Пожалуйста, выберите хотя бы один вариант</div>
                     </div>

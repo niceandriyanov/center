@@ -283,6 +283,8 @@ class BookingSystem {
         this.manyStepManager = null;
         this.selfSpecialistsDebounceTimer = null;
         this.selfSpecialistsRequestToken = 0;
+        this.manySpecialistsDebounceTimer = null;
+        this.manySpecialistsRequestToken = 0;
         this.paymentStatusPollTimer = null;
         this.pendingPaymentStorageKey = 'clinic_pending_payment_snapshot_v1';
         this.bookingModalActionHandler = null;
@@ -355,6 +357,7 @@ class BookingSystem {
                 currentStep: 1,
                 data: this.getInitialManyFormData(),
                 specialists: { available: [], waitingList: [] },
+                isLoadingSpecialists: false,
                 appointment: null
             },
 
@@ -1011,6 +1014,7 @@ class BookingSystem {
         }
 
         this.validateManyConcerns();
+        this.scheduleManySpecialistsPreparation();
     }
 
     onVisitingChange() {
@@ -1590,8 +1594,40 @@ class BookingSystem {
         }, 250);
     }
 
+    scheduleManySpecialistsPreparation() {
+        if (this.state.screen !== CONFIG.CONSULTATION_TYPES.MANY) return;
+
+        if (this.manySpecialistsDebounceTimer) {
+            clearTimeout(this.manySpecialistsDebounceTimer);
+        }
+
+        this.state.manyForm.isLoadingSpecialists = true;
+        if (this.manyStepManager.currentStep === 2) {
+            this.renderManySpecialists();
+        }
+
+        this.manySpecialistsDebounceTimer = setTimeout(() => {
+            this.fetchManySpecialists()
+                .then(() => {
+                    if (this.manyStepManager.currentStep === 2) {
+                        this.renderManySpecialists();
+                        this.updateUI();
+                    }
+                })
+                .catch((error) => {
+                    console.error('Ошибка подготовки списка специалистов (для пары):', error);
+                });
+        }, 250);
+    }
+
     getSelfSelectedConcernIds() {
         const concerns = this.state.selfForm?.data?.concerns?.question1;
+        if (!Array.isArray(concerns)) return [];
+        return concerns.filter(Boolean).map(String);
+    }
+
+    getManySelectedConcernIds() {
+        const concerns = this.state.manyForm?.data?.concerns;
         if (!Array.isArray(concerns)) return [];
         return concerns.filter(Boolean).map(String);
     }
@@ -1700,8 +1736,7 @@ class BookingSystem {
 
     async loadManySpecialists() {
         try {
-            const mockData = this.getMockSpecialistsData();
-            this.state.manyForm.specialists = mockData;
+            await this.fetchManySpecialists();
             this.renderManySpecialists();
         } catch (error) {
             console.error('Ошибка загрузки специалистов:', error);
@@ -1709,45 +1744,77 @@ class BookingSystem {
         }
     }
 
-    getMockSpecialistsData() {
-        return {
-            available: [
-                {
-                    id: 1,
-                    name: "Новикова Анна",
-                    position: "psychologist",
-                    positionTitle: "Психолог",
-                    experience: "8 лет",
-                    avatar: "assets/img/onlineForm/img1.jpg",
-                    price: 5500, // Цена для пар
-                    nearestSlot: "3 дек, 11:00",
-                    description: "Специалист по семейным отношениям"
+    async fetchManySpecialists() {
+        const ajaxUrl = window.clinic_ajax?.ajax_url;
+        const nonce = window.clinic_ajax?.nonce;
+
+        if (!ajaxUrl || !nonce) {
+            throw new Error('Не настроен clinic_ajax для загрузки специалистов');
+        }
+
+        const requestToken = ++this.manySpecialistsRequestToken;
+        this.state.manyForm.isLoadingSpecialists = true;
+        const concerns = this.getManySelectedConcernIds();
+        const body = new URLSearchParams();
+
+        body.append('action', 'center_med_renovatio_filter_online_doctors');
+        body.append('nonce', nonce);
+        body.append('form_type', 'many');
+        concerns.forEach((termId) => body.append('concerns[]', termId));
+
+        try {
+            const response = await fetch(ajaxUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
                 },
-                {
-                    id: 2,
-                    name: "Новикова Анна2",
-                    position: "clinical",
-                    positionTitle: "Клинический психолог",
-                    experience: "5 лет",
-                    avatar: "assets/img/onlineForm/img1.jpg",
-                    price: 6000, // Цена для пар
-                    nearestSlot: "5 дек, 11:00",
-                    description: "Специалист по парным консультациям"
+                body: body.toString()
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const result = await response.json();
+            if (requestToken !== this.manySpecialistsRequestToken) return;
+
+            if (!result?.success || !result?.data) {
+                throw new Error(result?.data?.message || 'Сервер вернул некорректный ответ');
+            }
+
+            const normalized = this.normalizeSpecialistsResponse(result.data);
+            this.state.manyForm.specialists = normalized;
+            this.ensureSelectedManySpecialistExists();
+        } finally {
+            if (requestToken === this.manySpecialistsRequestToken) {
+                this.state.manyForm.isLoadingSpecialists = false;
+                if (this.state.screen === CONFIG.CONSULTATION_TYPES.MANY && this.manyStepManager.currentStep === 2) {
+                    this.renderManySpecialists();
                 }
-            ],
-            waitingList: [
-                {
-                    id: 101,
-                    name: "Смирнова Елена",
-                    position: "clinical",
-                    positionTitle: "Клинический психолог",
-                    experience: "10 лет",
-                    avatar: "assets/img/onlineForm/img1.jpg",
-                    price: 6000, // Цена для пар
-                    description: "Эксперт в области семейной психологии"
-                }
-            ]
-        };
+            }
+        }
+    }
+
+    ensureSelectedManySpecialistExists() {
+        const manyData = this.state.manyForm.data;
+        if (!manyData.selectedSpecialistId) return;
+
+        const pool = manyData.selectedSpecialistIsWaitingList
+            ? this.state.manyForm.specialists.waitingList
+            : this.state.manyForm.specialists.available;
+
+        const stillExists = Array.isArray(pool) && pool.some(
+            (specialist) => specialist.id === Number(manyData.selectedSpecialistId)
+        );
+
+        if (stillExists) return;
+
+        manyData.selectedSpecialistId = null;
+        manyData.selectedSpecialistIsWaitingList = false;
+        manyData.selectedSpecialistName = '';
+        manyData.selectedSpecialistPrice = null;
+        this.state.manyForm.appointment = null;
     }
 
     renderSelfSpecialists() {
@@ -1779,6 +1846,12 @@ class BookingSystem {
     renderManySpecialists() {
         const { available, waitingList } = this.state.manyForm.specialists;
         const { selectedSpecialistId, selectedSpecialistIsWaitingList } = this.state.manyForm.data;
+        const isLoading = !!this.state.manyForm.isLoadingSpecialists;
+
+        if (isLoading && available.length === 0 && waitingList.length === 0) {
+            this.showManySpecialistsLoading();
+            return;
+        }
 
         if (available.length > 0) {
             this.specialistManager.many.available.render(available, selectedSpecialistId, false);
@@ -1809,6 +1882,22 @@ class BookingSystem {
 
         if (this.elements.availableSpecialistsGrid) {
             this.elements.availableSpecialistsGrid.innerHTML = `
+                <div class="online-specialists-loading" role="status" aria-live="polite">
+                    <span class="online-specialists-loading-spinner" aria-hidden="true"></span>
+                    <span class="online-specialists-loading-text">Подбираем специалистов...</span>
+                </div>
+            `;
+        }
+    }
+
+    showManySpecialistsLoading() {
+        this.ensureSelfSpecialistsLoaderStyles();
+        Utils.show(this.elements.manyAvailableSpecialists);
+        Utils.hide(this.elements.manyNoSpecialistsMessage);
+        Utils.hide(this.elements.manyWaitingListSection);
+
+        if (this.elements.manyAvailableSpecialistsGrid) {
+            this.elements.manyAvailableSpecialistsGrid.innerHTML = `
                 <div class="online-specialists-loading" role="status" aria-live="polite">
                     <span class="online-specialists-loading-spinner" aria-hidden="true"></span>
                     <span class="online-specialists-loading-text">Подбираем специалистов...</span>
@@ -2631,11 +2720,15 @@ class BookingSystem {
         const appointment = this.state.selfForm?.appointment || {};
         const specialist = this.getSelectedSelfSpecialist();
         const returnUrl = window.location?.href ? String(window.location.href) : '';
+        const name = String(this.elements.clientName?.value || step1.clientName || '').trim();
+        const phone = String(this.elements.clientPhone?.value || step1.clientPhone || '').trim();
+        const email = String(this.elements.clientEmail?.value || step1.clientEmail || '').trim();
+        const telegram = String(this.elements.clientTelegram?.value || step1.clientTelegram || '').trim();
 
         return {
-            name: String(step1.clientName || '').trim(),
-            phone: String(step1.clientPhone || '').trim(),
-            email: String(step1.clientEmail || '').trim(),
+            name: name,
+            phone: phone,
+            email: email,
             service: specialist?.name ? `Онлайн-консультация: ${specialist.name}` : 'Онлайн-консультация',
             date: appointment?.formattedDate && appointment?.time
                 ? `${appointment.formattedDate}, ${appointment.time}`
@@ -2650,7 +2743,7 @@ class BookingSystem {
                 concerns: this.getSelfSelectedConcernIds(),
                 appointmentDate: appointment?.date ? this.formatDateForFlatpickr(new Date(appointment.date)) : '',
                 appointmentTime: appointment?.time || '',
-                telegram: step1.clientTelegram || ''
+                telegram: telegram
             })
         };
     }
@@ -2663,6 +2756,79 @@ class BookingSystem {
         }
 
         const payload = this.buildSelfAjaxPayload();
+        const body = new URLSearchParams();
+        body.append('action', 'clinic_create_appointment_request');
+        body.append('nonce', nonce);
+        body.append('name', payload.name);
+        body.append('phone', payload.phone);
+        body.append('email', payload.email);
+        body.append('service', payload.service);
+        body.append('date', payload.date);
+        body.append('return_url', payload.returnUrl || '');
+        body.append('message', payload.message);
+
+        const response = await fetch(ajaxUrl, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+            },
+            body: body.toString()
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+
+        const result = await response.json();
+        if (!result?.success) {
+            throw new Error(result?.data?.message || 'Сервер вернул ошибку при отправке формы');
+        }
+
+        return result;
+    }
+
+    buildManyAjaxPayload() {
+        const step1 = this.state.manyForm?.data || {};
+        const appointment = this.state.manyForm?.appointment || {};
+        const specialist = this.getSelectedManySpecialist();
+        const returnUrl = window.location?.href ? String(window.location.href) : '';
+        const name = String(this.elements.manyClient1Name?.value || step1.client1Name || '').trim();
+        const phone = String(this.elements.manyClient1Phone?.value || step1.client1Phone || '').trim();
+        const email = String(this.elements.manyClient1Email?.value || step1.client1Email || '').trim();
+        const telegram = String(this.elements.manyClientTelegram?.value || step1.clientTelegram || '').trim();
+
+        return {
+            name: name,
+            phone: phone,
+            email: email,
+            service: specialist?.name ? `Онлайн-консультация для пары: ${specialist.name}` : 'Онлайн-консультация для пары',
+            date: appointment?.formattedDate && appointment?.time
+                ? `${appointment.formattedDate}, ${appointment.time}`
+                : '',
+            returnUrl: returnUrl,
+            message: JSON.stringify({
+                formType: 'many',
+                isWaitingList: !!step1.selectedSpecialistIsWaitingList,
+                specialistId: step1.selectedSpecialistId || null,
+                specialistName: step1.selectedSpecialistName || '',
+                specialistPrice: step1.selectedSpecialistPrice || null,
+                concerns: this.getManySelectedConcernIds(),
+                appointmentDate: appointment?.date ? this.formatDateForFlatpickr(new Date(appointment.date)) : '',
+                appointmentTime: appointment?.time || '',
+                telegram: telegram
+            })
+        };
+    }
+
+    async sendManyFormAjax() {
+        const ajaxUrl = window.clinic_ajax?.ajax_url;
+        const nonce = window.clinic_ajax?.nonce;
+        if (!ajaxUrl || !nonce) {
+            throw new Error('Не настроен clinic_ajax для отправки формы');
+        }
+
+        const payload = this.buildManyAjaxPayload();
         const body = new URLSearchParams();
         body.append('action', 'clinic_create_appointment_request');
         body.append('nonce', nonce);
@@ -2749,26 +2915,39 @@ class BookingSystem {
 
         try {
             const isWaitingList = this.state.manyForm.data.selectedSpecialistIsWaitingList;
+            const result = await this.sendManyFormAjax();
 
-            // ДЕМО-РЕЖИМ
-            setTimeout(() => {
-                if (isWaitingList) {
-                    this.showWaitingListSuccessModal('many');
-                } else {
-                    this.showBookingSuccessModal('many');
+            if (isWaitingList) {
+                this.showWaitingListSuccessModal('many');
+            } else {
+                const paymentUrl = String(result?.data?.paymentUrl || '').trim();
+                const bookingPublicId = String(result?.data?.bookingPublicId || '').trim();
+                const appointmentId = Number(result?.data?.appointmentId || 0);
+
+                if (paymentUrl && bookingPublicId) {
+                    const appointmentDate = this.state.manyForm.appointment?.date
+                        ? this.formatDateForFlatpickr(new Date(this.state.manyForm.appointment.date))
+                        : '';
+                    this.savePendingPaymentSnapshot({
+                        bookingPublicId,
+                        appointmentId,
+                        specialistName: this.state.manyForm.data.selectedSpecialistName || '',
+                        formattedDate: this.state.manyForm.appointment?.formattedDate || '',
+                        time: this.state.manyForm.appointment?.time || '',
+                        appointmentDate
+                    });
+                    window.location.href = paymentUrl;
+                    return;
                 }
-                // ИСПРАВЛЕНО: сбрасываем только форму, но не показываем главный экран
-                setTimeout(() => {
-                    this.reset(); // сбрасываем состояние
-                    this.showMain(); // показываем главный экран
-                }, CONFIG.TIMEOUTS.RESET);
-            }, CONFIG.TIMEOUTS.SUBMIT);
 
+                this.showBookingSuccessModal('many');
+            }
         } catch (error) {
             console.error('Ошибка отправки формы для пары:', error);
             alert('Произошла ошибка при отправке. Пожалуйста, попробуйте ещё раз.');
             this.elements.nextBtn.disabled = false;
             this.elements.nextBtn.textContent = originalText;
+            return;
         }
     }
 
@@ -2874,6 +3053,11 @@ class BookingSystem {
             return;
         }
 
+        const icon = actionButton.querySelector('svg');
+        if (icon) {
+            icon.style.display = 'none';
+        }
+
         const span = actionButton.querySelector('span');
         if (span) {
             span.textContent = actionText;
@@ -2887,6 +3071,17 @@ class BookingSystem {
             event.preventDefault();
             onClick();
         };
+    }
+
+    setBookingModalHeaderIcon(iconName = 'ico7.svg') {
+        const iconElement = this.elements.bookingSuccessModal?.querySelector('.result-modal-ico img');
+        if (!iconElement) return;
+
+        const currentSrc = String(iconElement.getAttribute('src') || '');
+        if (!currentSrc) return;
+
+        const nextSrc = currentSrc.replace(/ico\d+\.svg$/i, iconName);
+        iconElement.setAttribute('src', nextSrc);
     }
 
     setBookingModalCalendarAction(snapshot) {
@@ -2904,6 +3099,11 @@ class BookingSystem {
             span.textContent = 'Добавить в календарь';
         } else {
             actionButton.textContent = 'Добавить в календарь';
+        }
+
+        const icon = actionButton.querySelector('svg');
+        if (icon) {
+            icon.style.display = '';
         }
 
         actionButton.style.display = '';
@@ -2973,6 +3173,7 @@ class BookingSystem {
     }
 
     showPaymentCheckingModal(snapshot) {
+        this.setBookingModalHeaderIcon('ico7.svg');
         this.fillBookingModalContent(
             snapshot,
             'Проверяем оплату...',
@@ -2985,6 +3186,7 @@ class BookingSystem {
 
     showPaymentFailedModal(snapshot) {
         this.clearPaymentStatusPolling();
+        this.setBookingModalHeaderIcon('ico3.svg');
         this.fillBookingModalContent(
             snapshot,
             'Оплата не прошла',
@@ -3004,6 +3206,7 @@ class BookingSystem {
 
     showPaymentCanceledModal(snapshot) {
         this.clearPaymentStatusPolling();
+        this.setBookingModalHeaderIcon('ico3.svg');
         this.fillBookingModalContent(
             snapshot,
             'Визит отменен',
@@ -3017,6 +3220,7 @@ class BookingSystem {
     showPaymentPaidModal(snapshot) {
         this.clearPaymentStatusPolling();
         this.clearPendingPaymentSnapshot();
+        this.setBookingModalHeaderIcon('ico7.svg');
         this.fillBookingModalContent(
             snapshot,
             'Ваша консультация<br>забронирована!',
@@ -3150,6 +3354,7 @@ class BookingSystem {
     showBookingSuccessModal(formType = 'self') {
         const e = this.elements;
         if (!e.bookingSuccessModal) return;
+        this.setBookingModalHeaderIcon('ico7.svg');
 
         const appointment = formType === 'self' ? this.state.selfForm.appointment : this.state.manyForm.appointment;
         const specialist = formType === 'self' ? this.getSelectedSelfSpecialist() : this.getSelectedManySpecialist();
