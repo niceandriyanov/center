@@ -2624,9 +2624,6 @@ class BookingSystem {
             return;
         }
 
-        const slotsGrid = document.createElement('div');
-        slotsGrid.className = 'time-slots-container';
-
         availableSlots.forEach(slot => {
             const timeSlot = document.createElement('div');
             timeSlot.className = 'time-slot';
@@ -2643,10 +2640,8 @@ class BookingSystem {
                 Utils.addClass(timeSlot, CSS_CLASSES.DISABLED);
             }
 
-            slotsGrid.appendChild(timeSlot);
+            this.elements.timeSlotsContainer.appendChild(timeSlot);
         });
-
-        this.elements.timeSlotsContainer.appendChild(slotsGrid);
     }
 
     getAvailableTimeSlots(date) {

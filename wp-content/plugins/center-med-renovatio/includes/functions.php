@@ -691,25 +691,40 @@ function center_med_renovatio_ajax_filter_online_doctors() {
 				if( !is_wp_error( $shedule ) && !empty( $shedule[$doctor_api_id] ) ) {
 					foreach( $shedule[$doctor_api_id] as $slot ) {
 						if( empty( $slot['is_busy'] ) && !empty( $slot['category_id'] ) && $slot['category_id'] == 2910 ) {
-							$slot_timestamp = strtotime( (string) $slot['time_start'] );
-							if ( $slot_timestamp ) {
-								$months = [
-									1  => 'янв',
-									2  => 'фев',
-									3  => 'мар',
-									4  => 'апр',
-									5  => 'мая',
-									6  => 'июн',
-									7  => 'июл',
-									8  => 'авг',
-									9  => 'сен',
-									10 => 'окт',
-									11 => 'ноя',
-									12 => 'дек',
-								];
-								$month_num = (int) wp_date( 'n', $slot_timestamp );
-								$month     = isset( $months[ $month_num ] ) ? $months[ $month_num ] : '';
-								$nearestSlot = sprintf( '%s %s, %s', wp_date( 'j', $slot_timestamp ), $month, wp_date( 'H:i', $slot_timestamp ) );
+							$months = [
+								1  => 'янв',
+								2  => 'фев',
+								3  => 'мар',
+								4  => 'апр',
+								5  => 'мая',
+								6  => 'июн',
+								7  => 'июл',
+								8  => 'авг',
+								9  => 'сен',
+								10 => 'окт',
+								11 => 'ноя',
+								12 => 'дек',
+							];
+
+							$slot_day  = isset( $slot['_date'] ) ? sanitize_text_field( (string) $slot['_date'] ) : '';
+							$slot_time = isset( $slot['time_start_short'] ) ? sanitize_text_field( (string) $slot['time_start_short'] ) : '';
+
+							if ( preg_match( '/^\d{4}-\d{2}-\d{2}$/', $slot_day ) && preg_match( '/^\d{2}:\d{2}$/', $slot_time ) ) {
+								$slot_parts = explode( '-', $slot_day );
+								$day        = isset( $slot_parts[2] ) ? ltrim( $slot_parts[2], '0' ) : '';
+								$month_num  = isset( $slot_parts[1] ) ? (int) $slot_parts[1] : 0;
+								$month      = isset( $months[ $month_num ] ) ? $months[ $month_num ] : '';
+								if ( '' !== $day && '' !== $month ) {
+									$nearestSlot = sprintf( '%s %s, %s', $day, $month, $slot_time );
+								}
+							}
+							elseif ( ! empty( $slot['time_start'] ) ) {
+								$slot_datetime = DateTimeImmutable::createFromFormat( 'd.m.Y H:i', sanitize_text_field( (string) $slot['time_start'] ), wp_timezone() );
+								if ( $slot_datetime instanceof DateTimeImmutable ) {
+									$month_num = (int) $slot_datetime->format( 'n' );
+									$month     = isset( $months[ $month_num ] ) ? $months[ $month_num ] : '';
+									$nearestSlot = sprintf( '%s %s, %s', $slot_datetime->format( 'j' ), $month, $slot_datetime->format( 'H:i' ) );
+								}
 							}
 							break;
 						}

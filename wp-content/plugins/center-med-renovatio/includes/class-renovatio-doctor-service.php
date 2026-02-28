@@ -19,6 +19,8 @@ class Renovatio_Doctor_Service {
 	 */
 	private $api_client;
 
+	public $schedule_steps = [ 10, 15, 20, 30, 60 ];
+
 	/**
 	 * Конструктор.
 	 *
@@ -91,8 +93,11 @@ class Renovatio_Doctor_Service {
 
 		if ( isset( $params['step'] ) ) {
 			$step = absint( $params['step'] );
-			if ( in_array( $step, [ 10, 15, 20, 30, 60 ], true ) ) {
+			if ( in_array( $step, $this->schedule_steps, true ) ) {
 				$normalized['step'] = $step;
+			}
+			else {
+				$normalized['use_doctor_avg_time'] = true;
 			}
 		}
 
