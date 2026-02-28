@@ -1040,8 +1040,14 @@ function center_med_renovatio_ajax_create_appointment_request() {
 	$clinic_id         = absint( center_med_renovatio_get_setting( 'clinic_id', 0 ) );
 	$doctor_api_id     = 0;
 	$api_response      = null;
+	$waiting_task_id   = 0;
+	$waiting_task_error = '';
 	$last_name         = '';
 	$return_url_base   = home_url( '/' );
+
+	if ( $specialist_post_id > 0 && 'doctors' === get_post_type( $specialist_post_id ) ) {
+		$doctor_api_id = (int) get_post_meta( $specialist_post_id, Renovatio_Doctor_Metabox::META_KEY_DOCTOR_ID, true );
+	}
 
 	if ( '' !== $return_url_raw ) {
 		$parsed_return = wp_parse_url( $return_url_raw );
@@ -1075,7 +1081,6 @@ function center_med_renovatio_ajax_create_appointment_request() {
 			);
 		}
 
-		$doctor_api_id = (int) get_post_meta( $specialist_post_id, Renovatio_Doctor_Metabox::META_KEY_DOCTOR_ID, true );
 		if ( $doctor_api_id <= 0 ) {
 			wp_send_json_error(
 				[
@@ -1223,6 +1228,33 @@ function center_med_renovatio_ajax_create_appointment_request() {
 	$payment_url    = '';
 	$payment_id     = '';
 	$payment_status = 'not_created';
+
+	if ( $is_waiting_list && class_exists( 'Renovatio_Task_Service' ) ) {
+		$task_service = new Renovatio_Task_Service( center_med_renovatio_api_client() );
+		$task_result  = $task_service->create_waiting_list_task(
+			[
+				'specialist_name'  => $specialist_name,
+				'client_name'      => $name,
+				'phone'            => $phone,
+				'email'            => $email,
+				'telegram'         => $telegram,
+				'service'          => $service,
+				'form_type'        => $form_type,
+				'booking_public_id' => $booking_public_id,
+				'doctor_id'        => $doctor_api_id,
+				'clinic_id'        => $clinic_id,
+			]
+		);
+
+		if ( is_wp_error( $task_result ) ) {
+			$waiting_task_error = sanitize_text_field( $task_result->get_error_message() );
+		} elseif ( is_scalar( $task_result ) ) {
+			$waiting_task_id = absint( $task_result );
+		} elseif ( is_array( $task_result ) && isset( $task_result['task_id'] ) ) {
+			$waiting_task_id = absint( $task_result['task_id'] );
+		}
+	}
+
 	if ( $appointment_id > 0 && ! $is_waiting_list && class_exists( 'TochkaPayment' ) && $booking_amount > 0 ) {
 		$return_url = add_query_arg(
 			[
@@ -1277,6 +1309,8 @@ function center_med_renovatio_ajax_create_appointment_request() {
 			'payment_url'       => $payment_url,
 			'payment_id'        => $payment_id,
 			'payment_status'    => $payment_status,
+			'waiting_task_id'   => $waiting_task_id,
+			'waiting_task_error' => $waiting_task_error,
 		]
 	);
 
@@ -1288,6 +1322,7 @@ function center_med_renovatio_ajax_create_appointment_request() {
 			'paymentUrl'      => $payment_url,
 			'paymentId'       => $payment_id,
 			'paymentStatus'   => $payment_status,
+			'waitingTaskId'   => $waiting_task_id,
 		]
 	);
 }

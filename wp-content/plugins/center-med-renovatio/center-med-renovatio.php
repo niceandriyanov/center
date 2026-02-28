@@ -22,6 +22,7 @@ const CENTER_MED_RENOVATIO_OPTION_NAME = 'center_med_renovatio_settings';
 // Библиотека работы с API МИС Renovatio.
 require_once CENTER_MED_RENOVATIO_PLUGIN_DIR . '/includes/class-renovatio-api-client.php';
 require_once CENTER_MED_RENOVATIO_PLUGIN_DIR . '/includes/class-renovatio-doctor-service.php';
+require_once CENTER_MED_RENOVATIO_PLUGIN_DIR . '/includes/class-renovatio-task-service.php';
 require_once CENTER_MED_RENOVATIO_PLUGIN_DIR . '/includes/class-renovatio-db-schema.php';
 require_once CENTER_MED_RENOVATIO_PLUGIN_DIR . '/includes/class-renovatio-booking-expiration-worker.php';
 require_once CENTER_MED_RENOVATIO_PLUGIN_DIR . '/includes/class-renovatio-appointment-notifier.php';
