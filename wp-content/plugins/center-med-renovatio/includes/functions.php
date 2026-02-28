@@ -740,7 +740,13 @@ function center_med_renovatio_ajax_filter_online_doctors() {
 
 			$position_title = !empty($position_titles[$position]) ? $position_titles[$position] : '';
 
-			$price_raw = get_field( 'cost_1', $doctor_id );
+			if( !empty($_POST['form_type']) && $_POST['form_type'] == 'many' ) {
+				$price_raw = get_field( 'cost_1_many', $doctor_id );
+			}
+			else {
+				$price_raw = get_field( 'cost_1', $doctor_id );
+			}
+
 			$price_raw = str_replace(' ', '', $price_raw);
 			$price = is_numeric( $price_raw ) ? (int) $price_raw : 0;
 
