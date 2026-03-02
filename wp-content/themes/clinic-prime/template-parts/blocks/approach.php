@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) {
 }
 
 ?>
-<section class="mainWorks">
+<section class="mainWorks" id="mainWorks">
     <div class="container">
         <h2 class="sectionTitle">Работаем в подходах с доказанной медицинской эффективностью</h2>
         <div class="mainWorksItems">
