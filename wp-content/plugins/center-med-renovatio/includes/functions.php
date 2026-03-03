@@ -346,7 +346,374 @@ function center_med_renovatio_cancel_booking_unpaid( $booking_public_id, $reason
 }
 
 /**
- * Хук: после оплаты подтвердить визит в МИС.
+ * Запланировать фоновый пайплайн пост-оплаты.
+ *
+ * @param string $booking_public_id UUID брони.
+ * @param int    $attempt Номер попытки.
+ * @param int    $delay_seconds Задержка в секундах.
+ * @return void
+ */
+function center_med_renovatio_schedule_paid_pipeline( $booking_public_id, $attempt = 1, $delay_seconds = 5 ) {
+	$booking_public_id = sanitize_text_field( (string) $booking_public_id );
+	$attempt           = max( 1, (int) $attempt );
+	$delay_seconds     = max( 1, (int) $delay_seconds );
+
+	if ( '' === $booking_public_id ) {
+		return;
+	}
+
+	$hook = 'center_med_renovatio_process_paid_pipeline';
+	$args = [ $booking_public_id, $attempt ];
+
+	if ( wp_next_scheduled( $hook, $args ) ) {
+		return;
+	}
+
+	wp_schedule_single_event( time() + $delay_seconds, $hook, $args );
+}
+
+/**
+ * Записать шаг пайплайна в статус-лог.
+ *
+ * @param int    $booking_id ID брони.
+ * @param string $from_status Статус до действия.
+ * @param string $to_status Статус после действия.
+ * @param string $source Источник лога.
+ * @param string $message Сообщение.
+ * @param array  $context Контекст.
+ * @return void
+ */
+function center_med_renovatio_log_pipeline_step( $booking_id, $from_status, $to_status, $source, $message, array $context = [] ) {
+	global $wpdb;
+
+	$booking_id = (int) $booking_id;
+	if ( $booking_id <= 0 ) {
+		return;
+	}
+
+	$tables = Renovatio_Db_Schema::get_table_names();
+	$wpdb->insert(
+		$tables['status_log'],
+		[
+			'booking_id'   => $booking_id,
+			'from_status'  => sanitize_text_field( (string) $from_status ),
+			'to_status'    => sanitize_text_field( (string) $to_status ),
+			'source'       => sanitize_text_field( (string) $source ),
+			'message'      => sanitize_text_field( (string) $message ),
+			'context_json' => wp_json_encode( $context ),
+			'created_at'   => current_time( 'mysql' ),
+		],
+		[ '%d', '%s', '%s', '%s', '%s', '%s', '%s' ]
+	);
+}
+
+/**
+ * Достать номер счета из ответа МИС.
+ *
+ * @param mixed $response Ответ API.
+ * @return string
+ */
+function center_med_renovatio_extract_invoice_id_from_response( $response ) {
+	if ( is_scalar( $response ) ) {
+		$value = sanitize_text_field( (string) $response );
+		if ( '' !== $value ) {
+			return $value;
+		}
+	}
+
+	if ( ! is_array( $response ) ) {
+		return '';
+	}
+
+	$candidates = [
+		$response['number'] ?? '',
+		$response['invoice_id'] ?? '',
+		$response['invoiceId'] ?? '',
+		$response['id'] ?? '',
+		$response['invoice']['number'] ?? '',
+		$response['invoice']['id'] ?? '',
+		$response[0] ?? '',
+	];
+
+	foreach ( $candidates as $candidate ) {
+		$value = sanitize_text_field( (string) $candidate );
+		if ( '' !== $value ) {
+			return $value;
+		}
+	}
+
+	return '';
+}
+
+/**
+ * Найти номер счета из ранее успешного шага invoice_create.
+ *
+ * @param int $booking_id ID брони.
+ * @return string
+ */
+function center_med_renovatio_get_saved_invoice_id( $booking_id ) {
+	global $wpdb;
+
+	$booking_id = (int) $booking_id;
+	if ( $booking_id <= 0 ) {
+		return '';
+	}
+
+	$tables = Renovatio_Db_Schema::get_table_names();
+	$row    = $wpdb->get_row(
+		$wpdb->prepare(
+			"SELECT context_json FROM {$tables['status_log']} WHERE booking_id = %d AND source = %s ORDER BY id DESC LIMIT 1",
+			$booking_id,
+			'invoice_create'
+		),
+		ARRAY_A
+	);
+
+	if ( ! is_array( $row ) || empty( $row['context_json'] ) ) {
+		return '';
+	}
+
+	$context = json_decode( (string) $row['context_json'], true );
+	if ( ! is_array( $context ) ) {
+		return '';
+	}
+
+	$value = sanitize_text_field( (string) ( $context['invoice_number'] ?? '' ) );
+	if ( '' !== $value ) {
+		return $value;
+	}
+
+	return sanitize_text_field( (string) ( $context['invoice_id'] ?? '' ) );
+}
+
+/**
+ * Проверить, выполнен ли шаг пайплайна ранее.
+ *
+ * @param int    $booking_id ID брони.
+ * @param string $source Источник шага.
+ * @return bool
+ */
+function center_med_renovatio_has_pipeline_step( $booking_id, $source ) {
+	global $wpdb;
+
+	$booking_id = (int) $booking_id;
+	$source     = sanitize_text_field( (string) $source );
+	if ( $booking_id <= 0 || '' === $source ) {
+		return false;
+	}
+
+	$tables = Renovatio_Db_Schema::get_table_names();
+	$exists = $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT id FROM {$tables['status_log']} WHERE booking_id = %d AND source = %s LIMIT 1",
+			$booking_id,
+			$source
+		)
+	);
+
+	return ! empty( $exists );
+}
+
+/**
+ * Запланировать повтор пайплайна после ошибки.
+ *
+ * @param string $booking_public_id UUID брони.
+ * @param int    $attempt Текущая попытка.
+ * @param int    $booking_id ID брони.
+ * @param string $booking_status Текущий статус брони.
+ * @param string $reason Причина повтора.
+ * @param array  $context Контекст ошибки.
+ * @return void
+ */
+function center_med_renovatio_schedule_paid_pipeline_retry( $booking_public_id, $attempt, $booking_id, $booking_status, $reason, array $context = [] ) {
+	$delays      = [ 1 => 60, 2 => 300, 3 => 900, 4 => 1800, 5 => 3600 ];
+	$attempt     = max( 1, (int) $attempt );
+	$next_attempt = $attempt + 1;
+	$max_attempts = 5;
+
+	if ( $attempt >= $max_attempts ) {
+		center_med_renovatio_log_pipeline_step(
+			$booking_id,
+			$booking_status,
+			$booking_status,
+			'payment_pipeline_failed',
+			'Остановлены попытки post-payment пайплайна.',
+			[
+				'attempt' => $attempt,
+				'reason'  => sanitize_text_field( (string) $reason ),
+				'context' => $context,
+			]
+		);
+		return;
+	}
+
+	$delay = isset( $delays[ $next_attempt ] ) ? (int) $delays[ $next_attempt ] : 3600;
+	center_med_renovatio_schedule_paid_pipeline( $booking_public_id, $next_attempt, $delay );
+
+	center_med_renovatio_log_pipeline_step(
+		$booking_id,
+		$booking_status,
+		$booking_status,
+		'payment_pipeline_retry',
+		'Запланирован повтор post-payment пайплайна.',
+		[
+			'attempt'      => $attempt,
+			'next_attempt' => $next_attempt,
+			'retry_in'     => $delay,
+			'reason'       => sanitize_text_field( (string) $reason ),
+			'context'      => $context,
+		]
+	);
+}
+
+/**
+ * Cron: обработка post-payment пайплайна (confirm -> createInvoice -> payInvoice).
+ *
+ * @param string $booking_public_id UUID брони.
+ * @param int    $attempt Номер попытки.
+ * @return void
+ */
+function center_med_renovatio_process_paid_pipeline_event( $booking_public_id, $attempt = 1 ) {
+	$booking_public_id = sanitize_text_field( (string) $booking_public_id );
+	$attempt           = max( 1, (int) $attempt );
+	if ( '' === $booking_public_id ) {
+		return;
+	}
+
+	$lock_key = 'cmr_paid_pipeline_lock_' . md5( $booking_public_id );
+	if ( get_transient( $lock_key ) ) {
+		return;
+	}
+	set_transient( $lock_key, '1', 3 * MINUTE_IN_SECONDS );
+
+	try {
+		$booking = center_med_renovatio_get_booking_for_tochka( $booking_public_id );
+		if ( ! is_array( $booking ) ) {
+			return;
+		}
+
+		$booking_id     = (int) ( $booking['id'] ?? 0 );
+		$booking_status = sanitize_text_field( (string) ( $booking['status'] ?? '' ) );
+		$appointment_id = ! empty( $booking['appointment_id'] ) ? absint( $booking['appointment_id'] ) : 0;
+		if ( $booking_id <= 0 || $appointment_id <= 0 ) {
+			return;
+		}
+
+		$confirm_result = center_med_renovatio_confirm_booking_appointment(
+			$booking_public_id,
+			[
+				'pipeline' => true,
+				'attempt'  => $attempt,
+			]
+		);
+		if ( is_wp_error( $confirm_result ) ) {
+			center_med_renovatio_schedule_paid_pipeline_retry(
+				$booking_public_id,
+				$attempt,
+				$booking_id,
+				$booking_status,
+				'confirm_appointment_failed',
+				[ 'error' => $confirm_result->get_error_message() ]
+			);
+			return;
+		}
+
+		$invoice_number = center_med_renovatio_get_saved_invoice_id( $booking_id );
+		if ( '' === $invoice_number ) {
+			$create_result = center_med_renovatio_api_client()->request(
+				'createInvoice',
+				[
+					'appointment_id' => $appointment_id,
+					'source'         => 'website',
+				]
+			);
+
+			if ( is_wp_error( $create_result ) ) {
+				center_med_renovatio_schedule_paid_pipeline_retry(
+					$booking_public_id,
+					$attempt,
+					$booking_id,
+					$booking_status,
+					'create_invoice_failed',
+					[ 'error' => $create_result->get_error_message() ]
+				);
+				return;
+			}
+
+			$invoice_number = center_med_renovatio_extract_invoice_id_from_response( $create_result );
+			if ( '' === $invoice_number ) {
+				center_med_renovatio_schedule_paid_pipeline_retry(
+					$booking_public_id,
+					$attempt,
+					$booking_id,
+					$booking_status,
+					'create_invoice_no_id',
+					[ 'response' => $create_result ]
+				);
+				return;
+			}
+
+			center_med_renovatio_log_pipeline_step(
+				$booking_id,
+				$booking_status,
+				$booking_status,
+				'invoice_create',
+				'Счет создан в МИС.',
+				[
+					'invoice_number' => $invoice_number,
+					'response'       => $create_result,
+				]
+			);
+		}
+
+		if ( center_med_renovatio_has_pipeline_step( $booking_id, 'invoice_pay' ) ) {
+			return;
+		}
+
+		$pay_result = center_med_renovatio_api_client()->request(
+			'payInvoice',
+			[
+				'number'    => $invoice_number,
+				'type'      => 2,
+				'is_online' => 1,
+				'source'    => 'website',
+			]
+		);
+		if ( is_wp_error( $pay_result ) ) {
+			center_med_renovatio_schedule_paid_pipeline_retry(
+				$booking_public_id,
+				$attempt,
+				$booking_id,
+				$booking_status,
+				'pay_invoice_failed',
+				[
+					'error'          => $pay_result->get_error_message(),
+					'invoice_number' => $invoice_number,
+				]
+			);
+			return;
+		}
+
+		center_med_renovatio_log_pipeline_step(
+			$booking_id,
+			$booking_status,
+			$booking_status,
+			'invoice_pay',
+			'Счет оплачен в МИС.',
+			[
+				'invoice_number' => $invoice_number,
+				'response'       => $pay_result,
+				'attempt'        => $attempt,
+			]
+		);
+	} finally {
+		delete_transient( $lock_key );
+	}
+}
+add_action( 'center_med_renovatio_process_paid_pipeline', 'center_med_renovatio_process_paid_pipeline_event', 10, 2 );
+
+/**
+ * Хук: после оплаты запланировать подтверждение и оплату в МИС в фоне.
  *
  * @param array $booking Бронь.
  * @param array $payload Событие оплаты.
@@ -361,7 +728,7 @@ function center_med_renovatio_handle_booking_paid_confirm_appointment( $booking,
 		$payload = [];
 	}
 
-	center_med_renovatio_confirm_booking_appointment( (string) $booking['public_id'], $payload );
+	center_med_renovatio_schedule_paid_pipeline( (string) $booking['public_id'], 1, 5 );
 }
 add_action( 'center_med_renovatio_booking_paid', 'center_med_renovatio_handle_booking_paid_confirm_appointment', 10, 2 );
 
