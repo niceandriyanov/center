@@ -367,7 +367,6 @@ class TochkaRestAPI {
         try {
             // Получаем тело запроса
             $webhook_data = $request->get_body();
-            error_log('Webhook:'.print_r($webhook_data, true));
             if (empty($webhook_data)) {
                 return new WP_REST_Response(array('status' => 'error', 'message' => 'Empty data'), 200);
             }
@@ -377,6 +376,7 @@ class TochkaRestAPI {
             if (count($jwt_parts) === 3) {
                 $payload = json_decode(base64_decode($jwt_parts[1]), true);
                 if ($payload) {
+                    error_log('Webhook: '.print_r($payload, true));
                     $this->process_webhook_data($payload);
                 } else {
                     return new WP_REST_Response(array('status' => 'error', 'message' => 'Invalid JWT payload'), 200);
