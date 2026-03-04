@@ -2303,7 +2303,7 @@ body {
 	gap: 8px;
 
 	border-radius: 16px;
-	background: #366159;
+	background: #fff;
 	width: max-content;
 }
 
@@ -2931,6 +2931,10 @@ body {
 	flex-basis: 380px;
 	max-width: 380px;
 	min-width: 0;
+}
+
+.specInnerLeft .specItemFeatures {
+    margin-bottom: 0;
 }
 
 .specInnerRight {

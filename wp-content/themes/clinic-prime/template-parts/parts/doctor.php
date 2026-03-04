@@ -20,6 +20,7 @@ else {
 
 $image = get_field('img', $doctor_id);
 $specialization = get_field('spec_filter', $doctor_id);
+$specialist_type = get_field('specialist_type');
 ?>
 
 <div class="specItem">
@@ -31,10 +32,17 @@ $specialization = get_field('spec_filter', $doctor_id);
     <?php } ?>
     </a>
     <div class="specItemInfoWrap">
-        <div class="specItemOnlineLabel">
-            <img src="<?= THEME_URI; ?>/assets/img/ico/online.svg">
-            <span>Можно онлайн</span>
-        </div>
+        <?php if( $specialist_type == 'psychologist' ): ?>
+            <div class="specItemOnlineLabel">
+                <img src="<?= THEME_URI; ?>/assets/img/ico/ico_ps.svg" alt="<?= $image['alt']; ?>">
+                Психолог
+            </div>
+        <?php elseif( $specialist_type == 'clinical' ): ?>
+            <div class="specItemOnlineLabel">
+                <img src="<?= THEME_URI; ?>/assets/img/ico/ico_cl.svg" alt="<?= $image['alt']; ?>">
+                Клинический психолог
+            </div>
+        <?php endif; ?>
         <div class="specItemInfo">
             <a class="specItemTitle" href="<?= get_permalink($doctor_id); ?>"><?= get_the_title($doctor_id); ?></a>
             <a class="specItemText" href="<?= get_permalink($doctor_id); ?>"><?= get_the_excerpt($doctor_id); ?></a>

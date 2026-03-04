@@ -5,14 +5,8 @@
     <meta name="viewport" content="width=device-width, height=device-height, initial-scale=1, user-scalable=0, minimum-scale=1, maximum-scale=1">
     <?php wp_head(); ?>
     <meta http-equiv="x-ua-compatible" content="ie=edge">
-    <script type="text/javascript">
-    if (!window.dgSocialWidgetData) { window.dgSocialWidgetData = []; }
-    window.dgSocialWidgetData.push({
-        widgetId: '9be6d553-b2d7-429d-9953-f97b32838478',
-        apiUrl: 'https://app.daily-grow.com/sw/api/v1',
-    });
-</script>
-<script type="text/javascript" src="https://app.daily-grow.com/social-widget/init.js" defer></script>
+    
+
 </head>
 <body <?php body_class(); ?>>
     <?php $theme_header = get_field('theme_header', 'option'); ?>

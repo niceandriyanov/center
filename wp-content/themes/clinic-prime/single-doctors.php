@@ -8,6 +8,7 @@
     <?php $doctor_id = get_the_ID(); ?>
     <?php
     $specialization = get_field('spec_filter', $doctor_id);
+    $specialist_type = get_field('specialist_type');
     $specialization_out = '';
     if( !is_wp_error($specialization) && !empty($specialization) ) {
         ob_start();
@@ -32,11 +33,6 @@
                     <div class="specInnerItemWrap">
                         <div class="specInnerLeftMobile">
                             <div class="titleMedium"><?php the_title(); ?></div>
-                            <?php if( !empty($specialization_out) ) { ?>
-                            <div class="specItemFeatures">
-                                <?= $specialization_out; ?>
-                                </div>
-                            <?php } ?>
                         </div>
                         <div class="specInnerItem">
                             <?php $image = get_field('img', $doctor_id); ?>
@@ -47,16 +43,24 @@
                             </div>
                             <?php } ?>
                             <div class="specItemInfoWrap">
-                                <div class="specItemOnlineModal">
-                                    Возможен онлайн-приём у этого врача. Он отличается от визита в клинику и чаще подходит для получения второго мнения. Подробнее об ограничениях — <a href="https://clinic.handlingbetter.ru/online/" target="_blank">в&nbsp;этой статье.</a>
-                                </div>
-                                <div class="specItemOnlineLabel">
-                                    <img src="<?= THEME_URI; ?>/assets/img/ico/online.svg">
-                                    <span>Можно онлайн</span>
-                                </div>
+                                <?php if( $specialist_type == 'psychologist' ): ?>
+                                    <div class="specItemOnlineLabel">
+                                        <img src="<?= THEME_URI; ?>/assets/img/ico/ico_ps.svg" alt="<?= $image['alt']; ?>">
+                                        Психолог
+                                    </div>
+                                <?php elseif( $specialist_type == 'clinical' ): ?>
+                                    <div class="specItemOnlineLabel">
+                                        <img src="<?= THEME_URI; ?>/assets/img/ico/ico_cl.svg" alt="<?= $image['alt']; ?>">
+                                        Клинический психолог
+                                    </div>
+                                <?php endif; ?>
                                 <div class="specItemInfo">
-                                    <div class="specItemTitle"><?php the_title(); ?></div>
                                     <div class="specItemText"><?php the_excerpt(); ?></div>
+                                    <?php if( !empty($specialization_out) ) { ?>
+                                        <div class="specItemFeatures">
+                                            <?= $specialization_out; ?>
+                                        </div>
+                                    <?php } ?>
                                 </div>
                             </div>
                             
@@ -81,17 +85,24 @@
 
                 <div class="specInnerRight">
                     <h1 aria-hidden="true" class="titleMedium visually-hidden"><?php the_title(); ?></h1>
-                    <div class="specInnerRightContent">
-                        <?php if( !empty($specialization_out) ) { ?>
-                        <div class="specItemFeatures hidden_m">
-                            <?= $specialization_out; ?>
-                        </div>
-                        <?php } ?>
-
+                    <div class="specInnerRightContent">   
                         <?php $quote = get_field('quote', $doctor_id); ?>
                         <?php if( !empty($quote) ) { ?>
                         <div class="specQuote">
                             <?= $quote; ?>
+                        </div>
+                        <?php } ?>
+
+                        <?php $prices = get_field('price_elements', $doctor_id); ?>
+                        <?php if( !empty($prices) ) { ?>
+                        <h2>Услуги и цены</h2>
+                        <div class="priceInnerWrap">
+                            <?php foreach( $prices as $price ) { ?>
+                                <div class="priceSpecItem">
+                                    <div class="priceSpecName"><?= $price['name']; ?></div>
+                                    <div class="priceSpecValue"><?= $price['price']; ?> ₽</div>
+                                </div>
+                            <?php } ?>
                         </div>
                         <?php } ?>
 
@@ -113,70 +124,7 @@
                         <?php if( !empty($video) ) { ?>
                             <h2>Ролик со специалистом</h2>
                             <?= $video; ?>
-                        <?php } ?>
-
-                        <div class="specInnerSliderWrap">
-                            <div class="specInnerSliderTopWrap">
-                                <h2>Тут я веду прием</h2>
-                                <div class="specInnerSliderNavs hiddensm">
-                                    <div class="navArrow specInnerSlidePrev2">
-                                        <svg width="20" height="14" viewBox="0 0 20 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <path d="M2 7H20M2 7L8 1M2 7L8 13" stroke="black" stroke-width="1.5"></path>
-                                        </svg>
-                                    </div>
-                                    <div class="navArrow specInnerSlideNext2">
-                                        <svg width="20" height="14" viewBox="0 0 20 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                            <path id="Vector" d="M18 7H0M18 7L12 1M18 7L12 13" stroke="black" stroke-width="1.5"></path>
-                                        </svg>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="swiper-container photoSlider">
-                                <div class="swiper-wrapper">
-                                    <div class="swiper-slide">
-                                        <a href="<?= THEME_URI; ?>/assets/img/photoSlider/1_big.jpg" class="photoImg" data-fancybox="gallery">
-                                            <img src="<?= THEME_URI; ?>/assets/img/photoSlider/1.jpg">
-                                        </a>
-                                    </div>
-                                    <div class="swiper-slide">
-                                        <a href="<?= THEME_URI; ?>/assets/img/photoSlider/2_big.png" class="photoImg" data-fancybox="gallery">
-                                            <img src="<?= THEME_URI; ?>/assets/img/photoSlider/2.jpg">
-                                        </a>
-                                    </div>
-                                    <div class="swiper-slide">
-                                        <a href="<?= THEME_URI; ?>/assets/img/photoSlider/3_big.jpg" class="photoImg" data-fancybox="gallery">
-                                            <img src="<?= THEME_URI; ?>/assets/img/photoSlider/3.jpg">
-                                        </a>
-                                    </div>
-                                    <div class="swiper-slide">
-                                        <a href="<?= THEME_URI; ?>/assets/img/photoSlider/4_big.jpg" class="photoImg" data-fancybox="gallery">
-                                            <img src="<?= THEME_URI; ?>/assets/img/photoSlider/4.jpg">
-                                        </a>
-                                    </div>
-                                    <div class="swiper-slide">
-                                        <a href="<?= THEME_URI; ?>/assets/img/photoSlider/1_big.jpg" class="photoImg" data-fancybox="gallery">
-                                            <img src="<?= THEME_URI; ?>/assets/img/photoSlider/1.jpg">
-                                        </a>
-                                    </div>
-                                    <div class="swiper-slide">
-                                        <a href="<?= THEME_URI; ?>/assets/img/photoSlider/2_big.png" class="photoImg" data-fancybox="gallery">
-                                            <img src="<?= THEME_URI; ?>/assets/img/photoSlider/2.jpg">
-                                        </a>
-                                    </div>
-                                    <div class="swiper-slide">
-                                        <a href="<?= THEME_URI; ?>/assets/img/photoSlider/3_big.jpg" class="photoImg" data-fancybox="gallery">
-                                            <img src="<?= THEME_URI; ?>/assets/img/photoSlider/3.jpg">
-                                        </a>
-                                    </div>
-                                    <div class="swiper-slide">
-                                        <a href="<?= THEME_URI; ?>/assets/img/photoSlider/4_big.jpg" class="photoImg" data-fancybox="gallery">
-                                            <img src="<?= THEME_URI; ?>/assets/img/photoSlider/4.jpg">
-                                        </a>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="swiper-pagination3"></div>
-                        </div>
+                        <?php } ?>                        
                         
                         <?php $articles = get_field('articles', $doctor_id); ?>
                         <?php if( !empty($articles) ) { ?>

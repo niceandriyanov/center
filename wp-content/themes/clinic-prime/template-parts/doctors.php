@@ -188,7 +188,12 @@ get_header(); ?>
 
                 <div class="innerPageMiddle bottomTextResults">
                     <div class="innerPageSubText">
-                        <p>Наши врачи-неврологи и психиатры используют современные методы диагностики и лечения, включая медикаментозную терапию и неврологическую реабилитацию.</p>
+                        <p>
+                            Услуги психолога оказывают дипломированные специалисты с внушительным практическим опытом работы в сфере решения проблем ментального здоровья. 
+                        </p>
+                        <p>
+                            Прием психолога центра «Справиться Проще» поможет выявить и проанализировать имеющиеся проблемы, сформировать индивидуальный план их коррекции, а также получить рекомендации по улучшению эмоционального состояния и повышению качества жизни.
+                        </p>
                     </div>
                 </div>
 
@@ -202,7 +207,12 @@ get_header(); ?>
 
                 <div class="innerPageMiddle bottomTextResults" style="display: none;">
                     <div class="innerPageSubText">
-                        <p>Наши врачи-неврологи и психиатры используют современные методы диагностики и лечения, включая медикаментозную терапию и неврологическую реабилитацию.</p>
+                        <p>
+                            Услуги психолога оказывают дипломированные специалисты с внушительным практическим опытом работы в сфере решения проблем ментального здоровья. 
+                        </p>
+                        <p>
+                            Прием психолога центра «Справиться Проще» поможет выявить и проанализировать имеющиеся проблемы, сформировать индивидуальный план их коррекции, а также получить рекомендации по улучшению эмоционального состояния и повышению качества жизни.
+                        </p>
                     </div>
                 </div>
 
@@ -214,26 +224,41 @@ get_header(); ?>
 
     <section class="secondFeatures">
         <div class="container">
-            <h2 class="sectionTitle">Каждый из наших специалистов</h2>
+            <h2 class="sectionTitle">Чтобы попасть к нам, специалисты прошли строгий отбор</h2>
             <div class="secondFeaturesWrap">
+                
                 <div class="secondFeatureItem">
-                    <div class="secondFeatureItemIco"><img src="<?= THEME_URI; ?>/assets/img/main/ico5.svg" alt=""></div>
-                    <div class="secondFeatureItemTitle">Опирается на современные клинические рекомендации</div>
-                    <div class="secondFeatureItemText">Чтобы не навредить и не затягивать лечение</div>
-                </div>
-
+                <div class="secondFeatureItemIco"><img src="/wp-content/uploads/2026/02/ico2.svg" alt=""></div>
+                        <div class="secondFeatureItemTitle">Долгосрочное обучение</div>
+                           
+                        <div class="secondFeatureItemText">Все наши психологи постоянно повышают квалификацию и&nbsp;имеют высшее образование</div>
+                                    </div>
+                
+                
                 <div class="secondFeatureItem">
-                    <div class="secondFeatureItemIco"><img src="<?= THEME_URI; ?>/assets/img/main/ico6.svg" alt=""></div>
-                    <div class="secondFeatureItemTitle">Сдал этический экзамен</div>
-                    <div class="secondFeatureItemText">Так мы уверены, что к пациентам будут относится бережно и внимательно</div>
-                </div>
-
+                <div class="secondFeatureItemIco"><img src="/wp-content/uploads/2026/02/ico3.svg" alt=""></div>
+                        <div class="secondFeatureItemTitle">Супервизии и интервизии</div>
+                           
+                        <div class="secondFeatureItemText">Наши специалисты не&nbsp;остаются наедине с&nbsp;проблемными вопросами и&nbsp;имеют поддержку коллег</div>
+                                    </div>
+                
+                
                 <div class="secondFeatureItem">
-                    <div class="secondFeatureItemIco"><img src="<?= THEME_URI; ?>/assets/img/main/ico7.svg" alt=""></div>
-                    <div class="secondFeatureItemTitle">Проходит еженедельные интервизии</div>
-                    <div class="secondFeatureItemText">И разбирает на них сложные случаи, чтобы получить взгляд со стороны от коллег</div>
-                </div>
-            </div>
+                <div class="secondFeatureItemIco"><img src="/wp-content/uploads/2026/02/ico4.svg" alt=""></div>
+                        <div class="secondFeatureItemTitle">Этика</div>
+                           
+                        <div class="secondFeatureItemText">Все наши специалисты прошли тестирование на&nbsp;приверженность этическим стандартам и&nbsp;придерживаются их&nbsp;в&nbsp;своей работе</div>
+                                    </div>
+                
+                
+                <div class="secondFeatureItem">
+                <div class="secondFeatureItemIco"><img src="/wp-content/uploads/2026/02/ico5.svg" alt=""></div>
+                        <div class="secondFeatureItemTitle">Контроль качества</div>
+                           
+                        <div class="secondFeatureItemText">Собираем обратную связь по&nbsp;работе специалистов, а&nbsp;все новые психологи проходят полугодовую стажировку</div>
+                                    </div>
+                
+                        </div>
         </div>
     </section>
 <?php endwhile; ?>

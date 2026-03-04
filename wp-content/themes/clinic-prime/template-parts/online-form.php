@@ -104,4 +104,86 @@ get_header(); ?>
     </div>
 </div>
 
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const formContainer = document.querySelector('.online-form-container');
+        const formFooter = document.querySelector('.online-form-footer');
+
+        if (!formContainer || !formFooter) {
+            console.error('Элементы не найдены на странице');
+            return;
+        }
+
+        // Получаем изначальное позиционирование футера внутри контейнера
+        const footerInitialTop = formFooter.offsetTop - formContainer.offsetTop;
+
+        function checkFooterPosition() {
+            const containerRect = formContainer.getBoundingClientRect();
+
+            // Когда верх контейнера достиг верха окна (или выше)
+            // И футер находится в видимой части контейнера
+            if (containerRect.top <= 0) {
+                // Проверяем, не ушел ли контейнер полностью вниз
+                if (containerRect.bottom > formFooter.offsetHeight) {
+                    formFooter.classList.add('fixed');
+                } else {
+                    formFooter.classList.remove('fixed');
+                }
+            } else {
+                formFooter.classList.remove('fixed');
+            }
+        }
+
+        // Проверяем при загрузке страницы
+        checkFooterPosition();
+
+        // Проверяем при скролле (с throttling для производительности)
+        let isScrolling = false;
+        window.addEventListener('scroll', function() {
+            if (!isScrolling) {
+                window.requestAnimationFrame(function() {
+                    checkFooterPosition();
+                    isScrolling = false;
+                });
+                isScrolling = true;
+            }
+        });
+
+        // Также проверяем при ресайзе окна
+        window.addEventListener('resize', checkFooterPosition);
+    });
+
+    // Функция для виджетов
+    function initVidjetToggle() {
+        const vidjetOpen = document.querySelector('.fixed-vidjet-open');
+        const vidjetClose = document.querySelector('.fixed-vidjet-close');
+        const vidjetMini = document.querySelector('.fixed-vidjet-mini');
+
+        if (!vidjetOpen || !vidjetClose || !vidjetMini) return;
+
+        vidjetClose.addEventListener('click', function() {
+            vidjetOpen.classList.remove('active');
+            vidjetMini.classList.add('active');
+        });
+
+        vidjetMini.addEventListener('click', function() {
+            vidjetMini.classList.remove('active');
+            vidjetOpen.classList.add('active');
+        });
+    }
+
+    // Запуск когда DOM загружен
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initVidjetToggle);
+    } else {
+        initVidjetToggle();
+    }
+</script>
+
+<style>
+    .headerMiddle {
+        position: relative;
+    }
+</style>
+
 <?php get_footer(); ?>
