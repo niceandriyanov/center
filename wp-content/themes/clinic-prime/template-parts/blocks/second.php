@@ -12,7 +12,7 @@
                             Стабильный поток клиентов
                         </div>
                         <div class="psiFeaturesLeftText">
-                            Зрители нам доверяют, и специалисты из наших выпусков пользуются у них спросом.
+                            Зрители нам доверяют, и специалисты из наших выпусков пользуются у них спросом
                         </div>
                     </div>
 
@@ -24,7 +24,7 @@
                             Индивидуальные условия
                         </div>
                         <div class="psiFeaturesLeftText">
-                            Мы хотим привлечь достойных специалистов, поэтому готовы обсуждать индивидуальные условия сотрудничества.
+                            Мы хотим привлечь достойных специалистов, поэтому готовы обсуждать индивидуальные условия сотрудничества
                         </div>
                     </div>
 
@@ -36,7 +36,7 @@
                             Репутация
                         </div>
                         <div class="psiFeaturesLeftText">
-                            В психотерапевтическом сообществе нас ценят и хотят с нами сотрудничать.
+                            В психотерапевтическом сообществе нас ценят и хотят с нами сотрудничать
                         </div>
                     </div>
 
@@ -48,7 +48,7 @@
                             Обучение
                         </div>
                         <div class="psiFeaturesLeftText">
-                            Мы организуем интервизии, рабочие группы и лекции с приглашенными специалистами.
+                            Мы организуем интервизии, рабочие группы и лекции с приглашенными специалистами
                         </div>
                     </div>
                 </div>
@@ -79,15 +79,15 @@
                             <img src="<?= THEME_URI; ?>/assets/img/psi/8.svg" alt="">
                         </div>
                         <div class="psiFeaturesRightItemText">
-                            Базовый курс по когнитивно-поведенческой терапии от 100 часов<br>
-                            Дополнительно: обучение по одному из методов семейства КБТ с подтвержденной эффективностью — ДБТ, АСТ, Схема-терапия, УП Барлоу, РЭПТ и др.
+                            Базовый курс по когнитивно-поведенческой терапии от 100 часов.<br>
+                            Дополнительно: обучение по одному из методов семейства КПТ с подтвержденной эффективностью: ДБТ, АСТ, схема-терапия, УП Барлоу, РЭПТ и прочие
                         </div>
                     </div>
                     <div class="psiFeaturesRightItem">
                         <div class="psiFeaturesRightItemIco">
                             <img src="<?= THEME_URI; ?>/assets/img/psi/9.svg" alt="">
                         </div>
-                        <div class="psiFeaturesRightItemText">Регулярное прохождение супервизии</div>
+                        <div class="psiFeaturesRightItemText">Регулярное прохождение супервизий</div>
                     </div>
                 </div>
             </div>
@@ -106,19 +106,19 @@
                 <div class="secondFeatureItem">
                     <div class="secondFeatureItemIco"><img src="<?= THEME_URI; ?>/assets/img/psi/10.svg" alt=""></div>
                     <div class="secondFeatureItemTitle">Анкета</div>
-                    <div class="secondFeatureItemText">Заполните форму ниже. Если ваша анкета нам подойдет, с вами свяжется менеджер и предложит пройти первичное собеседование.</div>
+                    <div class="secondFeatureItemText">Заполните форму ниже. Если анкета нам подойдет, с вами свяжется менеджер и предложит пройти первичное собеседование</div>
                 </div>
 
                 <div class="secondFeatureItem">
                     <div class="secondFeatureItemIco"><img src="<?= THEME_URI; ?>/assets/img/psi/11.svg" alt=""></div>
                     <div class="secondFeatureItemTitle">Стажировка</div>
-                    <div class="secondFeatureItemText">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam...</div>
+                    <div class="secondFeatureItemText">Обязательна для новых специалистов. Стажировка длится 6 месяцев, проходит онлайн и включает встречи с кураторами один раз в неделю по полтора часа</div>
                 </div>
 
                 <div class="secondFeatureItem">
                     <div class="secondFeatureItemIco"><img src="<?= THEME_URI; ?>/assets/img/psi/12.svg" alt=""></div>
                     <div class="secondFeatureItemTitle">Финальный экзамен</div>
-                    <div class="secondFeatureItemText">Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam...</div>
+                    <div class="secondFeatureItemText">Вы сможете приступить к полноценной работе в центре только после сдачи экзамена</div>
                 </div>
 
             </div>
