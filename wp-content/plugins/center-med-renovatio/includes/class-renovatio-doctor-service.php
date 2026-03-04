@@ -41,7 +41,7 @@ class Renovatio_Doctor_Service {
 	 */
 	public function get_schedule( array $params = [] ) {
 		$request_params = $this->normalize_schedule_params( $params );
-
+		
 		if ( empty( $request_params['user_id'] ) ) {
 			return new WP_Error(
 				'missing_user_id',

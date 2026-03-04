@@ -980,8 +980,8 @@ function center_med_renovatio_ajax_filter_online_doctors() {
 	check_ajax_referer( 'clinic_nonce', 'nonce' );
 
 	$types = [
-		Renovatio_Doctor_Metabox::META_KEY_STEP_PERSONAL, 
-		Renovatio_Doctor_Metabox::META_KEY_STEP_PAIR
+		Renovatio_Doctor_Metabox::META_KEY_STEP_PERSONAL,
+		Renovatio_Doctor_Metabox::META_KEY_STEP_PAIR,
 	];
 	$current_type = $types[0];
 	$form_type    = isset( $_POST['form_type'] ) ? sanitize_text_field( wp_unslash( $_POST['form_type'] ) ) : '';
@@ -1049,11 +1049,11 @@ function center_med_renovatio_ajax_filter_online_doctors() {
 			$shedule = [];
 			$nearestSlot = '';
 			if( !empty( $doctor_api_id ) ) {
-				$shedule = $api_doctors->get_schedule( [ 
-					'user_ids' 	=> [$doctor_api_id], 
-					'time_end' 	=> date( 'd.m.Y H:i', strtotime( '+30 day' ) ), 
-					'step' 		=> $doctor_step,
-					'show_all' 	=> 1 
+				$shedule = $api_doctors->get_schedule( [
+					'user_ids' => [ $doctor_api_id ],
+					'time_end' => date( 'd.m.Y H:i', strtotime( '+30 day' ) ),
+					'step'     => $doctor_step,
+					'show_all' => 1,
 				] );
 				if( !is_wp_error( $shedule ) && !empty( $shedule[$doctor_api_id] ) ) {
 					foreach( $shedule[$doctor_api_id] as $slot ) {
@@ -1263,8 +1263,7 @@ function center_med_renovatio_ajax_get_online_doctor_available_days() {
 	];
 	if ( $doctor_step > 0 ) {
 		$params['step'] = $doctor_step;
-	}
-	else {
+	} else {
 		$params['step'] = 60;
 	}
 
@@ -1457,12 +1456,17 @@ function center_med_renovatio_ajax_create_appointment_request() {
 			);
 		}
 
-		$step_meta_key = ( 'many' === $form_type )
-			? Renovatio_Doctor_Metabox::META_KEY_STEP_PAIR
-			: Renovatio_Doctor_Metabox::META_KEY_STEP_PERSONAL;
-		$doctor_step   = (int) get_post_meta( $specialist_post_id, $step_meta_key, true );
-		if ( $doctor_step <= 0 ) {
-			$doctor_step = 60;
+		$service_meta_key  = ( 'many' === $form_type )
+			? Renovatio_Doctor_Metabox::META_KEY_SERVICE_PAIR
+			: Renovatio_Doctor_Metabox::META_KEY_SERVICE_PERSONAL;
+		$doctor_service_id = (int) get_post_meta( $specialist_post_id, $service_meta_key, true );
+		if ( $doctor_service_id <= 0 ) {
+			wp_send_json_error(
+				[
+					'message' => __( 'У специалиста не выбрана услуга консультации в настройках МИС.', 'center-med-renovatio' ),
+				],
+				500
+			);
 		}
 
 		$timezone   = wp_timezone();
@@ -1474,6 +1478,13 @@ function center_med_renovatio_ajax_create_appointment_request() {
 				],
 				400
 			);
+		}
+		$step_meta_key = ( 'many' === $form_type )
+			? Renovatio_Doctor_Metabox::META_KEY_STEP_PAIR
+			: Renovatio_Doctor_Metabox::META_KEY_STEP_PERSONAL;
+		$doctor_step = (int) get_post_meta( $specialist_post_id, $step_meta_key, true );
+		if ( $doctor_step <= 0 ) {
+			$doctor_step = 60;
 		}
 		$end_date = $start_date->modify( '+' . $doctor_step . ' minutes' );
 
@@ -1496,6 +1507,14 @@ function center_med_renovatio_ajax_create_appointment_request() {
 			'source'     			=> 'website',
 			'comment'    			=> $service,
 			'check_intersection' 	=> 1,
+			'services'              => wp_json_encode(
+				[
+					[
+						'service_id' => $doctor_service_id,
+						'count'      => 1,
+					],
+				]
+			),
 		];
 
 
