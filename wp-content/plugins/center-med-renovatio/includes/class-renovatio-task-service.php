@@ -145,6 +145,7 @@ class Renovatio_Task_Service {
 
 		$return = $this->api_client->request( 'createTask', $request_params );
 		error_log( print_r( $return, true ) );
+		error_log( print_r( $request_params, true ) );
 		return $return;
 	}
 }
