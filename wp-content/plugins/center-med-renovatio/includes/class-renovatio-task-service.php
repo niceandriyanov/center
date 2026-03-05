@@ -144,7 +144,7 @@ class Renovatio_Task_Service {
         $request_params['user_id'] = implode(',',$request_params['user_id']);
 
 		$return = $this->api_client->request( 'createTask', $request_params );
-
+		error_log( print_r( $return, true ) );
 		return $return;
 	}
 }
