@@ -708,6 +708,35 @@ class BookingSystem {
         this.bindInput(e.recommendationFreeInput, 'recommendationInfo', 'self');
     }
 
+
+    validateTelegram() {
+        const field = this.elements.clientTelegram;
+        if (!field) return false;
+
+        const value = String(field.value || '').trim();
+        if (!Utils.isNotEmpty(value)) {
+            this.showFieldError(field, false, 'Это поле обязательно для заполнения');
+            return false;
+        }
+
+        // Поддержка форматов:
+        // @username
+        // username
+        // t.me/username
+        let username = value
+            .replace(/^@/, '')
+            .replace(/[/?#].*$/, '')
+            .trim();
+        // Telegram username: 5-32 символа, латиница/цифры/подчеркивание
+        const isValid = /^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(username);
+        this.showFieldError(
+            field,
+            isValid,
+            'Укажите Telegram в формате @username или t.me/username'
+        );
+        return isValid;
+    }
+
     bindStep4Events() {
         const e = this.elements;
 
@@ -715,6 +744,7 @@ class BookingSystem {
         this.bindDebouncedInput(e.clientName, 'clientName', () => this.validateClientName(), 'self');
         this.bindDebouncedInput(e.clientAge, 'clientAge', () => this.validateClientAge(), 'self');
         this.bindDebouncedInput(e.clientEmail, 'clientEmail', () => this.validateEmail(), 'self');
+        this.bindDebouncedInput(e.clientTelegram, 'clientTelegram', () => this.validateTelegram(), 'self');
 
         // Телефон без дебаунса
         Utils.on(e.clientPhone, 'input', () => {
@@ -722,9 +752,6 @@ class BookingSystem {
             this.validatePhoneLazy();
             this.updateUI();
         });
-
-        // Telegram (необязательное)
-        this.bindDebouncedInput(e.clientTelegram, 'clientTelegram', null, 'self', false);
 
         // Чекбоксы
         this.bindCheckbox(e.agreementPrivacy, 'agreementPrivacy', e.privacyError, 'self');
@@ -751,6 +778,7 @@ class BookingSystem {
         this.bindDebouncedInput(e.manyClient1Name, 'client1Name', () => this.validateManyClientName(), 'many');
         this.bindDebouncedInput(e.manyClient1Age, 'client1Age', () => this.validateManyClientAge(), 'many');
         this.bindDebouncedInput(e.manyClient1Email, 'client1Email', () => this.validateManyEmail(), 'many');
+        this.bindDebouncedInput(e.manyClientTelegram, 'ClientTelegram', () => this.validateManyTelegram(), 'many');
 
         // Телефон с маской (обработка без дебаунса)
         if (e.manyClient1Phone) {
@@ -766,11 +794,6 @@ class BookingSystem {
             Utils.on(e.manyClient1Phone, 'blur', () => {
                 this.validateManyPhone();
             });
-        }
-
-        // Telegram (необязательное поле) - ДОБАВЛЕНО БЕЗ ВАЛИДАЦИИ
-        if (e.manyClientTelegram) {
-            this.bindDebouncedInput(e.manyClientTelegram, 'clientTelegram', null, 'many', false);
         }
 
         // Чекбоксы формы "Для пары"
@@ -1236,6 +1259,7 @@ class BookingSystem {
             this.validateClientAge(),
             this.validatePhone(),
             this.validateEmail(),
+            this.validateTelegram(),
             this.validateAgreements()
         ].every(Boolean);
     }
@@ -1405,6 +1429,7 @@ class BookingSystem {
             this.validateManyClientAge(),
             this.validateManyPhone(),
             this.validateManyEmail(),
+            this.validateManyTelegram(),
             this.validateManyAgreements()
         ].every(Boolean);
     }
@@ -1496,6 +1521,34 @@ class BookingSystem {
 
         const isValid = Utils.isEmail(value);
         this.showFieldError(field, isValid, 'Пожалуйста, укажите корректный email');
+        return isValid;
+    }
+
+    validateManyTelegram() {
+        const field = this.elements.manyClientTelegram;
+        if (!field) return false;
+
+        const value = String(field.value || '').trim();
+        if (!Utils.isNotEmpty(value)) {
+            this.showFieldError(field, false, 'Это поле обязательно для заполнения');
+            return false;
+        }
+
+        // Поддержка форматов:
+        // @username
+        // username
+        // t.me/username
+        let username = value
+            .replace(/^@/, '')
+            .replace(/[/?#].*$/, '')
+            .trim();
+        // Telegram username: 5-32 символа, латиница/цифры/подчеркивание
+        const isValid = /^[A-Za-z][A-Za-z0-9_]{4,31}$/.test(username);
+        this.showFieldError(
+            field,
+            isValid,
+            'Укажите Telegram в формате @username или t.me/username'
+        );
         return isValid;
     }
 
@@ -2127,7 +2180,7 @@ class BookingSystem {
             Utils.hide(this.elements.offerError);
         } else {
             const fields = [
-                'manyClient1Name', 'manyClient1Age', 'manyClient1Phone', 'manyClient1Email'
+                'manyClient1Name', 'manyClient1Age', 'manyClient1Phone', 'manyClient1Email', 'manyClientTelegram'
             ];
             fields.forEach(fieldId => {
                 const field = document.getElementById(fieldId);

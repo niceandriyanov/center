@@ -333,8 +333,9 @@
 
                             <!-- телеграм -->
                             <div class="contact-field-group">
-                                <label for="clientTelegram">Telegram</label>
-                                <input type="tel" id="clientTelegram" name="clientTelegram" class="field" placeholder="@username">
+                                <label for="clientTelegram">Telegram <span class="required"></span></label>
+                                <input type="text" id="clientTelegram" name="clientTelegram" class="field" placeholder="@username">
+                                <div class="online-error-message">Пожалуйста, укажите корректный Telegram</div>
                             </div>
 
                             <!-- Email -->
@@ -539,8 +540,9 @@
 
                             <!-- телеграм -->
                             <div class="contact-field-group">
-                                <label for="manyClientTelegram">Telegram</label>
+                                <label for="manyClientTelegram">Telegram <span class="required"></span></label>
                                 <input type="text" id="manyClientTelegram" name="manyClientTelegram" class="field" placeholder="@username">
+                                <div class="online-error-message">Пожалуйста, укажите корректный Telegram</div>
                             </div>
 
                             <div class="contact-field-group">
