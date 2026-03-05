@@ -1388,6 +1388,13 @@ function center_med_renovatio_ajax_create_appointment_request() {
 	$appointment_date   = isset( $message['appointmentDate'] ) ? sanitize_text_field( (string) $message['appointmentDate'] ) : '';
 	$appointment_time   = isset( $message['appointmentTime'] ) ? sanitize_text_field( (string) $message['appointmentTime'] ) : '';
 	$telegram           = isset( $message['telegram'] ) ? sanitize_text_field( (string) $message['telegram'] ) : '';
+	$work_main          = isset( $message['workMain'] ) ? sanitize_textarea_field( (string) $message['workMain'] ) : '';
+	$many_work_main     = isset( $message['manyWorkMain'] ) ? sanitize_textarea_field( (string) $message['manyWorkMain'] ) : '';
+	$experience_psi     = isset( $message['experiencePsi'] ) ? sanitize_text_field( (string) $message['experiencePsi'] ) : '';
+	$self_harm          = isset( $message['selfHarm'] ) ? sanitize_text_field( (string) $message['selfHarm'] ) : '';
+	$self_harm_intensity = isset( $message['selfHarmIntensity'] ) ? absint( $message['selfHarmIntensity'] ) : 0;
+	$visit_psi          = isset( $message['visitPsi'] ) ? sanitize_text_field( (string) $message['visitPsi'] ) : '';
+	$visit_psi_specialist_id = isset( $message['visitPsiSpecialistId'] ) ? absint( $message['visitPsiSpecialistId'] ) : 0;
 
 	$specialist_price_normalized = str_replace( [ ' ', ',' ], [ '', '.' ], $specialist_price_raw );
 	$booking_amount = is_numeric( $specialist_price_normalized ) ? (float) $specialist_price_normalized : 0.0;
@@ -1544,6 +1551,13 @@ function center_med_renovatio_ajax_create_appointment_request() {
 		'specialistPostId' => $specialist_post_id,
 		'specialistName'  => $specialist_name,
 		'specialistPrice' => $booking_amount,
+		'workMain'        => $work_main,
+		'manyWorkMain'    => $many_work_main,
+		'experiencePsi'   => $experience_psi,
+		'selfHarm'        => $self_harm,
+		'selfHarmIntensity' => $self_harm_intensity,
+		'visitPsi'        => $visit_psi,
+		'visitPsiSpecialistId' => $visit_psi_specialist_id,
 		'appointmentDate' => $appointment_date,
 		'appointmentTime' => $appointment_time,
 		'telegram'        => $telegram,
@@ -1629,6 +1643,13 @@ function center_med_renovatio_ajax_create_appointment_request() {
 				'booking_public_id' => $booking_public_id,
 				'doctor_id'        => $doctor_api_id,
 				'clinic_id'        => $clinic_id,
+				'work_main'        => $work_main,
+				'many_work_main'   => $many_work_main,
+				'experience_psi'   => $experience_psi,
+				'self_harm'        => $self_harm,
+				'self_harm_intensity' => $self_harm_intensity,
+				'visit_psi'        => $visit_psi,
+				'visit_psi_specialist_id' => $visit_psi_specialist_id,
 			]
 		);
 
