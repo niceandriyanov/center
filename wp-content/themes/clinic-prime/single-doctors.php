@@ -66,9 +66,7 @@
                             
                         </div>
                         <div class="specInnerItemButs">
-                            <?php if( !empty($btn) ) { ?>
-                            <a href="#" data-doctor="<?= get_field('doctor_id', $doctor_id); ?>" class="but butPrimary butModalRnova hidden_m"><?= $btn; ?></a>
-                            <?php } ?>
+                            <a href="<?= get_field('theme_online_form_page', 'option'); ?>" class="but butPrimary hidden_m">Подобрать психолога</a>
                             <?php $telegram = get_field('tg', $doctor_id); ?>
                             <?php if( !empty($telegram) ) { ?>
                             <a href="<?= $telegram; ?>" target="_blank" class="but butTelegram">
