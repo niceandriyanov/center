@@ -393,14 +393,14 @@
                             <label class="online-checkbox-label">
                                 <input type="checkbox" id="agreementPrivacy" name="agreementPrivacy">
                                 <span class="online-checkbox-custom"></span>
-                                <span class="online-checkbox-text">Даю согласие на обработку <a href="" target="_blank">персональных данных</a> в соответствии с <a href="#" target="_blank">политикой</a></span>
+                                <span class="online-checkbox-text">Даю согласие на обработку <a href="/approval/" target="_blank">персональных данных</a> в соответствии с <a href="/privacy/" target="_blank">политикой</a></span>
                             </label>
                             <div class="online-error-message" id="privacyError" style="display: none;">Необходимо ваше согласие</div>
 
                             <label class="online-checkbox-label">
                                 <input type="checkbox" id="agreementOffer" name="agreementOffer">
                                 <span class="online-checkbox-custom"></span>
-                                <span class="online-checkbox-text">Соглашаюсь с условиями <a href="#" target="_blank">публичной оферты</a></span>
+                                <span class="online-checkbox-text">Соглашаюсь с условиями <a href="/offer/" target="_blank">публичной оферты</a></span>
                             </label>
                             <div class="online-error-message" id="offerError" style="display: none;">Необходимо ваше согласие</div>
                         </div>
@@ -598,14 +598,14 @@
                             <label class="online-checkbox-label">
                                 <input type="checkbox" id="manyAgreementPrivacy" name="manyAgreementPrivacy">
                                 <span class="online-checkbox-custom"></span>
-                                <span class="online-checkbox-text">Даю согласие на обработку <a href="" target="_blank">персональных данных</a> в соответствии с <a href="#" target="_blank">политикой</a> <span class="required"></span></span>
+                                <span class="online-checkbox-text">Даю согласие на обработку <a href="/approval/" target="_blank">персональных данных</a> в соответствии с <a href="/privacy/" target="_blank">политикой</a> <span class="required"></span></span>
                             </label>
                             <div class="online-error-message" id="manyPrivacyError" style="display: none;">Необходимо ваше согласие</div>
 
                             <label class="online-checkbox-label">
                                 <input type="checkbox" id="manyAgreementOffer" name="manyAgreementOffer">
                                 <span class="online-checkbox-custom"></span>
-                                <span class="online-checkbox-text">Соглашаюсь с условиями <a href="#" target="_blank">публичной оферты</a> <span class="required"></span></span>
+                                <span class="online-checkbox-text">Соглашаюсь с условиями <a href="/offer/" target="_blank">публичной оферты</a> <span class="required"></span></span>
                             </label>
                             <div class="online-error-message" id="manyOfferError" style="display: none;">Необходимо ваше согласие</div>
                         </div>
