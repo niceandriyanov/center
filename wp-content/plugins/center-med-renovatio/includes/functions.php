@@ -1640,7 +1640,6 @@ function center_med_renovatio_ajax_create_appointment_request() {
 				'Опыт обращения к психиатру: %s',
 				isset( $experience_labels[ $experience_psi ] ) ? $experience_labels[ $experience_psi ] : '-'
 			);
-			$comment_lines[] = sprintf( 'Детали по опыту обращения: %s', '' !== $experience_details ? $experience_details : '-' );
 			$comment_lines[] = sprintf(
 				'Мысли о самоповреждении/нежелании жить: %s',
 				isset( $self_harm_labels[ $self_harm ] ) ? $self_harm_labels[ $self_harm ] : '-'
@@ -1656,10 +1655,6 @@ function center_med_renovatio_ajax_create_appointment_request() {
 			$comment_lines[] = sprintf(
 				'Специалист, которого посещают близкие: %s',
 				'' !== $visit_psi_specialist_name ? $visit_psi_specialist_name : '-'
-			);
-			$comment_lines[] = sprintf(
-				'Информация о рекомендации специалиста: %s',
-				'' !== $recommendation_info ? $recommendation_info : '-'
 			);
 		}
 
