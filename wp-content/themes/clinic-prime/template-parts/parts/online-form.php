@@ -492,6 +492,12 @@
                         </div>
 
                         <!-- Блок "Нет доступных специалистов" -->
+                        <div id="manyNoSheduleSpecialistsMessage" class="no-specialists-message" style="display: none;">
+                            <p>К сожалению, на основании вашей анкеты нам не удалось подобрать специалиста с подходящим расписанием.</p>
+                            <p>Вы можете обратиться <a href="https://t.me/handlingbetter" target="_blank">к администратору</a> за помощью с подбором или выбрать специалиста из листа ожидания.</p>
+                        </div>
+
+                        <!-- Блок "Нет доступных специалистов" -->
                         <div id="manyNoSpecialistsMessage" class="no-specialists-message" style="display: none;">
                             <p>К сожалению, на основании вашей анкеты нам не удалось подобрать специалиста.</p>
                             <p>Вы можете обратиться <a href="https://t.me/handlingbetter" target="_blank">к администратору</a> за помощью с подбором.</p>
