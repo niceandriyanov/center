@@ -270,7 +270,7 @@
                 <div class="online-form-step" id="step3" style="display: none;">
                     <div class="specialist-selection-container">
                         <h2 id="step3MainTitle" class="small-margin">Выбор специалиста</h2>
-                        <p id="step3Description" class="step-description">
+                        <p id="step3Description" class="step-description" style="display: none;">
                             На основе ваших ответов мы подобрали специалистов, которые лучше всего смогут вам помочь
                         </p>
 
@@ -282,6 +282,11 @@
                         </div>
 
                         <!-- Блок "Нет доступных специалистов" -->
+                        <div id="noSpecialistsSheduleMessage" class="no-specialists-message" style="display: none;">
+                                <p>К сожалению, на основании вашей анкеты нам не удалось подобрать специалиста с подходящим расписанием.</p>
+                                <p>Вы можете обратиться <a href="https://t.me/handlingbetter" target="_blank">к администратору</a> за помощью с подбором или выбрать специалиста из листа ожидания.</p>
+                        </div>
+
                         <div id="noSpecialistsMessage" class="no-specialists-message" style="display: none;">
                                 <p>К сожалению, на основании вашей анкеты нам не удалось подобрать специалиста.</p>
                                 <p>Вы можете обратиться <a href="https://t.me/handlingbetter" target="_blank">к администратору</a> за помощью с подбором.</p>

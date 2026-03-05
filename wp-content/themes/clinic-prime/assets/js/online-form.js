@@ -519,6 +519,7 @@ class BookingSystem {
         e.availableSpecialists = d.getElementById('availableSpecialists');
         e.availableSpecialistsGrid = d.getElementById('availableSpecialistsGrid');
         e.noSpecialistsMessage = d.getElementById('noSpecialistsMessage');
+        e.noSpecialistsSheduleMessage = d.getElementById('noSpecialistsSheduleMessage');
         e.waitingListSection = d.getElementById('waitingListSection');
         e.waitingListGrid = d.getElementById('waitingListGrid');
     }
@@ -1852,21 +1853,29 @@ class BookingSystem {
             return;
         }
 
+        Utils.hide(this.elements.step3Description);
+        Utils.hide(this.elements.noSpecialistsMessage);
+        Utils.hide(this.elements.noSpecialistsSheduleMessage);
+
         if (available.length > 0) {
             this.specialistManager.self.available.render(available, selectedSpecialistId, false);
             Utils.show(this.elements.availableSpecialists);
             Utils.show(this.elements.step3Description);
-            Utils.hide(this.elements.noSpecialistsMessage);
         } else {
             this.showNoSpecialistsMessage('self');
-            Utils.hide(this.elements.step3Description);
         }
 
         if (waitingList.length > 0) {
             this.specialistManager.self.waitingList.render(waitingList, selectedSpecialistId, true);
             Utils.show(this.elements.waitingListSection);
+            if(available.length === 0) {
+                Utils.show(this.elements.noSpecialistsSheduleMessage);
+            }
         } else {
             Utils.hide(this.elements.waitingListSection);
+            if(available.length === 0) {
+                Utils.show(this.elements.noSpecialistsMessage);
+            }
         }
     }
 
