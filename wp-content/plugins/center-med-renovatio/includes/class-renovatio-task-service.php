@@ -131,7 +131,7 @@ class Renovatio_Task_Service {
         $request_params['user_id'] = [50472,50473];
         
 		//Доп пользователь
-        $request_params['user_id'][] = [43951];
+        $request_params['user_id'][] = 43951;
 
 		if ( $doctor_id > 0 ) {
             $request_params['responsible_id'] = $doctor_id;
