@@ -1663,7 +1663,7 @@ function center_med_renovatio_ajax_create_appointment_request() {
 			);
 		}
 
-		$request_params['comment'] = implode( "\n", $comment_lines );
+		$request_params['comment'] = implode( "\n<br />", $comment_lines );
 
 
 		$api_response = center_med_renovatio_api_client()->request( 'createAppointment', $request_params );
