@@ -1393,14 +1393,50 @@ function center_med_renovatio_ajax_create_appointment_request() {
 	$specialist_price_raw = isset( $message['specialistPrice'] ) ? sanitize_text_field( (string) $message['specialistPrice'] ) : '';
 	$appointment_date   = isset( $message['appointmentDate'] ) ? sanitize_text_field( (string) $message['appointmentDate'] ) : '';
 	$appointment_time   = isset( $message['appointmentTime'] ) ? sanitize_text_field( (string) $message['appointmentTime'] ) : '';
+	$message_date_string = isset( $message['dateString'] ) ? sanitize_text_field( (string) $message['dateString'] ) : '';
 	$telegram           = isset( $message['telegram'] ) ? sanitize_text_field( (string) $message['telegram'] ) : '';
 	$work_main          = isset( $message['workMain'] ) ? sanitize_textarea_field( (string) $message['workMain'] ) : '';
 	$many_work_main     = isset( $message['manyWorkMain'] ) ? sanitize_textarea_field( (string) $message['manyWorkMain'] ) : '';
 	$experience_psi     = isset( $message['experiencePsi'] ) ? sanitize_text_field( (string) $message['experiencePsi'] ) : '';
+	$experience_details = isset( $message['experienceDetails'] ) ? sanitize_textarea_field( (string) $message['experienceDetails'] ) : '';
 	$self_harm          = isset( $message['selfHarm'] ) ? sanitize_text_field( (string) $message['selfHarm'] ) : '';
 	$self_harm_intensity = isset( $message['selfHarmIntensity'] ) ? absint( $message['selfHarmIntensity'] ) : 0;
 	$visit_psi          = isset( $message['visitPsi'] ) ? sanitize_text_field( (string) $message['visitPsi'] ) : '';
-	$visit_psi_specialist_id = isset( $message['visitPsiSpecialistId'] ) ? absint( $message['visitPsiSpecialistId'] ) : 0;
+	$visit_psi_specialist_raw = isset( $message['visitPsiSpecialistId'] ) ? sanitize_text_field( (string) $message['visitPsiSpecialistId'] ) : '';
+	$visit_psi_specialist_id = absint( $visit_psi_specialist_raw );
+	$recommendation_info = isset( $message['recommendationInfo'] ) ? sanitize_textarea_field( (string) $message['recommendationInfo'] ) : '';
+	$client_age         = isset( $message['clientAge'] ) ? sanitize_text_field( (string) $message['clientAge'] ) : '';
+	$agreement_privacy  = ! empty( $message['agreementPrivacy'] );
+	$agreement_offer    = ! empty( $message['agreementOffer'] );
+	$concerns_raw       = isset( $message['concerns'] ) ? $message['concerns'] : [];
+
+	if ( '' === $date_string && '' !== $message_date_string ) {
+		$date_string = $message_date_string;
+	}
+
+	$concerns_flat = [];
+	if ( is_array( $concerns_raw ) ) {
+		foreach ( $concerns_raw as $concern_value ) {
+			if ( is_array( $concern_value ) ) {
+				foreach ( $concern_value as $nested_concern ) {
+					if ( is_scalar( $nested_concern ) ) {
+						$concerns_flat[] = sanitize_text_field( (string) $nested_concern );
+					}
+				}
+			} elseif ( is_scalar( $concern_value ) ) {
+				$concerns_flat[] = sanitize_text_field( (string) $concern_value );
+			}
+		}
+	}
+
+	$concerns_flat = array_values(
+		array_filter(
+			array_unique( $concerns_flat ),
+			static function( $value ) {
+				return '' !== trim( (string) $value );
+			}
+		)
+	);
 
 	$specialist_price_normalized = str_replace( [ ' ', ',' ], [ '', '.' ], $specialist_price_raw );
 	$booking_amount = is_numeric( $specialist_price_normalized ) ? (float) $specialist_price_normalized : 0.0;
@@ -1423,6 +1459,31 @@ function center_med_renovatio_ajax_create_appointment_request() {
 	$waiting_task_error = '';
 	$last_name         = '';
 	$return_url_base   = home_url( '/' );
+	$visit_psi_specialist_name = '';
+	$concerns_for_comment      = [];
+
+	if ( $visit_psi_specialist_id > 0 ) {
+		$visit_psi_specialist_title = get_the_title( $visit_psi_specialist_id );
+		if ( is_string( $visit_psi_specialist_title ) ) {
+			$visit_psi_specialist_name = sanitize_text_field( $visit_psi_specialist_title );
+		}
+	}
+
+	if ( '' === $visit_psi_specialist_name && '' !== $visit_psi_specialist_raw ) {
+		$visit_psi_specialist_name = $visit_psi_specialist_raw;
+	}
+
+	foreach ( $concerns_flat as $concern_item ) {
+		$concern_label = $concern_item;
+		$concern_term_id = absint( $concern_item );
+		if ( $concern_term_id > 0 ) {
+			$concern_term = get_term( $concern_term_id );
+			if ( $concern_term instanceof WP_Term && ! is_wp_error( $concern_term ) ) {
+				$concern_label = sanitize_text_field( $concern_term->name );
+			}
+		}
+		$concerns_for_comment[] = $concern_label;
+	}
 
 	if ( $specialist_post_id > 0 && 'doctors' === get_post_type( $specialist_post_id ) ) {
 		$doctor_api_id = (int) get_post_meta( $specialist_post_id, Renovatio_Doctor_Metabox::META_KEY_DOCTOR_ID, true );
@@ -1530,6 +1591,80 @@ function center_med_renovatio_ajax_create_appointment_request() {
 			),
 		];
 
+		$form_label = ( 'many' === $form_type ) ? 'Для пары' : 'Для себя';
+		$experience_labels = [
+			'meds'   => 'Да, сейчас принимаю препараты',
+			'noMeds' => 'Да, без медикаментозного лечения',
+			'past'   => 'Да, в прошлом',
+			'none'   => 'Нет',
+			'other'  => 'Другое',
+		];
+		$self_harm_labels = [
+			'yes' => 'Да',
+			'no'  => 'Нет',
+		];
+		$visit_psi_labels = [
+			'yesKnow'    => 'Да, и помню специалиста',
+			'yesDonKnow' => 'Да, но не помню специалиста',
+			'no'         => 'Нет',
+		];
+		$appointment_datetime = '-';
+		if ( '' !== $date_string ) {
+			$appointment_datetime = $date_string;
+		} elseif ( '' !== $appointment_date && '' !== $appointment_time ) {
+			$appointment_datetime = $appointment_date . ' ' . $appointment_time;
+		}
+
+		$comment_lines = [
+			sprintf( 'Форма: %s', $form_label ),
+			sprintf( 'Клиент: %s', '' !== $name ? $name : '-' ),
+			sprintf( 'Возраст: %s', '' !== $client_age ? $client_age : '-' ),
+			sprintf( 'Телефон: %s', '' !== $phone ? $phone : '-' ),
+			sprintf( 'Email: %s', '' !== $email ? $email : '-' ),
+			sprintf( 'Telegram: %s', '' !== $telegram ? $telegram : '-' ),
+			sprintf( 'Услуга: %s', '' !== $service ? $service : '-' ),
+			sprintf( 'Специалист: %s', '' !== $specialist_name ? $specialist_name : '-' ),
+			sprintf( 'Дата и время: %s', $appointment_datetime ),
+			sprintf( 'Лист ожидания: %s', $is_waiting_list ? 'Да' : 'Нет' ),
+			sprintf( 'Согласие с политикой: %s', $agreement_privacy ? 'Да' : 'Нет' ),
+			sprintf( 'Согласие с офертой: %s', $agreement_offer ? 'Да' : 'Нет' ),
+			sprintf( 'Темы обращения: %s', ! empty( $concerns_for_comment ) ? implode( ', ', $concerns_for_comment ) : '-' ),
+			sprintf( 'Booking ID: %s', $booking_public_id ),
+		];
+
+		if ( 'many' === $form_type ) {
+			$comment_lines[] = sprintf( 'Запрос пары: %s', '' !== $many_work_main ? $many_work_main : '-' );
+		} else {
+			$comment_lines[] = sprintf( 'Запрос клиента: %s', '' !== $work_main ? $work_main : '-' );
+			$comment_lines[] = sprintf(
+				'Опыт обращения к психиатру: %s',
+				isset( $experience_labels[ $experience_psi ] ) ? $experience_labels[ $experience_psi ] : '-'
+			);
+			$comment_lines[] = sprintf( 'Детали по опыту обращения: %s', '' !== $experience_details ? $experience_details : '-' );
+			$comment_lines[] = sprintf(
+				'Мысли о самоповреждении/нежелании жить: %s',
+				isset( $self_harm_labels[ $self_harm ] ) ? $self_harm_labels[ $self_harm ] : '-'
+			);
+			$comment_lines[] = sprintf(
+				'Выраженность таких мыслей: %s',
+				( 'yes' === $self_harm && $self_harm_intensity > 0 ) ? (string) $self_harm_intensity : '-'
+			);
+			$comment_lines[] = sprintf(
+				'Близкие посещают психологов Центра: %s',
+				isset( $visit_psi_labels[ $visit_psi ] ) ? $visit_psi_labels[ $visit_psi ] : '-'
+			);
+			$comment_lines[] = sprintf(
+				'Специалист, которого посещают близкие: %s',
+				'' !== $visit_psi_specialist_name ? $visit_psi_specialist_name : '-'
+			);
+			$comment_lines[] = sprintf(
+				'Информация о рекомендации специалиста: %s',
+				'' !== $recommendation_info ? $recommendation_info : '-'
+			);
+		}
+
+		$request_params['comment'] = implode( "\n", $comment_lines );
+
 
 		$api_response = center_med_renovatio_api_client()->request( 'createAppointment', $request_params );
 		if ( is_wp_error( $api_response ) ) {
@@ -1560,12 +1695,18 @@ function center_med_renovatio_ajax_create_appointment_request() {
 		'workMain'        => $work_main,
 		'manyWorkMain'    => $many_work_main,
 		'experiencePsi'   => $experience_psi,
+		'experienceDetails' => $experience_details,
 		'selfHarm'        => $self_harm,
 		'selfHarmIntensity' => $self_harm_intensity,
 		'visitPsi'        => $visit_psi,
 		'visitPsiSpecialistId' => $visit_psi_specialist_id,
+		'recommendationInfo' => $recommendation_info,
 		'appointmentDate' => $appointment_date,
 		'appointmentTime' => $appointment_time,
+		'concerns'        => $concerns_flat,
+		'clientAge'       => $client_age,
+		'agreementPrivacy' => $agreement_privacy ? 1 : 0,
+		'agreementOffer'  => $agreement_offer ? 1 : 0,
 		'telegram'        => $telegram,
 		'service'         => $service,
 		'dateString'      => $date_string,

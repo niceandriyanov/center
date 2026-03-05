@@ -2766,13 +2766,24 @@ class BookingSystem {
                 specialistPrice: step1.selectedSpecialistPrice || null,
                 workMain: step1.workMain || '',
                 experiencePsi: step1.psychiatristExperience || '',
+                experienceDetails: step1.experienceDetails || '',
                 selfHarm: step1.selfHarm || '',
                 selfHarmIntensity: Number(step1.selfHarmIntensity || 0),
                 visitPsi: step1.visitingPsychologist || '',
                 visitPsiSpecialistId: step1.specialistName || '',
+                recommendationInfo: step1.recommendationInfo || '',
                 concerns: this.getSelfSelectedConcernIds(),
                 appointmentDate: appointment?.date ? this.formatDateForFlatpickr(new Date(appointment.date)) : '',
                 appointmentTime: appointment?.time || '',
+                dateString: appointment?.formattedDate && appointment?.time
+                    ? `${appointment.formattedDate}, ${appointment.time}`
+                    : '',
+                clientName: name,
+                clientPhone: phone,
+                clientEmail: email,
+                clientAge: step1.clientAge || '',
+                agreementPrivacy: !!step1.agreementPrivacy,
+                agreementOffer: !!step1.agreementOffer,
                 telegram: telegram
             })
         };
@@ -2847,6 +2858,15 @@ class BookingSystem {
                 concerns: this.getManySelectedConcernIds(),
                 appointmentDate: appointment?.date ? this.formatDateForFlatpickr(new Date(appointment.date)) : '',
                 appointmentTime: appointment?.time || '',
+                dateString: appointment?.formattedDate && appointment?.time
+                    ? `${appointment.formattedDate}, ${appointment.time}`
+                    : '',
+                clientName: name,
+                clientPhone: phone,
+                clientEmail: email,
+                clientAge: step1.client1Age || '',
+                agreementPrivacy: !!step1.agreementPrivacy,
+                agreementOffer: !!step1.agreementOffer,
                 telegram: telegram
             })
         };
