@@ -1000,6 +1000,8 @@ function center_med_renovatio_ajax_filter_online_doctors() {
 		)
 	);
 
+	$excludedSpecialistId = isset( $_POST['excluded_specialist_id'] ) ? absint( wp_unslash( $_POST['excluded_specialist_id'] ) ) : 0;
+
 	$args = [
 		'post_type'      => 'doctors',
 		'post_status'    => 'publish',
@@ -1009,6 +1011,10 @@ function center_med_renovatio_ajax_filter_online_doctors() {
 			'date'       => 'ASC',
 		],
 	];
+
+	if ( $excludedSpecialistId > 0 ) {
+		$args['post__not_in'] = [ $excludedSpecialistId ];
+	}
 
 	if ( ! empty( $concerns ) ) {
 		$args['tax_query'] = [

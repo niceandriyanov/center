@@ -1041,6 +1041,7 @@ class BookingSystem {
             this.state.selfForm.data.specialistName = '';
             if (this.elements.specialistNameInput) this.elements.specialistNameInput.value = '';
             this.updateSelectDisplay('-- Выберите специалиста из списка --');
+            this.scheduleSelfSpecialistsPreparation();
         }
 
         if (!isYesDontKnow) {
@@ -1078,6 +1079,7 @@ class BookingSystem {
         this.updateSelectDisplay(text);
         this.markSelectedOption(option);
         this.closeSelect();
+        this.scheduleSelfSpecialistsPreparation();
         this.updateUI();
     }
 
@@ -1626,6 +1628,14 @@ class BookingSystem {
         return concerns.filter(Boolean).map(String);
     }
 
+    getExcludedSelfSpecialistId() {
+        const selfData = this.state.selfForm?.data || {};
+        if (selfData.visitingPsychologist !== 'yesKnow') return 0;
+
+        const specialistId = Number(selfData.specialistName || 0);
+        return Number.isFinite(specialistId) && specialistId > 0 ? specialistId : 0;
+    }
+
     getManySelectedConcernIds() {
         const concerns = this.state.manyForm?.data?.concerns;
         if (!Array.isArray(concerns)) return [];
@@ -1647,6 +1657,12 @@ class BookingSystem {
 
         body.append('action', 'center_med_renovatio_filter_online_doctors');
         body.append('nonce', nonce);
+
+        const excludedSpecialistId = this.getExcludedSelfSpecialistId();
+        if (excludedSpecialistId > 0) {
+            body.append('excluded_specialist_id', excludedSpecialistId);
+        }
+
         concerns.forEach((termId) => body.append('concerns[]', termId));
 
         try {
@@ -1671,6 +1687,15 @@ class BookingSystem {
             }
 
             const normalized = this.normalizeSpecialistsResponse(result.data);
+            const excludedSpecialistId = this.getExcludedSelfSpecialistId();
+            if (excludedSpecialistId > 0) {
+                normalized.available = normalized.available.filter(
+                    (specialist) => specialist.id !== excludedSpecialistId
+                );
+                normalized.waitingList = normalized.waitingList.filter(
+                    (specialist) => specialist.id !== excludedSpecialistId
+                );
+            }
             this.state.selfForm.specialists = normalized;
             this.ensureSelectedSelfSpecialistExists();
         } finally {
@@ -1830,9 +1855,11 @@ class BookingSystem {
         if (available.length > 0) {
             this.specialistManager.self.available.render(available, selectedSpecialistId, false);
             Utils.show(this.elements.availableSpecialists);
+            Utils.show(this.elements.step3Description);
             Utils.hide(this.elements.noSpecialistsMessage);
         } else {
             this.showNoSpecialistsMessage('self');
+            Utils.hide(this.elements.step3Description);
         }
 
         if (waitingList.length > 0) {
@@ -1857,8 +1884,10 @@ class BookingSystem {
             this.specialistManager.many.available.render(available, selectedSpecialistId, false);
             Utils.show(this.elements.manyAvailableSpecialists);
             Utils.hide(this.elements.manyNoSpecialistsMessage);
+            Utils.show(this.elements.manyStep2Description);
         } else {
             this.showNoManySpecialistsMessage();
+            Utils.hide(this.elements.manyStep2Description);
         }
 
         if (waitingList.length > 0) {
