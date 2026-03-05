@@ -1862,7 +1862,7 @@ class BookingSystem {
             Utils.show(this.elements.availableSpecialists);
             Utils.show(this.elements.step3Description);
         } else {
-            this.showNoSpecialistsMessage('self');
+            Utils.hide(this.elements.availableSpecialists);
         }
 
         if (waitingList.length > 0) {
