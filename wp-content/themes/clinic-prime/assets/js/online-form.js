@@ -2941,6 +2941,7 @@ class BookingSystem {
 
             if (isWaitingList) {
                 this.showWaitingListSuccessModal('self');
+                this.trackMetrikaGoal('reservation');
             }
             else {
                 const paymentUrl = String(result?.data?.paymentUrl || '').trim();
@@ -3241,6 +3242,22 @@ class BookingSystem {
         }
     }
 
+    trackMetrikaGoal(goalName) {
+        const goal = String(goalName || '').trim();
+        if (!goal) return;
+
+        if (typeof window === 'undefined' || typeof window.ym !== 'function') {
+            return;
+        }
+
+        try {
+            window.ym(107157853, 'reachGoal', goal);
+            console.warn('[online-form] Цель Метрики отправлена', goal);
+        } catch (error) {
+            console.warn('[online-form] Не удалось отправить цель Метрики', error);
+        }
+    }
+
     showPaymentCheckingModal(snapshot) {
         this.setBookingModalHeaderIcon('ico7.svg');
         this.fillBookingModalContent(
@@ -3298,6 +3315,8 @@ class BookingSystem {
         this.setBookingModalCalendarAction(snapshot);
         Utils.addClass(this.elements.bookingSuccessModal, CSS_CLASSES.ACTIVE);
         document.body.style.overflow = 'hidden';
+
+        this.trackMetrikaGoal('payment');
     }
 
     async fetchBookingPaymentState(bookingPublicId) {
