@@ -34,7 +34,7 @@
                 <?php clinic_header_navigation(); ?>
                 <?php if( $theme_header['btn_appointment'] ): ?>
                 <div class="col hidden_m">
-                    <?php $doctors = get_field('theme_doctors_page', 'option'); ?>
+                    <?php $doctors = get_field('theme_online_form_page', 'option'); ?>
                     <div class="headerRight">
                         <a href="<?= $doctors; ?>" class="but butPrimary">Подобрать психолога</a>
                     </div>
