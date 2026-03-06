@@ -373,6 +373,105 @@ function center_med_renovatio_schedule_paid_pipeline( $booking_public_id, $attem
 }
 
 /**
+ * Сформировать подпись для асинхронного запуска post-payment пайплайна.
+ *
+ * @param string $booking_public_id UUID брони.
+ * @param int    $attempt Номер попытки.
+ * @param int    $issued_at UNIX time выдачи подписи.
+ * @return string
+ */
+function center_med_renovatio_get_async_pipeline_signature( $booking_public_id, $attempt, $issued_at ) {
+	$payload = implode(
+		'|',
+		[
+			sanitize_text_field( (string) $booking_public_id ),
+			max( 1, (int) $attempt ),
+			max( 1, (int) $issued_at ),
+		]
+	);
+
+	return hash_hmac( 'sha256', $payload, wp_salt( 'auth' ) );
+}
+
+/**
+ * Запустить post-payment пайплайн асинхронно (без ожидания внешнего хита).
+ *
+ * @param string $booking_public_id UUID брони.
+ * @param int    $attempt Номер попытки.
+ * @param int    $delay_seconds Задержка перед запуском.
+ * @return void
+ */
+function center_med_renovatio_trigger_paid_pipeline_async( $booking_public_id, $attempt = 1, $delay_seconds = 20 ) {
+	$booking_public_id = sanitize_text_field( (string) $booking_public_id );
+	$attempt           = max( 1, (int) $attempt );
+	$delay_seconds     = max( 0, (int) $delay_seconds );
+	if ( '' === $booking_public_id ) {
+		return;
+	}
+
+	$issued_at = time();
+	$signature = center_med_renovatio_get_async_pipeline_signature( $booking_public_id, $attempt, $issued_at );
+
+	wp_remote_post(
+		admin_url( 'admin-post.php' ),
+		[
+			'blocking'    => false,
+			'timeout'     => 1,
+			'redirection' => 0,
+			'body'        => [
+				'action'            => 'center_med_renovatio_run_paid_pipeline',
+				'booking_public_id' => $booking_public_id,
+				'attempt'           => $attempt,
+				'delay'             => $delay_seconds,
+				'issued_at'         => $issued_at,
+				'signature'         => $signature,
+			],
+		]
+	);
+}
+
+/**
+ * Обработчик внутреннего асинхронного запуска post-payment пайплайна.
+ *
+ * @return void
+ */
+function center_med_renovatio_handle_async_paid_pipeline_request() {
+	$booking_public_id = isset( $_POST['booking_public_id'] ) ? sanitize_text_field( wp_unslash( $_POST['booking_public_id'] ) ) : '';
+	$attempt           = isset( $_POST['attempt'] ) ? max( 1, (int) $_POST['attempt'] ) : 1;
+	$delay_seconds     = isset( $_POST['delay'] ) ? max( 0, min( 60, (int) $_POST['delay'] ) ) : 20;
+	$issued_at         = isset( $_POST['issued_at'] ) ? max( 1, (int) $_POST['issued_at'] ) : 0;
+	$signature         = isset( $_POST['signature'] ) ? sanitize_text_field( wp_unslash( $_POST['signature'] ) ) : '';
+
+	if ( '' === $booking_public_id || $issued_at <= 0 || '' === $signature ) {
+		status_header( 400 );
+		wp_die();
+	}
+
+	$now = time();
+	if ( abs( $now - $issued_at ) > 5 * MINUTE_IN_SECONDS ) {
+		status_header( 403 );
+		wp_die();
+	}
+
+	$expected_signature = center_med_renovatio_get_async_pipeline_signature( $booking_public_id, $attempt, $issued_at );
+	if ( ! hash_equals( $expected_signature, $signature ) ) {
+		status_header( 403 );
+		wp_die();
+	}
+
+	if ( $delay_seconds > 0 ) {
+		sleep( $delay_seconds );
+	}
+
+	center_med_renovatio_process_paid_pipeline_event( $booking_public_id, $attempt );
+
+	status_header( 200 );
+	wp_die();
+}
+add_action( 'admin_post_center_med_renovatio_run_paid_pipeline', 'center_med_renovatio_handle_async_paid_pipeline_request' );
+add_action( 'admin_post_nopriv_center_med_renovatio_run_paid_pipeline', 'center_med_renovatio_handle_async_paid_pipeline_request' );
+
+/**
  * Записать шаг пайплайна в статус-лог.
  *
  * @param int    $booking_id ID брони.
@@ -728,7 +827,13 @@ function center_med_renovatio_handle_booking_paid_confirm_appointment( $booking,
 		$payload = [];
 	}
 
-	center_med_renovatio_schedule_paid_pipeline( (string) $booking['public_id'], 1, 5 );
+	$booking_public_id = (string) $booking['public_id'];
+
+	// Планируем как fallback через WP-Cron.
+	center_med_renovatio_schedule_paid_pipeline( $booking_public_id, 1, 20 );
+
+	// Инициируем фоновый запуск сами, чтобы не зависеть от внешнего трафика.
+	center_med_renovatio_trigger_paid_pipeline_async( $booking_public_id, 1, 20 );
 }
 add_action( 'center_med_renovatio_booking_paid', 'center_med_renovatio_handle_booking_paid_confirm_appointment', 10, 2 );
 
