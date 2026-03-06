@@ -19,6 +19,8 @@ class Renovatio_Appointment_Notifier {
 	 */
 	public static function register() {
 		add_action( 'center_med_renovatio_appointment_request_created', [ __CLASS__, 'handle_appointment_request_created' ], 10, 1 );
+		add_action( 'center_med_renovatio_appointment_request_created', [ __CLASS__, 'send_waiting_list_email_to_user' ], 20, 1 );
+		add_action( 'center_med_renovatio_booking_appointment_confirmed', [ __CLASS__, 'send_paid_email_to_user' ], 10, 2 );
 	}
 
 	/**
@@ -50,6 +52,122 @@ class Renovatio_Appointment_Notifier {
 		wp_mail(
 			$admin_email,
 			$subject,
+			$body,
+			[
+				'Content-Type: text/html; charset=UTF-8',
+			]
+		);
+	}
+
+	/**
+	 * Отправить письмо пользователю о листе ожидания после создания задачи в МИС.
+	 *
+	 * @param array $payload Данные заявки.
+	 * @return void
+	 */
+	public static function send_waiting_list_email_to_user( $payload ) {
+		if ( ! is_array( $payload ) ) {
+			return;
+		}
+
+		$message         = isset( $payload['message'] ) && is_array( $payload['message'] ) ? $payload['message'] : [];
+		$is_waiting_list = ! empty( $message['isWaitingList'] );
+		$waiting_task_id = isset( $payload['waiting_task_id'] ) ? absint( $payload['waiting_task_id'] ) : 0;
+		$user_email      = isset( $payload['email'] ) ? sanitize_email( (string) $payload['email'] ) : '';
+
+		// Отправляем только для листа ожидания и только после успешного создания задачи в МИС.
+		if ( ! $is_waiting_list || $waiting_task_id <= 0 || '' === $user_email || ! is_email( $user_email ) ) {
+			return;
+		}
+
+		$template_path = trailingslashit( CENTER_MED_RENOVATIO_PLUGIN_DIR ) . 'mails/user-waiting-list.php';
+		if ( ! file_exists( $template_path ) ) {
+			return;
+		}
+
+		$user_name       = isset( $payload['name'] ) ? sanitize_text_field( (string) $payload['name'] ) : '';
+		$specialist_name = isset( $message['specialistName'] ) ? sanitize_text_field( (string) $message['specialistName'] ) : '';
+
+		ob_start();
+		$email_data = [
+			'user_name'       => $user_name,
+			'specialist_name' => $specialist_name,
+			'home_url'        => home_url( '/' ),
+		];
+		include $template_path;
+		$body = (string) ob_get_clean();
+
+		if ( '' === trim( $body ) ) {
+			return;
+		}
+
+		wp_mail(
+			$user_email,
+			__( 'Мы получили вашу заявку в лист ожидания', 'center-med-renovatio' ),
+			$body,
+			[
+				'Content-Type: text/html; charset=UTF-8',
+			]
+		);
+	}
+
+	/**
+	 * Отправить письмо пользователю об успешной оплате после подтверждения визита в МИС.
+	 *
+	 * @param array $booking Запись брони из БД.
+	 * @param array $context Контекст подтверждения.
+	 * @return void
+	 */
+	public static function send_paid_email_to_user( $booking, $context = [] ) {
+		if ( ! is_array( $booking ) ) {
+			return;
+		}
+
+		$user_email = isset( $booking['email'] ) ? sanitize_email( (string) $booking['email'] ) : '';
+		if ( '' === $user_email || ! is_email( $user_email ) ) {
+			return;
+		}
+
+		$payload_json = isset( $booking['payload_json'] ) ? (string) $booking['payload_json'] : '';
+		$message      = json_decode( $payload_json, true );
+		$message      = is_array( $message ) ? $message : [];
+		$is_waiting   = ! empty( $message['isWaitingList'] );
+		if ( $is_waiting ) {
+			return;
+		}
+
+		$template_path = trailingslashit( CENTER_MED_RENOVATIO_PLUGIN_DIR ) . 'mails/user-paid.php';
+		if ( ! file_exists( $template_path ) ) {
+			return;
+		}
+
+		$user_name            = isset( $booking['first_name'] ) ? sanitize_text_field( (string) $booking['first_name'] ) : '';
+		$specialist_name      = isset( $message['specialistName'] ) ? sanitize_text_field( (string) $message['specialistName'] ) : '';
+		$appointment_datetime = isset( $message['dateString'] ) ? sanitize_text_field( (string) $message['dateString'] ) : '';
+		$appointment_date     = isset( $message['appointmentDate'] ) ? sanitize_text_field( (string) $message['appointmentDate'] ) : '';
+		$appointment_time     = isset( $message['appointmentTime'] ) ? sanitize_text_field( (string) $message['appointmentTime'] ) : '';
+
+		if ( '' === $appointment_datetime && '' !== $appointment_date && '' !== $appointment_time ) {
+			$appointment_datetime = $appointment_date . ' ' . $appointment_time;
+		}
+
+		ob_start();
+		$email_data = [
+			'user_name'            => $user_name,
+			'specialist_name'      => $specialist_name,
+			'appointment_datetime' => $appointment_datetime,
+			'home_url'             => home_url( '/' ),
+		];
+		include $template_path;
+		$body = (string) ob_get_clean();
+
+		if ( '' === trim( $body ) ) {
+			return;
+		}
+
+		wp_mail(
+			$user_email,
+			__( 'Ваша консультация забронирована и оплачена', 'center-med-renovatio' ),
 			$body,
 			[
 				'Content-Type: text/html; charset=UTF-8',

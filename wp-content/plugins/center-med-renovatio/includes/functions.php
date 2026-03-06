@@ -248,6 +248,16 @@ function center_med_renovatio_confirm_booking_appointment( $booking_public_id, a
 		[ '%d', '%s', '%s', '%s', '%s', '%s', '%s' ]
 	);
 
+	/**
+	 * Хук после успешного подтверждения визита в МИС.
+	 *
+	 * Срабатывает однократно: только когда впервые создается лог шага appointment_confirm.
+	 *
+	 * @param array $booking Запись брони из БД.
+	 * @param array $payload Контекст операции.
+	 */
+	do_action( 'center_med_renovatio_booking_appointment_confirmed', $booking, $payload );
+
 	return true;
 }
 
