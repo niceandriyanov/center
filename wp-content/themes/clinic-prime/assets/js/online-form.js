@@ -3027,8 +3027,8 @@ class BookingSystem {
             return;
         }
 
-        //this.reset(); // сбрасываем состояние
-        //this.showMain(); // показываем главный экран
+        this.reset();
+        this.showMain();
     }
 
     async submitManyForm() {
@@ -3072,6 +3072,9 @@ class BookingSystem {
             this.elements.nextBtn.textContent = originalText;
             return;
         }
+
+        this.reset();
+        this.showMain();
     }
 
     // ==================== ОПЛАТА И ВОЗВРАТ ====================

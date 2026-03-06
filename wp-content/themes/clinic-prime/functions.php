@@ -14,7 +14,7 @@ if (!defined('ABSPATH')) {
 /**
  * Константы темы
  */
-define('THEME_VERSION', '1.0.100');
+define('THEME_VERSION', '1.1.0');
 define('THEME_DIR', get_template_directory());
 define('THEME_URI', get_template_directory_uri());
 
