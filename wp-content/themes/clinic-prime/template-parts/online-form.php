@@ -62,7 +62,7 @@ get_header(); ?>
                 </div>
             </div>
             <div class="waiting-list-message">
-                📧 Специалист направит вам ссылку на видеозвонок за час до встречи.
+                📧 Специалист направит вам ссылку на видеозвонок не позднее чем за час до встречи.
             </div>
             <div class="result-modal-but">
                 <a href="" target="_blank" class="but but-calendar">

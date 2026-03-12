@@ -3366,7 +3366,7 @@ class BookingSystem {
         this.fillBookingModalContent(
             snapshot,
             'Ваша консультация<br>забронирована!',
-            'Специалист направит вам ссылку на видеозвонок за час до встречи.'
+            'Специалист направит вам ссылку на видеозвонок не позднее чем за час до встречи.'
         );
         this.setBookingModalCalendarAction(snapshot);
         Utils.addClass(this.elements.bookingSuccessModal, CSS_CLASSES.ACTIVE);
