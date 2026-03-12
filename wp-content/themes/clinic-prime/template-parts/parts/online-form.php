@@ -625,6 +625,6 @@
             </button>
             <button type="button" class="but online-btn-next" id="nextBtn">Далее →</button>
         </div>
-        <div class="online-form-footer-text">Нажимая далее, вы соглашаетесь с <a href="" target="_blank">политикой конфиденциальности</a></div>
+        <div class="online-form-footer-text">Нажимая далее, вы соглашаетесь с <a href="/privacy/" target="_blank">политикой конфиденциальности</a></div>
     </div>
 </div>
