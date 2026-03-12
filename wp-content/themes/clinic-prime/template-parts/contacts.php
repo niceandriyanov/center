@@ -43,7 +43,7 @@ get_header(); ?>
                     <div class="contactsGroupTitle">Telegram:</div>
                     <div class="contactsGroup">
                         <div class="contactsGroupIco"><img src="<?= THEME_URI; ?>/assets/img/ico/tg_g.svg" alt=""></div>
-                        <a class="contactsGroupMail" href="<?= $telegram['account']; ?>" target="_blank"><?= $telegram['account']; ?></a>
+                        <a class="contactsGroupMail" href="<?= $telegram['link']; ?>" target="_blank"><?= $telegram['account']; ?></a>
                     </div>
                 </div>
                 <?php } ?>
