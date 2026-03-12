@@ -68,11 +68,6 @@ get_header(); ?>
                         <div class="contactsGroupText"><?= $requisites['inn']; ?></div>
                     </div>
                 </div>
-                <div class="contactsGroupEl">
-                    <div class="contactsGroup">
-                        <div class="contactsGroupText"><?= $requisites['kpp']; ?></div>
-                    </div>
-                </div>
             </div>
         </div>
     </div>
