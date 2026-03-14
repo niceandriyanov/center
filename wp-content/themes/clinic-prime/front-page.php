@@ -3,6 +3,11 @@
 	.topMenu li.active > a:after {
 		width: 0;
 	}
+	@media (max-width: 569px){
+		.fixed-vidjet-mini, .fixed-vidjet-open {
+	        bottom: 70px;
+	    }		
+	}
 </style>
 
 <?php while (have_posts()) : the_post(); ?>
