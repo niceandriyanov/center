@@ -19,15 +19,18 @@
         $specialization_out = ob_get_clean();
     }
     $btn = get_field('btn', $doctor_id);
+    $btn_link = get_field('btn_link', $doctor_id);
     ?>
     <section class="innerSection">
         <div class="container">
             <?php get_template_part('template-parts/parts/breadcrumbs'); ?>
-            <?php if( !empty($btn) ) { ?>
             <div class="butFixed">
-                <a href="#" data-doctor="<?= get_field('doctor_id', $doctor_id); ?>" class="but butPrimary butModalRnova"><?= $btn; ?></a>
+                <?php if( !empty($btn) && !empty($btn_link) ) { ?>
+                <a href="<?= $btn_link; ?>" class="but butPrimary hidden_m"><?= $btn; ?></a>
+                <?php } else { ?>
+                <a href="<?= get_field('theme_online_form_page', 'option'); ?>" class="but butPrimary hidden_m">Подобрать психолога</a>
+                <?php } ?>
             </div>
-            <?php } ?>
             <div class="specInnerWrap">
                 <div class="specInnerLeft">
                     <div class="specInnerItemWrap">
@@ -66,7 +69,11 @@
                             
                         </div>
                         <div class="specInnerItemButs">
+                            <?php if( !empty($btn_link) ) { ?>
+                            <a href="<?= $btn_link; ?>" class="but butPrimary hidden_m"><?= $btn; ?></a>
+                            <?php } else { ?>
                             <a href="<?= get_field('theme_online_form_page', 'option'); ?>" class="but butPrimary hidden_m">Подобрать психолога</a>
+                            <?php } ?>
                             <?php $telegram = get_field('tg', $doctor_id); ?>
                             <?php if( !empty($telegram) ) { ?>
                             <a href="<?= $telegram; ?>" target="_blank" class="but butTelegram">

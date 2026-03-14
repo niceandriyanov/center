@@ -65,25 +65,6 @@ add_image_size('avatar', 120, 120, true);
 add_image_size('about_slider', 485, 646, true);
 add_image_size('about_gallery', 684, 386, true);
 
-/**
- * Модификация ACF поля для добавления ID доктора в инструкции
- */
-add_filter('acf/load_field', function($field) {
-    // Проверяем, что это нужное поле
-    if ($field['key'] !== 'field_68b952b97d8fa') {
-        return $field;
-    }
-    global $post;
-    $post_id = $post ? $post->ID : 0;
-    if ($post_id && get_post_type($post_id) === 'doctors') {
-        $field['instructions'] = 'id="doctor_' . $post_id . '"';
-        $field['instructions'] .= " ".'id="doctor_mobile_' . $post_id . '"';
-        
-    } 
-    
-    return $field;
-}, 10, 1);
-
 
 add_action('phpmailer_init', function($phpmailer) {
     $phpmailer->isSMTP();
