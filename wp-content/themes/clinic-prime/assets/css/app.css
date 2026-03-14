@@ -6535,6 +6535,10 @@ body {
 	.fixed-vidjet-mini, .fixed-vidjet-open {
         bottom: 10px;
     }
+
+    .mainSubTitle {
+    	display: none;
+    }
 	
 
 }
