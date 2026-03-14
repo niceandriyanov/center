@@ -2796,6 +2796,7 @@ body {
 .specItemsFilterSearch {
 	flex-basis: 33%;
 	max-width: 33%;
+	flex: 1;
 }
 
 .filterResetLink {
@@ -2808,6 +2809,29 @@ body {
 
 .filterResetLink span:after {
 	background-color: #333;
+}
+
+.page_filters__filter--main--items--search {
+    padding: 8px 8px 0 8px;
+}
+
+.filter-search-input {
+    width: 100%;
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.filter-search-input:focus {
+    border-color: #366159;    
+}
+
+/* Скрытие элементов при фильтрации */
+.page_filters__filter--main--items--block--item.hidden {
+    display: none;
 }
 
 .page_filters__filter--main {
@@ -5130,6 +5154,84 @@ body {
 	color: #fff;
 }
 
+.mobileMainImg {
+	display: none;
+}
+
+.fixed-vidjet-open {
+    position: fixed;
+    width: 240px;
+    right: 24px;
+    bottom: 12px;
+    z-index: 2;
+    padding: 16px;
+    border-radius: 16px;
+    background: #FFF;
+}
+
+.fixed-vidjet-close {
+    position: absolute;
+    right: 16px;
+    top: 16px;
+    cursor: pointer;
+}
+
+.fixed-vidjet-img {
+    margin-bottom: 16px;
+    overflow: hidden;
+    text-align: center;
+}
+
+.fixed-vidjet-img img {
+    border-radius: 120px;
+    width: 88px;
+    height: 88px;
+    object-fit: cover;
+    object-position: center;
+}
+
+.fixed-vidjet-text {
+    text-align: center;
+    font-size: 16px;
+    line-height: 140%;
+}
+
+.fixed-vidjet-mini {
+    width: 56px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 120px;
+    position: fixed;
+    right: 24px;
+    bottom: 12px;
+    background: #fff;
+    z-index: 2;
+    cursor: pointer;
+    border: 1px solid #366159;
+}
+
+.fixed-vidjet-open,
+.fixed-vidjet-mini {
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.fixed-vidjet-open:not(.active),
+.fixed-vidjet-mini:not(.active) {
+    opacity: 0;
+    visibility: hidden;
+}
+
+.fixed-vidjet-open.active,
+.fixed-vidjet-mini.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.mobileBurgerBut {
+	display: none;
+}
 
 
 
@@ -5615,7 +5717,7 @@ body {
 	.specItemsFilterSearch {
 		flex-basis: 100%;
 		max-width: 100%;
-		width: 100%;
+		width: 100%;		
 	}
 
 	.filterReset {
@@ -5979,9 +6081,88 @@ body {
 	.psiStepsWrap .secondFeatureItemTitle {
 		margin-bottom: 50px;
 	}
+
+	.fixed-vidjet-mini,
+    .fixed-vidjet-open {
+        background: #f2f4f7;        
+    }
 }
 
 @media (max-width: 569px){
+
+	.mobileBurgerBut {
+		display: block;
+	}
+
+	.priceSpecName {
+		font-size: 16px;
+	}
+
+
+	.mobileMainImg {
+		display: block;
+		position: relative;
+		text-align: center;
+	}
+
+	.mobileMainImg img {
+		position: relative;
+		z-index: 2;
+	}
+
+	.mobileMainImg svg {
+		position: absolute;
+		left: 37%;
+        top: 14%;
+	}
+
+	.mobileMainImg svg path {
+	    transform-origin: center;
+	    transform-box: fill-box;
+	    animation-iteration-count: infinite;
+	    animation-timing-function: linear;
+	}
+
+	.mobileMainImg svg path:nth-child(1) {
+		animation-name: spinReverse;
+		animation-duration: 4000ms;
+	}
+
+	.mobileMainImg svg path:nth-child(2) {
+		animation-name: spin;
+		animation-duration: 7000ms;
+	}
+
+	.mobileMainImg svg path:nth-child(3) {
+		animation-name: spin;
+		animation-duration: 4000ms;
+	}
+
+	.mobileMainImg svg path:nth-child(4) {
+		animation-name: spinReverse;
+		animation-duration: 4000ms;
+	}
+
+	.mobileMainImg svg path:nth-child(5) {
+		animation-name: spin;
+		animation-duration: 8000ms;
+	}
+
+	.mainText {
+		margin-bottom: 24px;
+	}
+
+	.breadcrumbs .list li:last-child {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: inherit;
+    }
+
+    .breadcrumbs .list {
+        flex-wrap: nowrap;
+    }
+
 
 	.promoItem {
 		flex-direction: column;
@@ -6098,16 +6279,7 @@ body {
 	.mainSection {
 		position: relative;
 		padding: 40px 0;
-	}
-
-	.mainSection:after {
-		content: '';
-		position: absolute;
-		background: url("../img/main/new/img2.svg");
-		width: 125px;
-		height: 388px;
-		right: 0;
-		bottom: 0;
+		padding-bottom: 0;
 	}
 
 	.mainSection .mainBut {
@@ -6359,6 +6531,10 @@ body {
 		padding: 8px 20px;
 		font-size: 14px;
 	}
+
+	.fixed-vidjet-mini, .fixed-vidjet-open {
+        bottom: 80px;
+    }
 	
 
 }

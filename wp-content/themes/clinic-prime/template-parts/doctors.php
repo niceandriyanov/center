@@ -30,12 +30,6 @@ get_header(); ?>
 
             <div class="specItemsWrap">
                 <form action="#" class="specItemsFilters">
-                    <div class="specItemsFilterSearch">
-                        <div class="specSearch">
-                            <input type="search" name="search" class="field fieldSearch" placeholder="Поиск по ФИО" value="<?= esc_attr(isset($_GET['search']) ? sanitize_text_field($_GET['search']) : ''); ?>">
-                            <button type="submit" class="but searchSubmit" aria-label="Поиск"><img src="<?= esc_url(THEME_URI); ?>/assets/img/ico/search.svg" alt=""></button>
-                        </div>
-                    </div>
                     <?php
                     $diseases = get_terms(array(
                         'taxonomy' => 'doctor_diseases',
@@ -71,13 +65,16 @@ get_header(); ?>
                                         </svg>
                                     </div>
                                     <div class="page_filters__filter--main--items">
+                                        <div class="page_filters__filter--main--items--search">
+                                            <input type="text" class="filter-search-input" placeholder="Поиск..." data-filter="problems">
+                                        </div>
                                         <div class="page_filters__filter--main--items--block">
                                             <div class="page_filters__filter--main--items--block--item">
                                                 <input type="radio" name="problems" id="problem_0" value="0">
                                                 <label for="problem_0">Все проблемы</label>
                                             </div>
                                             <?php foreach( $diseases as $disease ) { ?>
-                                            <div class="page_filters__filter--main--items--block--item">
+                                            <div class="page_filters__filter--main--items--block--item" data-term-id="<?= $disease->term_id; ?>" data-term-name="<?= strtolower($disease->name); ?>">
                                                 <input type="radio" name="problems" value="<?= $disease->term_id; ?>" id="problem_<?= $disease->term_id; ?>">
                                                 <label for="problem_<?= $disease->term_id; ?>"><?= $disease->name; ?></label>
                                             </div>
@@ -122,6 +119,12 @@ get_header(); ?>
                             <?php } ?>
                         </div>
                     </div>
+                    <div class="specItemsFilterSearch">
+                        <div class="specSearch">
+                            <input type="search" name="search" class="field fieldSearch" placeholder="Поиск по ФИО" value="<?= esc_attr(isset($_GET['search']) ? sanitize_text_field($_GET['search']) : ''); ?>">
+                            <button type="submit" class="but searchSubmit" aria-label="Поиск"><img src="<?= esc_url(THEME_URI); ?>/assets/img/ico/search.svg" alt=""></button>
+                        </div>
+                    </div>                    
                     <div class="filterReset">
                         <a href="#" class="filterResetLink">
                             <span class="withLine">Сбросить фильтр</span>
