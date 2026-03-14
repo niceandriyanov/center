@@ -20,23 +20,6 @@ get_header(); ?>
 <?php endwhile; ?>
 
 
-<!-- Фиксированные элементы -->
-
-<div class="fixed-vidjet-open active">
-    <div class="fixed-vidjet-close">
-        <img src="<?= THEME_URI; ?>/assets/img/onlineForm/close.svg" alt="">
-    </div>
-    <div class="fixed-vidjet-img">
-        <img src="<?= THEME_URI; ?>/assets/img/onlineForm/img2.jpg" alt="">
-    </div>
-    <div class="fixed-vidjet-text">
-        Если в процессе возникнут вопросы, вы можете обратиться к <a href="" target="_blank">менеджеру Центра</a>
-    </div>
-</div>
-<div class="fixed-vidjet-mini">
-    <img src="<?= THEME_URI; ?>/assets/img/onlineForm/ico8.svg" alt="">
-</div>
-
 <!-- Модальное окно успешной брони -->
 <div id="bookingSuccessModal" class="result-modal">
     <div class="result-modal-content">
@@ -151,33 +134,9 @@ get_header(); ?>
 
         // Также проверяем при ресайзе окна
         window.addEventListener('resize', checkFooterPosition);
-    });
+    });  
 
-    // Функция для виджетов
-    function initVidjetToggle() {
-        const vidjetOpen = document.querySelector('.fixed-vidjet-open');
-        const vidjetClose = document.querySelector('.fixed-vidjet-close');
-        const vidjetMini = document.querySelector('.fixed-vidjet-mini');
 
-        if (!vidjetOpen || !vidjetClose || !vidjetMini) return;
-
-        vidjetClose.addEventListener('click', function() {
-            vidjetOpen.classList.remove('active');
-            vidjetMini.classList.add('active');
-        });
-
-        vidjetMini.addEventListener('click', function() {
-            vidjetMini.classList.remove('active');
-            vidjetOpen.classList.add('active');
-        });
-    }
-
-    // Запуск когда DOM загружен
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initVidjetToggle);
-    } else {
-        initVidjetToggle();
-    }
 </script>
 
 <style>

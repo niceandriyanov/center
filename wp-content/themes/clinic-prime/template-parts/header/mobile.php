@@ -28,6 +28,11 @@ if (!defined('ABSPATH')) {
                 'depth'             => 1,
             ));
             ?>
+
+            <?php $doctors = get_field('theme_online_form_page', 'option'); ?>
+            <div class="mobileBurgerBut">
+                <a href="<?= $doctors; ?>" class="but butPrimary">Подобрать психолога</a>
+            </div>
         
             <?php if ($args['phone']): ?>
                 <?php $clean_phone = preg_replace('/[^0-9+]/', '', $args['phone']); ?>
@@ -53,6 +58,7 @@ if (!defined('ABSPATH')) {
                 'depth'             => 1,
             ));
         endif; ?>
+
     </div>
 
 </div>

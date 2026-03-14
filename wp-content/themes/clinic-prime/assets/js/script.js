@@ -10,6 +10,11 @@ function initScript() {
     psiForm();
     spoiler();
 
+    // Ждем загрузки DOM
+    document.addEventListener('DOMContentLoaded', function() {
+        initVidjetToggle();
+    });
+
     function mobileMenu() {
         var burger = document.querySelector(".dropdownBut");
 
@@ -215,30 +220,104 @@ function initScript() {
         var filterItems = document.querySelectorAll('.page_filters__filter--main--items--block--item');
         var filterResetLink = document.querySelector('.filterResetLink');
 
-        Array.from(filterBtns).forEach(function(section) {
-            section.addEventListener('click', function(el) {
-                var diff = Array.from(filterBtns).filter(element => element !== section)
-                diff.forEach(function(otherEl) {
-                    otherEl.parentNode.classList.remove('opened')
-                })
-                section.parentNode.classList.toggle('opened')
-            });
-        });
-
-        for (i = 0; i < filterItems.length; i++) {
-            filterItems[i].addEventListener('click', function() {
-                this.parentNode.parentNode.parentNode.classList.remove('opened')
-                this.parentNode.parentNode.parentNode.querySelector('.page_filters__filter--main--btn span').innerHTML = this.querySelector('label').innerHTML
+        // Функция для добавления поиска в каждый фильтр
+        function initSearchInFilters() {
+            var searchInputs = document.querySelectorAll('.filter-search-input');
+            
+            searchInputs.forEach(function(searchInput) {
+                // Удаляем старые обработчики, чтобы не навешивать повторно
+                searchInput.removeEventListener('input', handleSearchInput);
+                searchInput.addEventListener('input', handleSearchInput);
             });
         }
 
-        document.addEventListener('click', function(e) {
-            if(!e.target.classList.contains('page_filters__filter--main--btn')) {
-                for (i = 0; i < filterBtns.length; i++) {
-                    filterBtns[i].parentNode.classList.remove('opened')
+        // Обработчик поиска
+        function handleSearchInput(e) {
+            var searchText = e.target.value.toLowerCase().trim();
+            var filterBlock = e.target.closest('.page_filters__filter--main--items');
+            var itemsBlock = filterBlock.querySelector('.page_filters__filter--main--items--block');
+            var items = itemsBlock.querySelectorAll('.page_filters__filter--main--items--block--item');
+            
+            // Пропускаем первый элемент "Все проблемы" (индекс 0)
+            for (var i = 1; i < items.length; i++) {
+                var item = items[i];
+                var label = item.querySelector('label');
+                var itemText = label.textContent.toLowerCase();
+                
+                if (searchText === '' || itemText.includes(searchText)) {
+                    item.classList.remove('hidden');
+                } else {
+                    item.classList.add('hidden');
                 }
             }
-        })
+        }
+
+        // Обновляем обработчики кликов по кнопкам фильтров
+        Array.from(filterBtns).forEach(function(section) {
+            section.addEventListener('click', function(el) {
+                var diff = Array.from(filterBtns).filter(element => element !== section);
+                diff.forEach(function(otherEl) {
+                    otherEl.parentNode.classList.remove('opened');
+                });
+                
+                section.parentNode.classList.toggle('opened');
+                
+                // Если фильтр открылся, очищаем поиск и фокусируемся на поле ввода
+                if (section.parentNode.classList.contains('opened')) {
+                    var searchInput = section.parentNode.querySelector('.filter-search-input');
+                    if (searchInput) {
+                        searchInput.value = ''; // Очищаем поле
+                        searchInput.focus(); // Ставим фокус
+                        
+                        // Показываем все элементы
+                        var items = section.parentNode.querySelectorAll('.page_filters__filter--main--items--block--item');
+                        items.forEach(function(item) {
+                            item.classList.remove('hidden');
+                        });
+                    }
+                }
+            });
+        });
+
+        // Обновляем обработчики кликов по элементам фильтра
+        document.addEventListener('click', function(e) {
+            var filterItem = e.target.closest('.page_filters__filter--main--items--block--item');
+            
+            if (filterItem) {
+                var filterBlock = filterItem.closest('.page_filters__filter--main');
+                var filterBtnSpan = filterBlock.querySelector('.page_filters__filter--main--btn span');
+                var label = filterItem.querySelector('label');
+                
+                if (label && filterBtnSpan) {
+                    filterBtnSpan.innerHTML = label.innerHTML;
+                    filterBlock.classList.remove('opened');
+                    
+                    // Очищаем поиск при выборе значения
+                    var searchInput = filterBlock.querySelector('.filter-search-input');
+                    if (searchInput) {
+                        searchInput.value = '';
+                        
+                        // Показываем все элементы
+                        var items = filterBlock.querySelectorAll('.page_filters__filter--main--items--block--item');
+                        items.forEach(function(item) {
+                            item.classList.remove('hidden');
+                        });
+                    }
+                }
+            }
+        });
+
+        // Закрытие при клике вне фильтра
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.page_filters__filter--main')) {
+                filterBtns.forEach(function(btn) {
+                    btn.parentNode.classList.remove('opened');
+                });
+            }
+        });
+
+        // Инициализация поиска при загрузке
+        initSearchInFilters();
 
         // AJAX поиск и фильтрация
         var searchInput = document.querySelector('.specItemsFilters input[name="search"]');
@@ -538,6 +617,34 @@ function initScript() {
             });
 
         }
+    }
+
+    function initVidjetToggle() {
+        const vidjetOpen = document.querySelector('.fixed-vidjet-open');
+        const vidjetClose = document.querySelector('.fixed-vidjet-close');
+        const vidjetMini = document.querySelector('.fixed-vidjet-mini');
+
+        if (!vidjetOpen || !vidjetClose || !vidjetMini) return;
+
+        vidjetClose.addEventListener('click', function() {
+            vidjetOpen.classList.remove('active');
+            vidjetMini.classList.add('active');
+        });
+
+        vidjetMini.addEventListener('click', function() {
+            vidjetMini.classList.remove('active');
+            vidjetOpen.classList.add('active');
+        });
+
+        // Автоматическое разворачивание через 10 секунд
+        setTimeout(function() {
+            // Проверяем, не открыт ли уже виджет и не закрыт ли он навсегда (если есть такая логика)
+            if (!vidjetOpen.classList.contains('active') && vidjetMini.classList.contains('active')) {
+                console.log('Auto opening vidjet after 10 seconds');
+                vidjetMini.classList.remove('active');
+                vidjetOpen.classList.add('active');
+            }
+        }, 10000); // 10000 миллисекунд = 10 секунд
     }
     
 

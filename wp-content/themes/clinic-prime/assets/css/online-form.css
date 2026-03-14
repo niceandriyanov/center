@@ -1815,75 +1815,7 @@ span.flatpickr-weekday {
     top: 16px;
 }
 
-.fixed-vidjet-open {
-    position: fixed;
-    width: 240px;
-    right: 24px;
-    bottom: 12px;
-    z-index: 2;
-    padding: 16px;
-    border-radius: 16px;
-    background: #FFF;
-}
 
-.fixed-vidjet-close {
-    position: absolute;
-    right: 16px;
-    top: 16px;
-    cursor: pointer;
-}
-
-.fixed-vidjet-img {
-    margin-bottom: 16px;
-    overflow: hidden;
-    text-align: center;
-}
-
-.fixed-vidjet-img img {
-    border-radius: 120px;
-    width: 88px;
-    height: 88px;
-    object-fit: cover;
-    object-position: center;
-}
-
-.fixed-vidjet-text {
-    text-align: center;
-    font-size: 16px;
-    line-height: 140%;
-}
-
-.fixed-vidjet-mini {
-    width: 56px;
-    height: 56px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 120px;
-    position: fixed;
-    right: 24px;
-    bottom: 12px;
-    background: #fff;
-    z-index: 2;
-    cursor: pointer;
-}
-
-.fixed-vidjet-open,
-.fixed-vidjet-mini {
-    transition: opacity 0.3s ease, visibility 0.3s ease;
-}
-
-.fixed-vidjet-open:not(.active),
-.fixed-vidjet-mini:not(.active) {
-    opacity: 0;
-    visibility: hidden;
-}
-
-.fixed-vidjet-open.active,
-.fixed-vidjet-mini.active {
-    opacity: 1;
-    visibility: visible;
-}
 
 .mobile-arrow {
     display: none;

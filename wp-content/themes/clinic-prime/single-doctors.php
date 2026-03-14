@@ -26,9 +26,9 @@
             <?php get_template_part('template-parts/parts/breadcrumbs'); ?>
             <div class="butFixed">
                 <?php if( !empty($btn) && !empty($btn_link) ) { ?>
-                <a href="<?= $btn_link; ?>" class="but butPrimary hidden_m"><?= $btn; ?></a>
+                <a href="<?= $btn_link; ?>" class="but butPrimary"><?= $btn; ?></a>
                 <?php } else { ?>
-                <a href="<?= get_field('theme_online_form_page', 'option'); ?>" class="but butPrimary hidden_m">Подобрать психолога</a>
+                <a href="<?= get_field('theme_online_form_page', 'option'); ?>" class="but butPrimary">Подобрать психолога</a>
                 <?php } ?>
             </div>
             <div class="specInnerWrap">
@@ -190,4 +190,11 @@
             // Your custom options
           });
 </script>
+<style type="text/css">
+    @media (max-width: 569px) {
+        .fixed-vidjet-mini, .fixed-vidjet-open {
+            bottom: 90px;
+        }
+    }
+</style>
 <?php get_footer(); ?>
