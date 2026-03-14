@@ -7,6 +7,7 @@ function initScript() {
     modalImage()
     phoneMask();
     onlineModal();
+    psiForm();
     spoiler();
 
     function mobileMenu() {
@@ -605,6 +606,581 @@ function initScript() {
             if (event.target.closest('.modalImageWrap')) {
                 closeModal();
             }
+        });
+    }
+
+    function psiForm() {
+        class PsiMultiStepForm {
+            constructor(container) {
+                this.container = container;
+                this.form = container.querySelector('#multiStepForm');
+
+                if (!this.form) {
+                    return;
+                }
+
+                this.currentStep = 1;
+                this.totalSteps = 4;
+                this.isSubmitting = false;
+                this.blockResubmit = false;
+                this.formData = {
+                    step1: {},
+                    step2: {},
+                    step3: { questions: {} },
+                    step4: {}
+                };
+
+                this.bindElements();
+                this.bindEvents();
+                this.updateUI();
+            }
+
+            bindElements() {
+                this.steps = this.container.querySelectorAll('.psi-step');
+                this.formSteps = this.form.querySelectorAll('.psi-form-step');
+                this.prevBtn = this.container.querySelector('#prevBtn');
+                this.nextBtn = this.container.querySelector('#nextBtn');
+                this.formFooter = this.container.querySelector('.psi-form-footer');
+
+                this.basicEducation = this.form.querySelector('#basicEducation');
+                this.cbtEducation = this.form.querySelector('#cbtEducation');
+                this.otherEducation = this.form.querySelector('#otherEducation');
+
+                this.psychologistExperience = this.form.querySelector('#psychologistExperience');
+                this.futureWork = this.form.querySelector('#futureWork');
+                this.supervisionDetails = this.form.querySelector('#supervisionDetails');
+                this.supervisionDetailsContainer = this.form.querySelector('.psi-supervision-details');
+
+                this.questionGroups = this.form.querySelectorAll('.psi-question-group');
+
+                this.fullName = this.form.querySelector('#fullName');
+                this.age = this.form.querySelector('#age');
+                this.contact = this.form.querySelector('#contact');
+                this.telegram = this.form.querySelector('#telegram');
+                this.email = this.form.querySelector('#email');
+                this.specialistNameInput = this.form.querySelector('#specialistName');
+                this.recommendationDetailsContainer = this.form.querySelector('.psi-recommendation-details');
+
+                this.selectTrigger = this.form.querySelector('#selectTrigger');
+                this.selectOptions = this.form.querySelector('#selectOptions');
+                this.selectOptionsList = this.form.querySelectorAll('.psi-select-option');
+
+                this.agreePrivacy = this.form.querySelector('#agreePrivacy');
+                this.agreeTerms = this.form.querySelector('#agreeTerms');
+
+                this.successModal = this.form.querySelector('#successModal');
+                this.closeSuccessModal = this.form.querySelector('#closeSuccessModal');
+
+                this.submitError = document.createElement('div');
+                this.submitError.className = 'psi-submit-error';
+                this.submitError.style.display = 'none';
+                this.submitError.style.color = '#C0392B';
+                this.submitError.style.marginTop = '10px';
+                this.submitError.style.fontSize = '14px';
+                if (this.formFooter) {
+                    this.formFooter.appendChild(this.submitError);
+                }
+            }
+
+            bindEvents() {
+                if (this.prevBtn) {
+                    this.prevBtn.addEventListener('click', () => this.prevStep());
+                }
+
+                if (this.nextBtn) {
+                    this.nextBtn.addEventListener('click', () => this.nextStep());
+                }
+
+                this.form.querySelectorAll('textarea, input').forEach((field) => {
+                    field.addEventListener('input', () => {
+                        if (this.blockResubmit) {
+                            this.blockResubmit = false;
+                        }
+                        this.saveStepData();
+                        this.clearFieldError(field);
+                        this.hideSubmitError();
+                    });
+                    field.addEventListener('change', () => {
+                        if (this.blockResubmit) {
+                            this.blockResubmit = false;
+                        }
+                        this.saveStepData();
+                        this.hideSubmitError();
+                    });
+                });
+
+                this.form.querySelectorAll('input[name="supervision"]').forEach((radio) => {
+                    radio.addEventListener('change', () => this.toggleSupervisionDetails());
+                });
+
+                this.form.querySelectorAll('input[name="recommendation"]').forEach((radio) => {
+                    radio.addEventListener('change', () => this.toggleRecommendationDetails());
+                });
+
+                this.questionGroups.forEach((group) => {
+                    group.querySelectorAll('input[type="checkbox"]').forEach((checkbox) => {
+                        checkbox.addEventListener('change', () => {
+                            group.classList.remove('error');
+                        });
+                    });
+                });
+
+                if (this.selectTrigger && this.selectOptions) {
+                    this.selectTrigger.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.selectOptions.classList.toggle('active');
+                        this.selectTrigger.classList.toggle('active');
+                    });
+
+                    this.selectOptionsList.forEach((option) => {
+                        option.addEventListener('click', () => this.selectOption(option));
+                    });
+
+                    document.addEventListener('click', () => {
+                        this.selectOptions.classList.remove('active');
+                        this.selectTrigger.classList.remove('active');
+                    });
+                }
+
+                if (this.closeSuccessModal) {
+                    this.closeSuccessModal.addEventListener('click', () => this.closeSuccessModalHandler());
+                }
+
+                if (this.successModal) {
+                    this.successModal.addEventListener('click', (e) => {
+                        if (e.target === this.successModal) {
+                            this.closeSuccessModalHandler();
+                        }
+                    });
+                }
+            }
+
+            selectOption(option) {
+                const value = option.getAttribute('data-value') || '';
+                const text = option.textContent.trim();
+                const placeholder = this.selectTrigger.querySelector('.psi-select-placeholder');
+
+                this.selectOptionsList.forEach((opt) => opt.classList.remove('selected'));
+                option.classList.add('selected');
+
+                if (this.specialistNameInput) {
+                    this.specialistNameInput.value = value;
+                }
+
+                if (value) {
+                    placeholder.textContent = text;
+                    this.selectTrigger.classList.add('has-value');
+                } else {
+                    placeholder.textContent = 'Укажите психолога';
+                    this.selectTrigger.classList.remove('has-value');
+                }
+
+                this.selectOptions.classList.remove('active');
+                this.selectTrigger.classList.remove('active');
+                this.saveStepData();
+            }
+
+            toggleSupervisionDetails() {
+                const selected = this.form.querySelector('input[name="supervision"]:checked');
+                const isYes = selected && selected.value === 'yes';
+
+                if (!this.supervisionDetailsContainer) {
+                    return;
+                }
+
+                this.supervisionDetailsContainer.style.display = isYes ? 'block' : 'none';
+                if (!isYes && this.supervisionDetails) {
+                    this.supervisionDetails.value = '';
+                }
+            }
+
+            toggleRecommendationDetails() {
+                const selected = this.form.querySelector('input[name="recommendation"]:checked');
+                const isYes = selected && selected.value === 'yes';
+
+                if (!this.recommendationDetailsContainer) {
+                    return;
+                }
+
+                this.recommendationDetailsContainer.style.display = isYes ? 'block' : 'none';
+                if (!isYes && this.specialistNameInput) {
+                    this.specialistNameInput.value = '';
+                }
+            }
+
+            clearFieldError(field) {
+                const group = field.closest('.psi-form-group, .psi-question-group');
+                if (group) {
+                    group.classList.remove('psi-field-with-error');
+                }
+            }
+
+            showAgreementError(checkbox) {
+                if (!checkbox) {
+                    return;
+                }
+                const error = checkbox.closest('.psi-checkbox-label')?.parentElement?.querySelector('.psi-agreement-error');
+                if (error) {
+                    error.style.display = 'block';
+                }
+            }
+
+            hideAgreementError(checkbox) {
+                if (!checkbox) {
+                    return;
+                }
+                const error = checkbox.closest('.psi-checkbox-label')?.parentElement?.querySelector('.psi-agreement-error');
+                if (error) {
+                    error.style.display = 'none';
+                }
+            }
+
+            showSubmitError(message) {
+                if (!this.submitError) {
+                    return;
+                }
+                this.submitError.textContent = message;
+                this.submitError.style.display = 'block';
+            }
+
+            hideSubmitError() {
+                if (!this.submitError) {
+                    return;
+                }
+                this.submitError.style.display = 'none';
+                this.submitError.textContent = '';
+            }
+
+            saveStepData() {
+                this.formData.step1 = {
+                    basicEducation: this.basicEducation ? this.basicEducation.value.trim() : '',
+                    cbtEducation: this.cbtEducation ? this.cbtEducation.value.trim() : '',
+                    otherEducation: this.otherEducation ? this.otherEducation.value.trim() : ''
+                };
+
+                const supervisionChecked = this.form.querySelector('input[name="supervision"]:checked');
+                this.formData.step2 = {
+                    psychologistExperience: this.psychologistExperience ? this.psychologistExperience.value.trim() : '',
+                    futureWork: this.futureWork ? this.futureWork.value.trim() : '',
+                    supervision: supervisionChecked ? supervisionChecked.value : 'no',
+                    supervisionDetails: this.supervisionDetails ? this.supervisionDetails.value.trim() : ''
+                };
+
+                this.formData.step3.questions = {};
+                this.questionGroups.forEach((group) => {
+                    const questionNumber = group.getAttribute('data-question');
+                    const checked = group.querySelectorAll('input[type="checkbox"]:checked');
+                    this.formData.step3.questions['question' + questionNumber] = Array.from(checked).map((cb) => cb.value);
+                });
+
+                const recommendationChecked = this.form.querySelector('input[name="recommendation"]:checked');
+                this.formData.step4 = {
+                    fullName: this.fullName ? this.fullName.value.trim() : '',
+                    age: this.age ? this.age.value.trim() : '',
+                    contact: this.contact ? this.contact.value.trim() : '',
+                    telegram: this.telegram ? this.telegram.value.trim() : '',
+                    email: this.email ? this.email.value.trim() : '',
+                    recommendation: recommendationChecked ? recommendationChecked.value : 'no',
+                    specialistName: this.specialistNameInput ? this.specialistNameInput.value : '',
+                    agreePrivacy: this.agreePrivacy ? this.agreePrivacy.checked : false,
+                    agreeTerms: this.agreeTerms ? this.agreeTerms.checked : false
+                };
+            }
+
+            validateStep1() {
+                let valid = true;
+                if (!this.formData.step1.basicEducation && this.basicEducation) {
+                    this.basicEducation.closest('.psi-form-group')?.classList.add('psi-field-with-error');
+                    valid = false;
+                }
+                if (!this.formData.step1.cbtEducation && this.cbtEducation) {
+                    this.cbtEducation.closest('.psi-form-group')?.classList.add('psi-field-with-error');
+                    valid = false;
+                }
+                return valid;
+            }
+
+            validateStep2() {
+                let valid = true;
+                if (!this.formData.step2.psychologistExperience && this.psychologistExperience) {
+                    this.psychologistExperience.closest('.psi-form-group')?.classList.add('psi-field-with-error');
+                    valid = false;
+                }
+                if (!this.formData.step2.futureWork && this.futureWork) {
+                    this.futureWork.closest('.psi-form-group')?.classList.add('psi-field-with-error');
+                    valid = false;
+                }
+                return valid;
+            }
+
+            validateStep3() {
+                let valid = true;
+                this.questionGroups.forEach((group) => {
+                    const checked = group.querySelectorAll('input[type="checkbox"]:checked').length;
+                    if (!checked) {
+                        group.classList.add('error');
+                        valid = false;
+                    } else {
+                        group.classList.remove('error');
+                    }
+                });
+                return valid;
+            }
+
+            validateStep4() {
+                let valid = true;
+
+                const age = parseInt(this.formData.step4.age, 10);
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+                if (!this.formData.step4.fullName && this.fullName) {
+                    this.fullName.closest('.psi-form-group')?.classList.add('psi-field-with-error');
+                    valid = false;
+                }
+                if (!this.formData.step4.age || Number.isNaN(age) || age < 18 || age > 100) {
+                    this.age.closest('.psi-form-group')?.classList.add('psi-field-with-error');
+                    valid = false;
+                }
+                if (!this.formData.step4.contact && this.contact) {
+                    this.contact.closest('.psi-form-group')?.classList.add('psi-field-with-error');
+                    valid = false;
+                }
+                if (!this.formData.step4.email || !emailRegex.test(this.formData.step4.email)) {
+                    this.email.closest('.psi-form-group')?.classList.add('psi-field-with-error');
+                    valid = false;
+                }
+
+                this.hideAgreementError(this.agreePrivacy);
+                this.hideAgreementError(this.agreeTerms);
+
+                if (!this.formData.step4.agreePrivacy) {
+                    this.showAgreementError(this.agreePrivacy);
+                    valid = false;
+                }
+                if (!this.formData.step4.agreeTerms) {
+                    this.showAgreementError(this.agreeTerms);
+                    valid = false;
+                }
+
+                return valid;
+            }
+
+            validateCurrentStep() {
+                if (this.currentStep === 1) return this.validateStep1();
+                if (this.currentStep === 2) return this.validateStep2();
+                if (this.currentStep === 3) return this.validateStep3();
+                if (this.currentStep === 4) return this.validateStep4();
+                return true;
+            }
+
+            nextStep() {
+                if (this.isSubmitting) {
+                    return;
+                }
+
+                if (this.blockResubmit) {
+                    this.showSubmitError('Заявка уже отправлена. Заполните форму заново, чтобы отправить еще одну.');
+                    return;
+                }
+
+                this.saveStepData();
+                this.hideSubmitError();
+
+                if (!this.validateCurrentStep()) {
+                    this.scrollToTop();
+                    return;
+                }
+
+                if (this.currentStep < this.totalSteps) {
+                    this.currentStep += 1;
+                    this.updateUI();
+                    this.scrollToTop();
+                    return;
+                }
+
+                this.submitForm();
+            }
+
+            prevStep() {
+                if (this.isSubmitting) {
+                    return;
+                }
+                if (this.currentStep > 1) {
+                    this.currentStep -= 1;
+                    this.updateUI();
+                    this.scrollToTop();
+                }
+            }
+
+            scrollToTop() {
+                this.container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+
+            updateUI() {
+                this.steps.forEach((step, index) => {
+                    const stepNumber = index + 1;
+                    step.classList.remove('active', 'completed');
+                    if (stepNumber === this.currentStep) {
+                        step.classList.add('active');
+                    } else if (stepNumber < this.currentStep) {
+                        step.classList.add('completed');
+                    }
+                });
+
+                this.formSteps.forEach((step, index) => {
+                    step.classList.toggle('active', index + 1 === this.currentStep);
+                });
+
+                if (this.prevBtn) {
+                    this.prevBtn.classList.toggle('psi-btn-hidden', this.currentStep === 1);
+                }
+
+                if (this.nextBtn) {
+                    this.nextBtn.textContent = this.currentStep === this.totalSteps ? 'Отправить заявку' : 'Продолжить →';
+                }
+
+                if (this.formFooter) {
+                    this.formFooter.classList.toggle('show-agreements', this.currentStep === this.totalSteps);
+                }
+
+                this.toggleSupervisionDetails();
+                this.toggleRecommendationDetails();
+            }
+
+            setSubmitting(isSubmitting) {
+                this.isSubmitting = isSubmitting;
+                if (this.nextBtn) {
+                    this.nextBtn.disabled = isSubmitting;
+                    this.nextBtn.textContent = isSubmitting
+                        ? 'Отправка...'
+                        : (this.currentStep === this.totalSteps ? 'Отправить заявку' : 'Продолжить →');
+                }
+                if (this.prevBtn) {
+                    this.prevBtn.disabled = isSubmitting;
+                }
+            }
+
+            resetAfterSuccess() {
+                this.form.reset();
+                this.currentStep = 1;
+                this.blockResubmit = true;
+
+                this.form.querySelectorAll('.psi-field-with-error').forEach((group) => {
+                    group.classList.remove('psi-field-with-error');
+                });
+                this.questionGroups.forEach((group) => group.classList.remove('error'));
+                this.hideAgreementError(this.agreePrivacy);
+                this.hideAgreementError(this.agreeTerms);
+                this.hideSubmitError();
+
+                if (this.selectTrigger) {
+                    const placeholder = this.selectTrigger.querySelector('.psi-select-placeholder');
+                    if (placeholder) {
+                        placeholder.textContent = 'Укажите психолога';
+                    }
+                    this.selectTrigger.classList.remove('has-value', 'active');
+                }
+                if (this.selectOptions) {
+                    this.selectOptions.classList.remove('active');
+                }
+                this.selectOptionsList.forEach((opt) => opt.classList.remove('selected'));
+                if (this.selectOptionsList.length > 0) {
+                    this.selectOptionsList[0].classList.add('selected');
+                }
+
+                this.saveStepData();
+                this.updateUI();
+            }
+
+            buildPayload() {
+                const questions = Array.from(this.questionGroups).map((group) => {
+                    const title = group.querySelector('h3') ? group.querySelector('h3').textContent.trim() : 'Вопрос';
+                    const answers = Array.from(group.querySelectorAll('input[type="checkbox"]:checked')).map((cb) => cb.value);
+                    return { question: title, answers: answers };
+                });
+
+                return {
+                    step1: this.formData.step1,
+                    step2: this.formData.step2,
+                    step3: { questions: questions },
+                    step4: {
+                        fullName: this.formData.step4.fullName,
+                        age: this.formData.step4.age,
+                        contact: this.formData.step4.contact,
+                        telegram: this.formData.step4.telegram,
+                        email: this.formData.step4.email,
+                        recommendation: this.formData.step4.recommendation,
+                        specialistName: this.formData.step4.specialistName
+                    }
+                };
+            }
+
+            async submitForm() {
+                if (this.isSubmitting) {
+                    return;
+                }
+
+                if (this.blockResubmit) {
+                    this.showSubmitError('Заявка уже отправлена. Заполните форму заново, чтобы отправить еще одну.');
+                    return;
+                }
+
+                this.setSubmitting(true);
+                this.hideSubmitError();
+
+                try {
+                    const payload = this.buildPayload();
+                    const body = new URLSearchParams();
+                    body.append('action', 'clinic_submit_psi_form');
+                    body.append('nonce', (window.clinic_ajax && window.clinic_ajax.nonce) ? window.clinic_ajax.nonce : '');
+                    body.append('payload', JSON.stringify(payload));
+
+                    const response = await fetch((window.clinic_ajax && window.clinic_ajax.ajax_url) ? window.clinic_ajax.ajax_url : '/wp-admin/admin-ajax.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: body.toString()
+                    });
+
+                    const result = await response.json();
+
+                    if (!response.ok || !result || !result.success) {
+                        const serverMessage = result && result.data && result.data.message ? result.data.message : 'Не удалось отправить заявку. Попробуйте позже.';
+                        throw new Error(serverMessage);
+                    }
+
+                    this.resetAfterSuccess();
+                    this.showSuccessModal();
+                } catch (error) {
+                    this.showSubmitError(error.message || 'Ошибка отправки формы. Попробуйте позже.');
+                } finally {
+                    this.setSubmitting(false);
+                }
+            }
+
+            showSuccessModal() {
+                if (this.successModal) {
+                    this.successModal.classList.add('active');
+                    document.body.style.overflow = 'hidden';
+                }
+            }
+
+            closeSuccessModalHandler() {
+                if (this.successModal) {
+                    this.successModal.classList.remove('active');
+                    document.body.style.overflow = '';
+                }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const container = document.querySelector('.psi-form-container');
+            if (!container) {
+                return;
+            }
+            new PsiMultiStepForm(container);
         });
     }
 
