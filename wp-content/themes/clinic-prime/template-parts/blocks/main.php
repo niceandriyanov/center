@@ -22,7 +22,7 @@ if (!defined('ABSPATH')) {
             <div class="mainText"><?= $args['desc']; ?></div>
             <?php if( !empty($args['link']) ) { ?>
             <div class="mainBut">
-                <a href="<?= $args['link']; ?>" class="but butPrimary">Подобрать психолога от 4000 Р</a>
+                <a href="<?= $args['link']; ?>" class="but butPrimary">Подобрать психолога от 2500 Р</a>
             </div>
             <?php } ?>
         </div>
