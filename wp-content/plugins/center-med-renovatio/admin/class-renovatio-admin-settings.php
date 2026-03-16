@@ -381,7 +381,7 @@ class Renovatio_Admin_Settings {
 		$val  = isset( $opts['notify_admin_email'] ) ? $opts['notify_admin_email'] : get_option( 'admin_email' );
 		?>
 		<input
-			type="email"
+			type="text"
 			id="center_med_renovatio_notify_admin_email"
 			name="<?php echo esc_attr( self::OPTION_NAME ); ?>[notify_admin_email]"
 			value="<?php echo esc_attr( $val ); ?>"
