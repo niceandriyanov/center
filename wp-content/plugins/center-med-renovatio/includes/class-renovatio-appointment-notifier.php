@@ -34,8 +34,21 @@ class Renovatio_Appointment_Notifier {
 			return;
 		}
 
-		$admin_email = sanitize_email( (string) center_med_renovatio_get_setting( 'notify_admin_email', get_option( 'admin_email' ) ) );
-		if ( '' === $admin_email || ! is_email( $admin_email ) ) {
+		$admin_email_raw = (string) center_med_renovatio_get_setting( 'notify_admin_email', get_option( 'admin_email' ) );
+		$admin_emails    = [];
+		$email_parts     = array_map( 'trim', explode( ',', $admin_email_raw ) );
+
+		foreach ( $email_parts as $email_part ) {
+			$admin_email = sanitize_email( $email_part );
+			if ( '' === $admin_email || ! is_email( $admin_email ) ) {
+				continue;
+			}
+
+			$admin_emails[] = $admin_email;
+		}
+
+		$admin_emails = array_values( array_unique( $admin_emails ) );
+		if ( empty( $admin_emails ) ) {
 			return;
 		}
 
@@ -50,7 +63,7 @@ class Renovatio_Appointment_Notifier {
 			: self::build_self_email_template( $payload, $message );
 
 		wp_mail(
-			$admin_email,
+			$admin_emails,
 			$subject,
 			$body,
 			[
