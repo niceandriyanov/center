@@ -199,7 +199,7 @@ class Renovatio_Admin_Settings {
 		}
 
 		if ( isset( $input['notify_admin_email'] ) ) {
-			$email = sanitize_email( (string) $input['notify_admin_email'] );
+			$email = sanitize_text_field( (string) $input['notify_admin_email'] );
 			$out['notify_admin_email'] = $email ? $email : get_option( 'admin_email' );
 		}
 
