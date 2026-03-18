@@ -224,3 +224,38 @@ function clinic_log_wp_mail_failure($wp_error) {
     error_log($message);
 }
 add_action('wp_mail_failed', 'clinic_log_wp_mail_failure');
+
+/**
+ * Убираем стандартный метабокс "Болезни" у doctors, чтобы исключить
+ * конфликт с ACF-полем taxonomy (оно и есть источник истины).
+ */
+function clinic_remove_doctor_diseases_metabox() {
+    remove_meta_box('tagsdiv-doctor_diseases', 'doctors', 'side');
+}
+add_action('add_meta_boxes_doctors', 'clinic_remove_doctor_diseases_metabox', 20);
+
+/**
+ * На экране сохранения doctors игнорируем стандартный tax_input по doctor_diseases.
+ * Это защищает от пересоздания удаленных терминов из скрытого WP-метабокса.
+ */
+function clinic_ignore_default_doctor_diseases_tax_input() {
+    if (!is_admin() || empty($_POST)) {
+        return;
+    }
+
+    $post_id = isset($_POST['post_ID']) ? absint(wp_unslash($_POST['post_ID'])) : 0;
+    $post_type = isset($_POST['post_type']) ? sanitize_key(wp_unslash($_POST['post_type'])) : '';
+
+    if (!$post_type && $post_id > 0) {
+        $post_type = (string) get_post_type($post_id);
+    }
+
+    if ($post_type !== 'doctors') {
+        return;
+    }
+
+    if (isset($_POST['tax_input']) && is_array($_POST['tax_input']) && isset($_POST['tax_input']['doctor_diseases'])) {
+        unset($_POST['tax_input']['doctor_diseases']);
+    }
+}
+add_action('admin_init', 'clinic_ignore_default_doctor_diseases_tax_input', 1);
