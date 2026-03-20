@@ -397,7 +397,8 @@ class BookingSystem {
             clientEmail: '',
             clientTelegram: '',
             agreementPrivacy: false,
-            agreementOffer: false
+            agreementOffer: false,
+            agreementInformedConsent: false
         };
     }
 
@@ -420,7 +421,8 @@ class BookingSystem {
             client1Email: '',
             clientTelegram: '',
             agreementPrivacy: false,
-            agreementOffer: false
+            agreementOffer: false,
+            agreementInformedConsent: false
         };
     }
 
@@ -536,8 +538,10 @@ class BookingSystem {
         e.selectedSpecialistSummary = d.getElementById('selectedSpecialistSummary');
         e.agreementPrivacy = d.getElementById('agreementPrivacy');
         e.agreementOffer = d.getElementById('agreementOffer');
+        e.agreementInformedConsent = d.getElementById('agreementInformedConsent');
         e.privacyError = d.getElementById('privacyError');
         e.offerError = d.getElementById('offerError');
+        e.informedConsentError = d.getElementById('informedConsentError');
     }
 
     initManyFormElements(e, d) {
@@ -568,8 +572,10 @@ class BookingSystem {
         e.manySelectedSpecialistSummary = d.getElementById('manySelectedSpecialistSummary');
         e.manyAgreementPrivacy = d.getElementById('manyAgreementPrivacy');
         e.manyAgreementOffer = d.getElementById('manyAgreementOffer');
+        e.manyAgreementInformedConsent = d.getElementById('manyAgreementInformedConsent');
         e.manyPrivacyError = d.getElementById('manyPrivacyError');
         e.manyOfferError = d.getElementById('manyOfferError');
+        e.manyInformedConsentError = d.getElementById('manyInformedConsentError');
     }
 
     initModalElements(e, d) {
@@ -756,6 +762,7 @@ class BookingSystem {
         // Чекбоксы
         this.bindCheckbox(e.agreementPrivacy, 'agreementPrivacy', e.privacyError, 'self');
         this.bindCheckbox(e.agreementOffer, 'agreementOffer', e.offerError, 'self');
+        this.bindCheckbox(e.agreementInformedConsent, 'agreementInformedConsent', e.informedConsentError, 'self');
     }
 
     bindManyStepEvents() {
@@ -799,6 +806,7 @@ class BookingSystem {
         // Чекбоксы формы "Для пары"
         this.bindCheckbox(e.manyAgreementPrivacy, 'agreementPrivacy', e.manyPrivacyError, 'many');
         this.bindCheckbox(e.manyAgreementOffer, 'agreementOffer', e.manyOfferError, 'many');
+        this.bindCheckbox(e.manyAgreementInformedConsent, 'agreementInformedConsent', e.manyInformedConsentError, 'many');
     }
 
     bindDebouncedInput(element, fieldName, validationFn, formType = 'self', updateState = true) {
@@ -1353,12 +1361,14 @@ class BookingSystem {
     validateAgreements() {
         const privacyChecked = this.elements.agreementPrivacy.checked;
         const offerChecked = this.elements.agreementOffer.checked;
+        const informedConsentChecked = this.elements.agreementInformedConsent.checked;
         const shouldShowErrors = this.stepManager.currentStep === 4;
 
         Utils.toggle(this.elements.privacyError, !privacyChecked && shouldShowErrors);
         Utils.toggle(this.elements.offerError, !offerChecked && shouldShowErrors);
+        Utils.toggle(this.elements.informedConsentError, !informedConsentChecked && shouldShowErrors);
 
-        return privacyChecked && offerChecked;
+        return privacyChecked && offerChecked && informedConsentChecked;
     }
 
     // ==================== ВАЛИДАЦИЯ (ДЛЯ ПАРЫ) ====================
@@ -1555,12 +1565,14 @@ class BookingSystem {
     validateManyAgreements() {
         const privacyChecked = this.elements.manyAgreementPrivacy.checked;
         const offerChecked = this.elements.manyAgreementOffer.checked;
+        const informedConsentChecked = this.elements.manyAgreementInformedConsent.checked;
         const shouldShowErrors = this.manyStepManager.currentStep === 3;
 
         Utils.toggle(this.elements.manyPrivacyError, !privacyChecked && shouldShowErrors);
         Utils.toggle(this.elements.manyOfferError, !offerChecked && shouldShowErrors);
+        Utils.toggle(this.elements.manyInformedConsentError, !informedConsentChecked && shouldShowErrors);
 
-        return privacyChecked && offerChecked;
+        return privacyChecked && offerChecked && informedConsentChecked;
     }
 
     showFieldError(fieldElement, isValid, message = '') {
@@ -2178,6 +2190,7 @@ class BookingSystem {
             });
             Utils.hide(this.elements.privacyError);
             Utils.hide(this.elements.offerError);
+            Utils.hide(this.elements.informedConsentError);
         } else {
             const fields = [
                 'manyClient1Name', 'manyClient1Age', 'manyClient1Phone', 'manyClient1Email', 'manyClientTelegram'
@@ -2192,6 +2205,7 @@ class BookingSystem {
             });
             Utils.hide(this.elements.manyPrivacyError);
             Utils.hide(this.elements.manyOfferError);
+            Utils.hide(this.elements.manyInformedConsentError);
         }
     }
 
@@ -2855,6 +2869,7 @@ class BookingSystem {
                 clientAge: step1.clientAge || '',
                 agreementPrivacy: !!step1.agreementPrivacy,
                 agreementOffer: !!step1.agreementOffer,
+                agreementInformedConsent: !!step1.agreementInformedConsent,
                 telegram: telegram
             })
         };
@@ -2938,6 +2953,7 @@ class BookingSystem {
                 clientAge: step1.client1Age || '',
                 agreementPrivacy: !!step1.agreementPrivacy,
                 agreementOffer: !!step1.agreementOffer,
+                agreementInformedConsent: !!step1.agreementInformedConsent,
                 telegram: telegram
             })
         };
@@ -3841,8 +3857,10 @@ class BookingSystem {
         // Сброс чекбоксов
         if (this.elements.agreementPrivacy) this.elements.agreementPrivacy.checked = false;
         if (this.elements.agreementOffer) this.elements.agreementOffer.checked = false;
+        if (this.elements.agreementInformedConsent) this.elements.agreementInformedConsent.checked = false;
         if (this.elements.manyAgreementPrivacy) this.elements.manyAgreementPrivacy.checked = false;
         if (this.elements.manyAgreementOffer) this.elements.manyAgreementOffer.checked = false;
+        if (this.elements.manyAgreementInformedConsent) this.elements.manyAgreementInformedConsent.checked = false;
 
         // Сброс чекбоксов вопросов
         const questionGroup = Utils.$('.online-question-group');

@@ -1523,6 +1523,7 @@ function center_med_renovatio_ajax_create_appointment_request() {
 	$client_age         = isset( $message['clientAge'] ) ? sanitize_text_field( (string) $message['clientAge'] ) : '';
 	$agreement_privacy  = ! empty( $message['agreementPrivacy'] );
 	$agreement_offer    = ! empty( $message['agreementOffer'] );
+	$agreement_informed_consent = ! empty( $message['agreementInformedConsent'] );
 	$concerns_raw       = isset( $message['concerns'] ) ? $message['concerns'] : [];
 
 	if ( '' === $date_string && '' !== $message_date_string ) {
@@ -1743,6 +1744,7 @@ function center_med_renovatio_ajax_create_appointment_request() {
 			sprintf( 'Лист ожидания: %s', $is_waiting_list ? 'Да' : 'Нет' ),
 			sprintf( 'Согласие с политикой: %s', $agreement_privacy ? 'Да' : 'Нет' ),
 			sprintf( 'Согласие с офертой: %s', $agreement_offer ? 'Да' : 'Нет' ),
+			sprintf( 'Ознакомление с информированным согласием: %s', $agreement_informed_consent ? 'Да' : 'Нет' ),
 			sprintf( 'Темы обращения: %s', ! empty( $concerns_for_comment ) ? implode( ', ', $concerns_for_comment ) : '-' ),
 			sprintf( 'Booking ID: %s', $booking_public_id ),
 		];
@@ -1817,6 +1819,7 @@ function center_med_renovatio_ajax_create_appointment_request() {
 		'clientAge'       => $client_age,
 		'agreementPrivacy' => $agreement_privacy ? 1 : 0,
 		'agreementOffer'  => $agreement_offer ? 1 : 0,
+		'agreementInformedConsent' => $agreement_informed_consent ? 1 : 0,
 		'telegram'        => $telegram,
 		'service'         => $service,
 		'dateString'      => $date_string,

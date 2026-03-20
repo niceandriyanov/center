@@ -403,6 +403,13 @@
                                 <span class="online-checkbox-text">Соглашаюсь с условиями <a href="/offer/" target="_blank">публичной оферты</a></span>
                             </label>
                             <div class="online-error-message" id="offerError" style="display: none;">Необходимо ваше согласие</div>
+                            
+                            <label class="online-checkbox-label">
+                                <input type="checkbox" id="agreementInformedConsent" name="agreementInformedConsent">
+                                <span class="online-checkbox-custom"></span>
+                                <span class="online-checkbox-text">Ознакомлен(а) с <a href="<?= wp_get_attachment_url(860); ?>" target="_blank">информированным согласием</a></span>
+                            </label>
+                            <div class="online-error-message" id="informedConsentError" style="display: none;">Необходимо ваше согласие</div>
                         </div>
                     </div>
                 </div>
@@ -608,6 +615,13 @@
                                 <span class="online-checkbox-text">Соглашаюсь с условиями <a href="/offer/" target="_blank">публичной оферты</a> <span class="required"></span></span>
                             </label>
                             <div class="online-error-message" id="manyOfferError" style="display: none;">Необходимо ваше согласие</div>
+
+                            <label class="online-checkbox-label">
+                                <input type="checkbox" id="manyAgreementInformedConsent" name="manyAgreementInformedConsent">
+                                <span class="online-checkbox-custom"></span>
+                                <span class="online-checkbox-text">Ознакомлен(а) с <a href="<?= wp_get_attachment_url(860); ?>" target="_blank">информированным согласием</a></span>
+                            </label>
+                            <div class="online-error-message" id="manyInformedConsentError" style="display: none;">Необходимо ваше согласие</div>
                         </div>
                     </div>
                 </div>
