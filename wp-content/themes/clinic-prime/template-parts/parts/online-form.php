@@ -169,43 +169,7 @@
 
                 <!-- Шаг 2 Что вас беспокоит -->
                 <div class="online-form-step" id="step2" style="display: none;">
-                    <h2 class="small-margin">Что вас беспокоит <span class="required"></span></h2>
-                    <p>Отметьте всё, что подходит. Это помогает быстро подобрать специалиста и формат работы.</p>
-                    <div class="online-questions-container">
-                        <!-- Вопрос 1 -->
-                        <div class="online-question-group" data-question="1">
-                            <div class="online-checkbox-group">
-                                <?php
-                                $questions = get_terms(array(
-                                    'taxonomy' => 'doctor_diseases',
-                                    'hide_empty' => false,
-                                    'meta_key' => 'taxonomy_order',
-                                    'orderby' => 'meta_value_num',
-                                    'order' => 'ASC',
-                                    'meta_query' => array(
-                                        array(
-                                            'key' => 'form_to',
-                                            'value' => 0,
-                                            'compare' => '=',
-                                            'type'    => 'NUMERIC'
-                                        )
-                                    )
-                                ));
-                                foreach($questions as $question) {
-                                    echo '<label class="online-checkbox-label">';
-                                    echo '<input type="checkbox" name="question1[]" value="'.$question->term_id.'">';
-                                    echo '<span class="online-checkbox-custom"></span>';
-                                    echo '<span class="online-checkbox-text">'.$question->name.'</span>';
-                                    echo '</label>';
-                                }
-                                ?>
-                            </div>
-                            <div class="online-question-error">Пожалуйста, выберите хотя бы один вариант ответа</div>
-                        </div>
-
-                    </div>
-
-                    <div class="online-form-group last" id="visitingGroup">
+                    <div class="online-form-group" id="visitingGroup">
                         <h2>Посещает ли кто-то из ваших близких психологов нашего Центра?</h2>
                         <div class="online-radio-group width33" id="visitingRadioGroup">
                             <label class="online-radio-label">
@@ -263,6 +227,44 @@
                         <label for="recomendFreeName">Если вы не знаете, у кого из специалистов наблюдается ваш близкий, напишите данные клиента, чтобы мы могли самостоятельно проверить эту информацию</label>
                         <input type="text" class="field" id="recomendFreeName" name="recomendFreeName" placeholder="Например: Иванов Иван, телефон +7 999 123-45-67">
                     </div>
+
+                    <h2 class="small-margin">Что вас беспокоит <span class="required"></span></h2>
+                    <p>Отметьте всё, что подходит. Это помогает быстро подобрать специалиста и формат работы.</p>
+                    <div class="online-questions-container last">
+                        <!-- Вопрос 1 -->
+                        <div class="online-question-group" data-question="1">
+                            <div class="online-checkbox-group">
+                                <?php
+                                $questions = get_terms(array(
+                                    'taxonomy' => 'doctor_diseases',
+                                    'hide_empty' => false,
+                                    'meta_key' => 'taxonomy_order',
+                                    'orderby' => 'meta_value_num',
+                                    'order' => 'ASC',
+                                    'meta_query' => array(
+                                        array(
+                                            'key' => 'form_to',
+                                            'value' => 0,
+                                            'compare' => '=',
+                                            'type'    => 'NUMERIC'
+                                        )
+                                    )
+                                ));
+                                foreach($questions as $question) {
+                                    echo '<label class="online-checkbox-label">';
+                                    echo '<input type="checkbox" name="question1[]" value="'.$question->term_id.'">';
+                                    echo '<span class="online-checkbox-custom"></span>';
+                                    echo '<span class="online-checkbox-text">'.$question->name.'</span>';
+                                    echo '</label>';
+                                }
+                                ?>
+                            </div>
+                            <div class="online-question-error">Пожалуйста, выберите хотя бы один вариант ответа</div>
+                        </div>
+
+                    </div>
+
+                    
 
                 </div>
 

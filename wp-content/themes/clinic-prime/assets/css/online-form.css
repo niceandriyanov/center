@@ -602,6 +602,10 @@ textarea.error {
     border-bottom: 1px solid #366159;
 }
 
+.online-questions-container.last {
+    border-bottom: 0;
+}
+
 /* Стилизация скроллбара */
 .online-questions-container::-webkit-scrollbar {
     width: 6px;
