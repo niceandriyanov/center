@@ -189,44 +189,46 @@
                             </label>
                         </div>
                         <div class="online-question-error" id="visitingGroupError">Необходимо выбрать один из вариантов</div>
-                    </div>
 
-                    <div class="online-recommendation-details" style="display: none;">
-                        <label for="selectTrigger">Укажите имя специалиста</label>
+                        <div class="online-recommendation-details" style="display: none; margin-top: 16px;">
+                            <label for="selectTrigger">Укажите имя специалиста</label>
 
-                        <!-- Кастомный селект -->
-                        <div class="online-custom-select">
-                            <div class="online-select-selected" id="selectTrigger">
-                                <span class="online-select-placeholder">-- Выберите специалиста из списка --</span>
-                                <span class="online-select-arrow">
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
-                                        <path fill-rule="evenodd" clip-rule="evenodd" d="M12 15.5002C11.744 15.5002 11.488 15.4023 11.293 15.2073L7.29301 11.2072C6.90201 10.8162 6.90201 10.1842 7.29301 9.79325C7.68401 9.40225 8.31601 9.40225 8.70701 9.79325L12.012 13.0982L15.305 9.91825C15.704 9.53525 16.335 9.54625 16.719 9.94325C17.103 10.3403 17.092 10.9742 16.695 11.3572L12.695 15.2193C12.5 15.4073 12.25 15.5002 12 15.5002Z" fill="#7D7C7F"/>
-                                    </svg>
-                                </span>
+                            <!-- Кастомный селект -->
+                            <div class="online-custom-select">
+                                <div class="online-select-selected" id="selectTrigger">
+                                    <span class="online-select-placeholder">-- Выберите специалиста из списка --</span>
+                                    <span class="online-select-arrow">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 15.5002C11.744 15.5002 11.488 15.4023 11.293 15.2073L7.29301 11.2072C6.90201 10.8162 6.90201 10.1842 7.29301 9.79325C7.68401 9.40225 8.31601 9.40225 8.70701 9.79325L12.012 13.0982L15.305 9.91825C15.704 9.53525 16.335 9.54625 16.719 9.94325C17.103 10.3403 17.092 10.9742 16.695 11.3572L12.695 15.2193C12.5 15.4073 12.25 15.5002 12 15.5002Z" fill="#7D7C7F"/>
+                                        </svg>
+                                    </span>
+                                </div>
+                                <div class="online-select-options" id="selectOptions">
+                                    <div class="online-select-option" data-value="">Выберите специалиста</div>
+                                    <?php
+                                    $specialists = get_posts(array(
+                                        'post_type' => 'doctors',
+                                        'posts_per_page' => -1,
+                                        'orderby' => 'menu_order',
+                                        'order' => 'ASC',
+                                        'post_status' => 'publish',
+                                    ));
+                                    foreach($specialists as $specialist) {
+                                        echo '<div class="online-select-option" data-value="'.$specialist->ID.'">'.$specialist->post_title.'</div>';
+                                    }
+                                    ?>
+                                </div>
+                                <input type="hidden" id="specialistName" name="specialistName">
                             </div>
-                            <div class="online-select-options" id="selectOptions">
-                                <div class="online-select-option" data-value="">Выберите специалиста</div>
-                                <?php
-                                $specialists = get_posts(array(
-                                    'post_type' => 'doctors',
-                                    'posts_per_page' => -1,
-                                    'orderby' => 'menu_order',
-                                    'order' => 'ASC',
-                                    'post_status' => 'publish',
-                                ));
-                                foreach($specialists as $specialist) {
-                                    echo '<div class="online-select-option" data-value="'.$specialist->ID.'">'.$specialist->post_title.'</div>';
-                                }
-                                ?>
-                            </div>
-                            <input type="hidden" id="specialistName" name="specialistName">
+                        </div>
+
+                        <div class="online-recommendation-free" style="display: none; margin-top: 16px;">
+                            <label for="recomendFreeName">Если вы не знаете, у кого из специалистов наблюдается ваш близкий, напишите данные клиента, чтобы мы могли самостоятельно проверить эту информацию</label>
+                            <input type="text" class="field" id="recomendFreeName" name="recomendFreeName" placeholder="Например: Иванов Иван, телефон +7 999 123-45-67">
                         </div>
                     </div>
 
-                    <div class="online-recommendation-free" style="display: none;">
-                        <label for="recomendFreeName">Если вы не знаете, у кого из специалистов наблюдается ваш близкий, напишите данные клиента, чтобы мы могли самостоятельно проверить эту информацию</label>
-                        <input type="text" class="field" id="recomendFreeName" name="recomendFreeName" placeholder="Например: Иванов Иван, телефон +7 999 123-45-67">
-                    </div>
+                    
 
                     <h2 class="small-margin">Что вас беспокоит <span class="required"></span></h2>
                     <p>Отметьте всё, что подходит. Это помогает быстро подобрать специалиста и формат работы.</p>
