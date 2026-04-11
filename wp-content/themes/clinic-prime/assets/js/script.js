@@ -636,15 +636,6 @@ function initScript() {
             vidjetOpen.classList.add('active');
         });
 
-        // Автоматическое разворачивание через 10 секунд
-        setTimeout(function() {
-            // Проверяем, не открыт ли уже виджет и не закрыт ли он навсегда (если есть такая логика)
-            if (!vidjetOpen.classList.contains('active') && vidjetMini.classList.contains('active')) {
-                console.log('Auto opening vidjet after 10 seconds');
-                vidjetMini.classList.remove('active');
-                vidjetOpen.classList.add('active');
-            }
-        }, 10000); // 10000 миллисекунд = 10 секунд
     }
     
 

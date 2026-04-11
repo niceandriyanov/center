@@ -4,6 +4,14 @@
   href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@6.1/dist/fancybox/fancybox.css"
 />
 
+<style type="text/css">
+    @media (max-width: 569px){
+        .fixed-vidjet-mini, .fixed-vidjet-open {
+            bottom: 115px!important;
+        }
+    }
+</style>
+
 <?php while (have_posts()) : the_post(); ?>
     <?php $doctor_id = get_the_ID(); ?>
     <?php
@@ -25,11 +33,13 @@
         <div class="container">
             <?php get_template_part('template-parts/parts/breadcrumbs'); ?>
             <div class="butFixed">
+
                 <?php if( !empty($btn) && !empty($btn_link) ) { ?>
                 <a href="<?= $btn_link; ?>" class="but butPrimary"><?= $btn; ?></a>
                 <?php } else { ?>
                 <a href="<?= get_field('theme_online_form_page', 'option'); ?>" class="but butPrimary">Подобрать психолога</a>
                 <?php } ?>
+                <div class="specInnerLabel">⏱ 2–3 минуты · подберем специалиста под ваш запрос</div>
             </div>
             <div class="specInnerWrap">
                 <div class="specInnerLeft">
@@ -68,6 +78,7 @@
                             </div>
                             
                         </div>
+                        <div class="specInnerLabel">⏱ 2–3 минуты · подберем специалиста под ваш запрос</div>
                         <div class="specInnerItemButs">
                             <?php if( !empty($btn_link) ) { ?>
                             <a href="<?= $btn_link; ?>" class="but butPrimary hidden_m"><?= $btn; ?></a>
