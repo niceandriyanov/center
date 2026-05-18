@@ -3,6 +3,8 @@ Disallow: /wp-admin/
 Disallow: /wp-content/
 Disallow: /wp-includes/
 Disallow: /author/
+Disallow: /specialty/
+Disallow: /diseases/
 Disallow: /feed
 Disallow: /?s=*
 Allow: /wp-content/uploads/

@@ -107,8 +107,9 @@ function clinic_register_taxonomies() {
         'hierarchical'      => true,
         'show_ui'           => true,
         'show_admin_column' => true,
-        'query_var'         => true,
-        'rewrite'           => array('slug' => 'specialty'),
+        'query_var'         => false,
+        'rewrite'           => false,//array('slug' => 'specialty'),
+        'public'            => false,
         'show_in_rest'      => true,
     ));
     
@@ -132,8 +133,10 @@ function clinic_register_taxonomies() {
         'hierarchical'      => false, // Теги не иерархические
         'show_ui'           => true,
         'show_admin_column' => true,
-        'query_var'         => true,
-        'rewrite'           => array('slug' => 'diseases'),
+        'query_var'         => false,
+        'rewrite'           => false,
+        'public'            => false,
+        //'rewrite'           => array('slug' => 'diseases'),
         'show_in_rest'      => true,
         'show_tagcloud'     => true, // Показывать облако тегов
     ));
