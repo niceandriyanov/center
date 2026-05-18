@@ -26,6 +26,7 @@ require_once THEME_DIR . '/inc/setup/widgets.php';
 require_once THEME_DIR . '/inc/widgets/contact-widget.php';
 
 // Подключение вспомогательных функций
+require_once THEME_DIR . '/inc/helpers/utm-attribution.php';
 require_once THEME_DIR . '/inc/helpers/content.php';
 require_once THEME_DIR . '/inc/helpers/ajax.php';
 require_once THEME_DIR . '/inc/helpers/seo.php';

@@ -21,19 +21,16 @@ class Renovatio_Appointment_Notifier {
 		add_action( 'center_med_renovatio_appointment_request_created', [ __CLASS__, 'handle_appointment_request_created' ], 10, 1 );
 		add_action( 'center_med_renovatio_appointment_request_created', [ __CLASS__, 'send_waiting_list_email_to_user' ], 20, 1 );
 		add_action( 'center_med_renovatio_booking_appointment_confirmed', [ __CLASS__, 'send_paid_email_to_user' ], 10, 2 );
+		add_action( 'center_med_renovatio_booking_appointment_confirmed', [ __CLASS__, 'send_admin_deferred_paid_notice' ], 15, 2 );
+		add_action( 'center_med_renovatio_booking_canceled_unpaid', [ __CLASS__, 'handle_booking_canceled_unpaid_admin_and_mis' ], 10, 2 );
 	}
 
 	/**
-	 * Обработать создание заявки и отправить уведомление администратору.
+	 * Email-адреса администраторов для уведомлений.
 	 *
-	 * @param array $payload Данные заявки.
-	 * @return void
+	 * @return string[]
 	 */
-	public static function handle_appointment_request_created( $payload ) {
-		if ( ! is_array( $payload ) ) {
-			return;
-		}
-
+	private static function get_admin_recipient_emails() {
 		$admin_email_raw = (string) center_med_renovatio_get_setting( 'notify_admin_email', get_option( 'admin_email' ) );
 		$admin_emails    = [];
 		$email_parts     = array_map( 'trim', explode( ',', $admin_email_raw ) );
@@ -47,7 +44,25 @@ class Renovatio_Appointment_Notifier {
 			$admin_emails[] = $admin_email;
 		}
 
-		$admin_emails = array_values( array_unique( $admin_emails ) );
+		return array_values( array_unique( $admin_emails ) );
+	}
+
+	/**
+	 * Обработать создание заявки и отправить уведомление администратору.
+	 *
+	 * @param array $payload Данные заявки.
+	 * @return void
+	 */
+	public static function handle_appointment_request_created( $payload ) {
+		if ( ! is_array( $payload ) ) {
+			return;
+		}
+
+		if ( center_med_renovatio_is_deferred_payment_admin_notice_booking( $payload ) ) {
+			return;
+		}
+
+		$admin_emails = self::get_admin_recipient_emails();
 		if ( empty( $admin_emails ) ) {
 			return;
 		}
@@ -189,6 +204,186 @@ class Renovatio_Appointment_Notifier {
 	}
 
 	/**
+	 * Итоговое письмо админу при успешной оплате (вместе с письмом пользователю).
+	 *
+	 * @param array $booking Строка брони.
+	 * @param array $context Контекст.
+	 * @return void
+	 */
+	public static function send_admin_deferred_paid_notice( $booking, $context = [] ) {
+		if ( ! is_array( $booking ) || empty( $booking['id'] ) ) {
+			return;
+		}
+
+		global $wpdb;
+		$tables = Renovatio_Db_Schema::get_table_names();
+		$fresh  = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$tables['bookings']} WHERE id = %d LIMIT 1",
+				(int) $booking['id']
+			),
+			ARRAY_A
+		);
+		if ( ! is_array( $fresh ) ) {
+			return;
+		}
+
+		if ( ! center_med_renovatio_is_deferred_payment_admin_notice_from_booking( $fresh ) ) {
+			return;
+		}
+
+		$flags = json_decode( (string) ( $fresh['payload_json'] ?? '' ), true );
+		if ( ! is_array( $flags ) ) {
+			$flags = [];
+		}
+		if ( isset( $flags['admin_outcome_notice_sent'] ) && 'paid' === $flags['admin_outcome_notice_sent'] ) {
+			return;
+		}
+
+		$admin_emails = self::get_admin_recipient_emails();
+		if ( ! empty( $admin_emails ) ) {
+			$public_id = (string) ( $fresh['public_id'] ?? '' );
+			$payment_url = '';
+			$pay_row     = function_exists( 'center_med_renovatio_get_tochka_payment_row' ) ? center_med_renovatio_get_tochka_payment_row( $public_id ) : null;
+			if ( is_array( $pay_row ) && ! empty( $pay_row['payment_url'] ) ) {
+				$payment_url = esc_url_raw( (string) $pay_row['payment_url'] );
+			}
+			$payment_id    = isset( $fresh['payment_external_id'] ) ? sanitize_text_field( (string) $fresh['payment_external_id'] ) : '';
+			$email_payload = center_med_renovatio_build_admin_email_payload_from_booking( $fresh, 'paid', $payment_url, $payment_id );
+
+			$message   = isset( $email_payload['message'] ) && is_array( $email_payload['message'] ) ? $email_payload['message'] : [];
+			$form_type = isset( $message['formType'] ) ? sanitize_text_field( (string) $message['formType'] ) : 'self';
+			$is_many   = ( 'many' === $form_type );
+			$subject   = $is_many
+				? __( 'Онлайн-запись: оплата подтверждена (для пары)', 'center-med-renovatio' )
+				: __( 'Онлайн-запись: оплата подтверждена (для себя)', 'center-med-renovatio' );
+			$body      = $is_many
+				? self::build_many_email_template( $email_payload, $message )
+				: self::build_self_email_template( $email_payload, $message );
+
+			wp_mail(
+				$admin_emails,
+				$subject,
+				$body,
+				[
+					'Content-Type: text/html; charset=UTF-8',
+				]
+			);
+		}
+
+		center_med_renovatio_booking_payload_merge(
+			(int) $fresh['id'],
+			[
+				'admin_outcome_notice_sent' => 'paid',
+			]
+		);
+	}
+
+	/**
+	 * Письмо админу о неоплате + задача в МИС (после отмены слота кроном или платёжным хуком).
+	 *
+	 * @param array $booking         Строка брони до/после отмены.
+	 * @param int   $appointment_id ID визита в МИС.
+	 * @return void
+	 */
+	public static function handle_booking_canceled_unpaid_admin_and_mis( $booking, $appointment_id = 0 ) {
+		if ( ! is_array( $booking ) || empty( $booking['id'] ) ) {
+			return;
+		}
+
+		global $wpdb;
+		$tables = Renovatio_Db_Schema::get_table_names();
+		$fresh  = $wpdb->get_row(
+			$wpdb->prepare(
+				"SELECT * FROM {$tables['bookings']} WHERE id = %d LIMIT 1",
+				(int) $booking['id']
+			),
+			ARRAY_A
+		);
+		if ( ! is_array( $fresh ) ) {
+			return;
+		}
+
+		if ( ! center_med_renovatio_is_deferred_payment_admin_notice_from_booking( $fresh ) ) {
+			return;
+		}
+
+		$flags = json_decode( (string) ( $fresh['payload_json'] ?? '' ), true );
+		if ( ! is_array( $flags ) ) {
+			$flags = [];
+		}
+		if ( isset( $flags['admin_outcome_notice_sent'] ) && 'paid' === $flags['admin_outcome_notice_sent'] ) {
+			return;
+		}
+		if ( isset( $flags['admin_outcome_notice_sent'] ) && 'not_paid' === $flags['admin_outcome_notice_sent'] ) {
+			return;
+		}
+
+		$admin_emails = self::get_admin_recipient_emails();
+		if ( ! empty( $admin_emails ) ) {
+			$public_id   = (string) ( $fresh['public_id'] ?? '' );
+			$payment_url = '';
+			$pay_row     = function_exists( 'center_med_renovatio_get_tochka_payment_row' ) ? center_med_renovatio_get_tochka_payment_row( $public_id ) : null;
+			if ( is_array( $pay_row ) && ! empty( $pay_row['payment_url'] ) ) {
+				$payment_url = esc_url_raw( (string) $pay_row['payment_url'] );
+			}
+			$payment_id    = isset( $fresh['payment_external_id'] ) ? sanitize_text_field( (string) $fresh['payment_external_id'] ) : '';
+			$email_payload = center_med_renovatio_build_admin_email_payload_from_booking( $fresh, 'not_paid', $payment_url, $payment_id );
+
+			$message   = isset( $email_payload['message'] ) && is_array( $email_payload['message'] ) ? $email_payload['message'] : [];
+			$form_type = isset( $message['formType'] ) ? sanitize_text_field( (string) $message['formType'] ) : 'self';
+			$is_many   = ( 'many' === $form_type );
+			$subject   = $is_many
+				? __( 'Онлайн-запись: оплата не поступила (для пары)', 'center-med-renovatio' )
+				: __( 'Онлайн-запись: оплата не поступила (для себя)', 'center-med-renovatio' );
+			$body      = $is_many
+				? self::build_many_email_template( $email_payload, $message )
+				: self::build_self_email_template( $email_payload, $message );
+
+			wp_mail(
+				$admin_emails,
+				$subject,
+				$body,
+				[
+					'Content-Type: text/html; charset=UTF-8',
+				]
+			);
+		}
+
+		center_med_renovatio_booking_payload_merge(
+			(int) $fresh['id'],
+			[
+				'admin_outcome_notice_sent' => 'not_paid',
+			]
+		);
+
+		if ( ! empty( $flags['unpaid_followup_task_id'] ) ) {
+			return;
+		}
+
+		if ( class_exists( 'Renovatio_Task_Service' ) ) {
+			$svc         = new Renovatio_Task_Service( center_med_renovatio_api_client() );
+			$task_result = $svc->create_unpaid_booking_followup_task( $fresh );
+			$task_id     = 0;
+			if ( is_wp_error( $task_result ) ) {
+				return;
+			} elseif ( is_scalar( $task_result ) ) {
+				$task_id = absint( $task_result );
+			} elseif ( is_array( $task_result ) && isset( $task_result['task_id'] ) ) {
+				$task_id = absint( $task_result['task_id'] );
+			}
+			if ( $task_id > 0 ) {
+				center_med_renovatio_booking_payload_merge(
+					(int) $fresh['id'],
+					[
+						'unpaid_followup_task_id' => $task_id,
+					]
+				);
+			}
+		}
+	}
+
+	/**
 	 * Сформировать HTML-шаблон письма для формы "Для себя".
 	 *
 	 * @param array $payload Общий payload хука.
@@ -253,6 +448,15 @@ class Renovatio_Appointment_Notifier {
 		$rows .= self::build_row( __( 'Appointment ID', 'center-med-renovatio' ), $appointment_id > 0 ? (string) $appointment_id : '-' );
 		$rows .= self::build_row( __( 'Статус оплаты', 'center-med-renovatio' ), $payment_status );
 		$rows .= self::build_row( __( 'Ссылка на оплату', 'center-med-renovatio' ), $payment_url );
+
+		$utm_source   = isset( $message['utm_source'] ) ? sanitize_text_field( (string) $message['utm_source'] ) : '';
+		$utm_medium   = isset( $message['utm_medium'] ) ? sanitize_text_field( (string) $message['utm_medium'] ) : '';
+		$utm_campaign = isset( $message['utm_campaign'] ) ? sanitize_text_field( (string) $message['utm_campaign'] ) : '';
+		if ( '' !== $utm_source || '' !== $utm_medium || '' !== $utm_campaign ) {
+			$rows .= self::build_row( __( 'UTM source', 'center-med-renovatio' ), $utm_source );
+			$rows .= self::build_row( __( 'UTM medium', 'center-med-renovatio' ), $utm_medium );
+			$rows .= self::build_row( __( 'UTM campaign', 'center-med-renovatio' ), $utm_campaign );
+		}
 
 		return $rows;
 	}

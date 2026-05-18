@@ -64,6 +64,152 @@ function center_med_renovatio_api_client() {
 }
 
 /**
+ * UTM из кук (имена задаёт тема: cmr_utm_source и т.д.).
+ *
+ * @return array{utm_source?: string, utm_medium?: string, utm_campaign?: string}
+ */
+function center_med_renovatio_get_utm_attribution_from_cookies() {
+	$keys = [ 'utm_source', 'utm_medium', 'utm_campaign' ];
+	$out  = [];
+	foreach ( $keys as $key ) {
+		$cookie = 'cmr_' . $key;
+		if ( empty( $_COOKIE[ $cookie ] ) ) {
+			continue;
+		}
+		$val = sanitize_text_field( wp_unslash( (string) $_COOKIE[ $cookie ] ) );
+		if ( '' !== $val ) {
+			$out[ $key ] = $val;
+		}
+	}
+	return $out;
+}
+
+/**
+ * Бронь со слотом и оплатой: итоговое письмо админу не сразу, а после оплаты или отмены по TTL.
+ *
+ * @param array $payload Тело хука center_med_renovatio_appointment_request_created.
+ * @return bool
+ */
+function center_med_renovatio_is_deferred_payment_admin_notice_booking( array $payload ) {
+	$message = isset( $payload['message'] ) && is_array( $payload['message'] ) ? $payload['message'] : [];
+	if ( ! empty( $message['isWaitingList'] ) ) {
+		return false;
+	}
+	$appointment_id = isset( $payload['appointment_id'] ) ? absint( $payload['appointment_id'] ) : 0;
+	if ( $appointment_id <= 0 ) {
+		return false;
+	}
+	$amount = isset( $message['amount'] ) ? (float) $message['amount'] : 0.0;
+	return $amount > 0;
+}
+
+/**
+ * То же по строке брони из БД.
+ *
+ * @param array $booking Строка wp_*_cmr_bookings.
+ * @return bool
+ */
+function center_med_renovatio_is_deferred_payment_admin_notice_from_booking( array $booking ) {
+	$message = [];
+	if ( ! empty( $booking['payload_json'] ) ) {
+		$decoded = json_decode( (string) $booking['payload_json'], true );
+		if ( is_array( $decoded ) ) {
+			$message = $decoded;
+		}
+	}
+	if ( ! empty( $message['isWaitingList'] ) ) {
+		return false;
+	}
+	$appointment_id = ! empty( $booking['appointment_id'] ) ? absint( $booking['appointment_id'] ) : 0;
+	if ( $appointment_id <= 0 ) {
+		return false;
+	}
+	$amount = isset( $message['amount'] ) ? (float) $message['amount'] : 0.0;
+	return $amount > 0;
+}
+
+/**
+ * Объединить поля в payload_json брони.
+ *
+ * @param int   $booking_id ID строки в таблице бронирований.
+ * @param array $patch      Ключи для merge (перезапись существующих).
+ * @return bool
+ */
+function center_med_renovatio_booking_payload_merge( $booking_id, array $patch ) {
+	global $wpdb;
+
+	$booking_id = (int) $booking_id;
+	if ( $booking_id <= 0 || empty( $patch ) ) {
+		return false;
+	}
+
+	$tables = Renovatio_Db_Schema::get_table_names();
+	$table  = $tables['bookings'];
+	$raw    = $wpdb->get_var(
+		$wpdb->prepare(
+			"SELECT payload_json FROM {$table} WHERE id = %d LIMIT 1",
+			$booking_id
+		)
+	);
+	if ( null === $raw ) {
+		return false;
+	}
+
+	$data = json_decode( (string) $raw, true );
+	if ( ! is_array( $data ) ) {
+		$data = [];
+	}
+	$data = array_merge( $data, $patch );
+
+	return false !== $wpdb->update(
+		$table,
+		[
+			'payload_json' => wp_json_encode( $data ),
+			'updated_at'   => current_time( 'mysql' ),
+		],
+		[ 'id' => $booking_id ],
+		[ '%s', '%s' ],
+		[ '%d' ]
+	);
+}
+
+/**
+ * Данные для админ-письма из строки брони.
+ *
+ * @param array  $booking          Строка брони.
+ * @param string $payment_status   paid | not_paid | …
+ * @param string $payment_url      Ссылка на оплату (если есть).
+ * @param string $payment_id       Внешний id платежа.
+ * @return array<string, mixed>
+ */
+function center_med_renovatio_build_admin_email_payload_from_booking( array $booking, $payment_status, $payment_url = '', $payment_id = '' ) {
+	$message = [];
+	if ( ! empty( $booking['payload_json'] ) ) {
+		$decoded = json_decode( (string) $booking['payload_json'], true );
+		if ( is_array( $decoded ) ) {
+			$message = $decoded;
+		}
+	}
+
+	$service = isset( $message['service'] ) ? sanitize_text_field( (string) $message['service'] ) : '';
+
+	return [
+		'booking_public_id' => isset( $booking['public_id'] ) ? sanitize_text_field( (string) $booking['public_id'] ) : '',
+		'appointment_id'    => ! empty( $booking['appointment_id'] ) ? absint( $booking['appointment_id'] ) : 0,
+		'clinic_id'         => ! empty( $booking['clinic_id'] ) ? absint( $booking['clinic_id'] ) : 0,
+		'doctor_id'         => ! empty( $booking['doctor_id'] ) ? absint( $booking['doctor_id'] ) : 0,
+		'name'              => isset( $booking['first_name'] ) ? sanitize_text_field( (string) $booking['first_name'] ) : '',
+		'phone'             => isset( $booking['phone'] ) ? sanitize_text_field( (string) $booking['phone'] ) : '',
+		'email'             => isset( $booking['email'] ) ? sanitize_email( (string) $booking['email'] ) : '',
+		'service'           => $service,
+		'message'           => $message,
+		'payment_status'    => sanitize_text_field( (string) $payment_status ),
+		'payment_url'       => '' !== $payment_url ? esc_url_raw( (string) $payment_url ) : '',
+		'payment_id'        => sanitize_text_field( (string) $payment_id ),
+	];
+}
+
+/**
  * Пометить бронь как оплаченную.
  *
  * Можно вызывать из платежного плагина:
@@ -1565,6 +1711,7 @@ function center_med_renovatio_ajax_create_appointment_request() {
 	}
 
 	$booking_public_id = wp_generate_uuid4();
+	$utm               = center_med_renovatio_get_utm_attribution_from_cookies();
 	$appointment_id    = 0;
 	$slot_start_mysql  = null;
 	$slot_end_mysql    = null;
@@ -1775,8 +1922,22 @@ function center_med_renovatio_ajax_create_appointment_request() {
 			);
 		}
 
+		if ( ! empty( $utm['utm_source'] ) || ! empty( $utm['utm_medium'] ) || ! empty( $utm['utm_campaign'] ) ) {
+			$comment_lines[] = sprintf(
+				'UTM: source=%s; medium=%s; campaign=%s',
+				! empty( $utm['utm_source'] ) ? $utm['utm_source'] : '-',
+				! empty( $utm['utm_medium'] ) ? $utm['utm_medium'] : '-',
+				! empty( $utm['utm_campaign'] ) ? $utm['utm_campaign'] : '-'
+			);
+		}
+
 		$request_params['comment'] = implode( "\n<br />", $comment_lines );
 
+		foreach ( [ 'utm_source', 'utm_medium', 'utm_campaign' ] as $utm_key ) {
+			if ( ! empty( $utm[ $utm_key ] ) ) {
+				$request_params[ $utm_key ] = $utm[ $utm_key ];
+			}
+		}
 
 		$api_response = center_med_renovatio_api_client()->request( 'createAppointment', $request_params );
 		if ( is_wp_error( $api_response ) ) {
@@ -1824,6 +1985,9 @@ function center_med_renovatio_ajax_create_appointment_request() {
 		'service'         => $service,
 		'dateString'      => $date_string,
 		'amount'          => $booking_amount,
+		'utm_source'      => isset( $utm['utm_source'] ) ? $utm['utm_source'] : '',
+		'utm_medium'      => isset( $utm['utm_medium'] ) ? $utm['utm_medium'] : '',
+		'utm_campaign'    => isset( $utm['utm_campaign'] ) ? $utm['utm_campaign'] : '',
 	];
 
 	$booking_status          = $appointment_id > 0 ? 'created' : 'request';
@@ -1910,6 +2074,9 @@ function center_med_renovatio_ajax_create_appointment_request() {
 				'self_harm_intensity' => $self_harm_intensity,
 				'visit_psi'        => $visit_psi,
 				'visit_psi_specialist_id' => $visit_psi_specialist_id,
+				'utm_source'       => isset( $utm['utm_source'] ) ? $utm['utm_source'] : '',
+				'utm_medium'       => isset( $utm['utm_medium'] ) ? $utm['utm_medium'] : '',
+				'utm_campaign'     => isset( $utm['utm_campaign'] ) ? $utm['utm_campaign'] : '',
 			]
 		);
 

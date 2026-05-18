@@ -119,6 +119,18 @@ class Renovatio_Task_Service {
 
 		$desc_lines[] = 'Специалист: ' . $specialist_name;
 
+		$utm_source   = isset( $payload['utm_source'] ) ? sanitize_text_field( (string) $payload['utm_source'] ) : '';
+		$utm_medium   = isset( $payload['utm_medium'] ) ? sanitize_text_field( (string) $payload['utm_medium'] ) : '';
+		$utm_campaign = isset( $payload['utm_campaign'] ) ? sanitize_text_field( (string) $payload['utm_campaign'] ) : '';
+		if ( '' !== $utm_source || '' !== $utm_medium || '' !== $utm_campaign ) {
+			$desc_lines[] = sprintf(
+				'UTM: source=%s; medium=%s; campaign=%s',
+				'' !== $utm_source ? $utm_source : '-',
+				'' !== $utm_medium ? $utm_medium : '-',
+				'' !== $utm_campaign ? $utm_campaign : '-'
+			);
+		}
+
 		$request_params = [
 			'title'  => $title,
 			'desc'   => implode( '<br />', $desc_lines ),
@@ -145,6 +157,91 @@ class Renovatio_Task_Service {
 
 		$return = $this->api_client->request( 'createTask', $request_params );
 		return $return;
+	}
+
+	/**
+	 * Задача в МИС по неоплаченной онлайн-записи (после снятия слота).
+	 *
+	 * @param array $booking Строка брони из БД.
+	 * @return array|int|WP_Error
+	 */
+	public function create_unpaid_booking_followup_task( array $booking ) {
+		$payload = [];
+		if ( ! empty( $booking['payload_json'] ) ) {
+			$decoded = json_decode( (string) $booking['payload_json'], true );
+			if ( is_array( $decoded ) ) {
+				$payload = $decoded;
+			}
+		}
+
+		$form_type = isset( $payload['formType'] ) ? sanitize_text_field( (string) $payload['formType'] ) : 'self';
+		$name       = isset( $booking['first_name'] ) ? sanitize_text_field( (string) $booking['first_name'] ) : '';
+		$phone      = isset( $booking['phone'] ) ? sanitize_text_field( (string) $booking['phone'] ) : '';
+		$email      = isset( $booking['email'] ) ? sanitize_email( (string) $booking['email'] ) : '';
+		$telegram   = isset( $booking['telegram'] ) ? sanitize_text_field( (string) $booking['telegram'] ) : '';
+		$service    = isset( $payload['service'] ) ? sanitize_text_field( (string) $payload['service'] ) : '';
+		$public_id  = isset( $booking['public_id'] ) ? sanitize_text_field( (string) $booking['public_id'] ) : '';
+		$doctor_id  = ! empty( $booking['doctor_id'] ) ? absint( $booking['doctor_id'] ) : 0;
+		$clinic_id  = ! empty( $booking['clinic_id'] ) ? absint( $booking['clinic_id'] ) : 0;
+		$spec_name  = isset( $payload['specialistName'] ) ? sanitize_text_field( (string) $payload['specialistName'] ) : '';
+
+		$appointment_date = isset( $payload['appointmentDate'] ) ? sanitize_text_field( (string) $payload['appointmentDate'] ) : '';
+		$appointment_time = isset( $payload['appointmentTime'] ) ? sanitize_text_field( (string) $payload['appointmentTime'] ) : '';
+		$date_string      = isset( $payload['dateString'] ) ? sanitize_text_field( (string) $payload['dateString'] ) : '';
+		$slot_when        = '' !== $date_string ? $date_string : trim( $appointment_date . ' ' . $appointment_time );
+
+		$utm_source   = isset( $payload['utm_source'] ) ? sanitize_text_field( (string) $payload['utm_source'] ) : '';
+		$utm_medium   = isset( $payload['utm_medium'] ) ? sanitize_text_field( (string) $payload['utm_medium'] ) : '';
+		$utm_campaign = isset( $payload['utm_campaign'] ) ? sanitize_text_field( (string) $payload['utm_campaign'] ) : '';
+
+		$title = $spec_name !== ''
+			? sprintf( 'Неоплаченная запись: %s', $spec_name )
+			: 'Неоплаченная онлайн-запись';
+
+		$form_label = ( 'many' === $form_type ) ? 'Для пары' : 'Для себя';
+		$desc_lines = [
+			sprintf( 'Форма: %s', $form_label ),
+			sprintf( 'Клиент: %s', $name !== '' ? $name : '-' ),
+			sprintf( 'Телефон: %s', $phone !== '' ? $phone : '-' ),
+			sprintf( 'Email: %s', $email !== '' ? $email : '-' ),
+			sprintf( 'Telegram: %s', $telegram !== '' ? $telegram : '-' ),
+			sprintf( 'Услуга: %s', $service !== '' ? $service : '-' ),
+			sprintf( 'Специалист: %s', $spec_name !== '' ? $spec_name : '-' ),
+			sprintf( 'Дата и время слота: %s', $slot_when !== '' ? $slot_when : '-' ),
+			sprintf( 'Booking ID: %s', $public_id !== '' ? $public_id : '-' ),
+			sprintf( 'Причина: %s', __( 'Оплата не поступила в срок резерва.', 'center-med-renovatio' ) ),
+		];
+
+		if ( '' !== $utm_source || '' !== $utm_medium || '' !== $utm_campaign ) {
+			$desc_lines[] = sprintf(
+				'UTM: source=%s; medium=%s; campaign=%s',
+				'' !== $utm_source ? $utm_source : '-',
+				'' !== $utm_medium ? $utm_medium : '-',
+				'' !== $utm_campaign ? $utm_campaign : '-'
+			);
+		}
+
+		$request_params = [
+			'title'  => $title,
+			'desc'   => implode( '<br />', $desc_lines ),
+			'type'   => 2,
+			'source' => 'website',
+		];
+
+		$request_params['user_id'] = [ 50472, 50473 ];
+		$request_params['user_id'][] = 43951;
+
+		if ( $doctor_id > 0 ) {
+			$request_params['responsible_id'] = $doctor_id;
+		}
+
+		if ( $clinic_id > 0 ) {
+			$request_params['clinic_id'] = $clinic_id;
+		}
+
+		$request_params['user_id'] = implode( ',', $request_params['user_id'] );
+
+		return $this->api_client->request( 'createTask', $request_params );
 	}
 }
 
