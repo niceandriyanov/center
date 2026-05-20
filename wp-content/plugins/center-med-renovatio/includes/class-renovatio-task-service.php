@@ -140,7 +140,7 @@ class Renovatio_Task_Service {
 
         
 		//Администраторы
-        $request_params['user_id'] = [50472,50473];
+        $request_params['user_id'] = [50472,50473,43237];
         
 		//Доп пользователь
         $request_params['user_id'][] = 43951;
