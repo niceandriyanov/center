@@ -264,6 +264,17 @@ get_header(); ?>
                         </div>
         </div>
     </section>
+
+
+
+
 <?php endwhile; ?>
+
+<?php while (have_posts()) : the_post(); ?>
+    <?php do_action('template_blocks'); ?>
+
+<?php endwhile; ?>
+
+
 
 <?php get_footer(); ?>
