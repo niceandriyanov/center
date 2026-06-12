@@ -227,7 +227,7 @@ get_header(); ?>
 
     <section class="secondFeatures">
         <div class="container">
-            <h2 class="sectionTitle">Чтобы попасть к нам, специалисты прошли строгий отбор</h2>
+            <h2 class="sectionTitle">Чтобы попасть к нам, все психологи проходят строгий отбор</h2>
             <div class="secondFeaturesWrap">
                 
                 <div class="secondFeatureItem">

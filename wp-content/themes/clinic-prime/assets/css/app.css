@@ -5242,8 +5242,129 @@ body {
 	display: none;
 }
 
+.missionSection {
+	background: url('../img/bg2.jpg') no-repeat center;
+	background-size: cover;
+	padding-bottom: 64px;
+	text-align: center;
+	color: #fff;
+}
 
+.missionSection .breadcrumbs a {
+	color: #F2F4F7;
+}
 
+.missionSection .breadcrumbs li + li:before {
+	color: #fff;
+}
+
+.missionLabel {
+	padding: 8px 16px;
+	font-size: 18px;
+	font-weight: 500;
+	line-height: 136%; /* 24.48px */
+	letter-spacing: 0.18px;
+	border-radius: 16px;
+	background: rgba(240, 253, 250, 0.24);
+	width: max-content;
+	margin: 0 auto 32px;
+}
+
+.missionItemsTop {
+	margin-bottom: 32px;
+}
+
+.missionItemsTop .missionLabel {
+	color: #366159;
+	background: #F0FDFA;
+}
+
+.missionItemsTopTitle {
+	text-align: center;
+	font-weight: 500;
+	font-size: 34px;
+}
+
+.missionSection .titleBig {
+	color: #fff;
+}
+
+.missionItemsWrap {
+	display: flex;
+	gap: 16px;
+	flex-wrap: wrap;
+	padding-top: 16px;
+}
+
+.missionItemsWrap .secondFeatureItem:not(:last-child):after {
+	display: none;
+}
+
+.missionItemsWrap .secondFeatureItem {
+	flex-basis: calc(33.3333% - 12px);
+	max-width: calc(33.3333% - 12px);
+}
+
+.missionItemsWrap .secondFeatureItem.mediumWidth {
+	flex-basis: calc(66.66667% - 10px);
+	max-width: calc(66.66667% - 10px);
+}
+
+.missionFeaturesWrap {
+	display: flex;
+	gap: 58px;
+	padding: 32px;
+	border-radius: 24px;
+	border: 2px solid #F2F4F7;
+	background: #FFF;
+	box-shadow: 0 16px 40px -30px rgba(0, 0, 0, 0.64);
+}
+
+.missionFeaturesLeft {
+	display: flex;
+	flex-direction: column;
+	gap: 24px;
+	flex: 1;
+}
+
+.missionFeaturesLeft .missionLabel {
+	margin: 0;
+	color: #366159;
+	background: #F0FDFA;
+}
+
+.missionFeaturesLeft .missionItemsTopTitle {
+	text-align: left;
+	margin: 0;
+}
+
+.missionFeaturesText {
+	font-size: 16px;
+	line-height: 140%;
+}
+
+.missionFeaturesListItems {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+}
+
+.missionFeaturesListItem {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.missionFeaturesListItemText {
+	flex: 1;
+	color: #7D7C7F;
+	font-size: 16px;
+	line-height: 140%; 
+}
+
+.missionFeaturesRight img {
+	border-radius: 16px;
+}
 
 
 
@@ -5259,6 +5380,10 @@ body {
 	.container {
 		padding-left: 15px;
 		padding-right: 15px;
+	}
+
+	.missionFeaturesWrap {
+		gap: 24px;
 	}
 
 	.aboutMissionRight {
@@ -5345,6 +5470,14 @@ body {
 		flex-direction: column;
 		align-items: flex-start;
 		gap: 16px
+	}
+
+	.missionFeaturesWrap {
+		flex-direction: column;
+	}
+
+	.missionFeaturesRight {
+		display: none;
 	}
 
 	.middleBut {
@@ -5677,9 +5810,16 @@ body {
 		gap: 40px
 	}
 
-	.secondFeatureItem {
+	.secondFeatureItem,
+	.missionItemsWrap .secondFeatureItem {
 		flex-basis: calc(50% - 20px);
 		max-width: calc(50% - 20px);
+		height: 260px;
+	}
+
+	.missionItemsWrap .secondFeatureItem.mediumWidth {
+		flex-basis: 100%;
+		max-width: 100%;
 		height: 260px;
 	}
 
@@ -5825,6 +5965,13 @@ body {
 
 	.notFoundWrap {
 		flex-direction: column;
+	}
+
+	.missionItemsWrap .secondFeatureItem.mediumWidth,
+	.missionItemsWrap .secondFeatureItem  {
+		flex-basis: 100%;
+		max-width: 100%;
+		height: auto;
 	}
 
 	.notFoundRight {
@@ -6111,6 +6258,22 @@ body {
 
 	.mobileBurgerBut {
 		display: block;
+	}
+
+	.missionFeaturesWrap {
+		padding: 16px;
+	}
+
+	.missionItemsTopTitle {
+		font-size: 28px;
+	}
+
+	.missionLabel {
+		font-size: 16px;
+	}
+
+	.missionSection {
+		background-position: right;
 	}
 
 	.priceSpecName {
