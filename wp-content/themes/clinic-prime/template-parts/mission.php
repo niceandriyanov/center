@@ -23,7 +23,7 @@ get_header(); ?>
     <div class="container">
         <div class="missionItemsTop">
             <div class="missionLabel">Наши ценности</div>
-            <h2 class="missionItemsTopTitle">На чём строится наша работа</h2>
+            <h2 class="missionItemsTopTitle">На чем строится наша работа</h2>
         </div>
         <div class="missionItemsWrap">
             <div class="secondFeatureItem mediumWidth">
@@ -93,8 +93,8 @@ get_header(); ?>
     <div class="container">
         <div class="missionFeaturesWrap">
             <div class="missionFeaturesLeft">
-                <div class="missionLabel">Подбор специалиста</div>
-                <h2 class="missionItemsTopTitle">Подобрать психолога, который подойдёт именно вам</h2>
+                <div class="missionLabel">2–3 минуты</div>
+                <h2 class="missionItemsTopTitle">Подберем психолога, который подойдёт именно вам</h2>
                 <div class="missionFeaturesText">
                     Заполните короткую анкету — и мы предложим специалистов центра, чей опыт и подход лучше всего соответствуют вашему запросу.
                 </div>
@@ -125,7 +125,7 @@ get_header(); ?>
                     </div>
                 </div>
                 <div class="missionFeaturesBut">
-                    <a href="/appointment" class="but butPrimary">Подобрать психолога</a>
+                    <a href="/appointment" class="but butPrimary">Подобрать психолога от 2500 ₽</a>
                 </div>
             </div>
             <div class="missionFeaturesRight">
