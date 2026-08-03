@@ -20,12 +20,28 @@ class Renovatio_Task_Service {
 	private $api_client;
 
 	/**
+	 * Последние параметры, ушедшие в createTask (без api_key).
+	 *
+	 * @var array
+	 */
+	private $last_request_params = [];
+
+	/**
 	 * Конструктор.
 	 *
 	 * @param Renovatio_Api_Client $api_client Экземпляр API-клиента.
 	 */
 	public function __construct( Renovatio_Api_Client $api_client ) {
 		$this->api_client = $api_client;
+	}
+
+	/**
+	 * Параметры последнего запроса createTask.
+	 *
+	 * @return array
+	 */
+	public function get_last_request_params() {
+		return $this->last_request_params;
 	}
 
 	/**
@@ -115,11 +131,12 @@ class Renovatio_Task_Service {
 		}
 
 		$request_params = [
-			'title'   => $title,
-			'desc'    => $desc,
-			'type'    => $type > 0 ? $type : 2,
-			'source'  => $source,
-			'user_id' => implode( ',', $user_ids ),
+			'title'              => $title,
+			'desc'               => $desc,
+			'type'               => $type > 0 ? $type : 2,
+			'source'             => $source,
+			'user_id'            => implode( ',', $user_ids ),
+			'send_notifications' => 1,
 		];
 
 		$responsible_id = isset( $params['responsible_id'] ) ? absint( $params['responsible_id'] ) : 0;
@@ -151,6 +168,8 @@ class Renovatio_Task_Service {
 		if ( ! empty( $params['patient_id'] ) ) {
 			$request_params['patient_id'] = absint( $params['patient_id'] );
 		}
+
+		$this->last_request_params = $request_params;
 
 		return $this->api_client->request( 'createTask', $request_params );
 	}
