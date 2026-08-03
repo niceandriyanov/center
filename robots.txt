@@ -6,7 +6,7 @@ Disallow: /author/
 Disallow: /specialty/
 Disallow: /diseases/
 Disallow: /feed
-Disallow: /?s=*
+Disallow: /*?s=*
 Allow: /wp-content/uploads/
 Allow: /wp-content/themes/*.jpg
 Allow: /wp-content/themes/*.png
@@ -14,4 +14,39 @@ Allow: /wp-content/themes/*.svg
 Allow: /wp-content/themes/*.webp
 Allow: /wp-content/themes/*.css*
 Allow: /wp-content/themes/*.js*
+
+User-agent: Yandex
+Disallow: /wp-admin/
+Disallow: /wp-content/
+Disallow: /wp-includes/
+Disallow: /author/
+Disallow: /specialty/
+Disallow: /diseases/
+Disallow: /feed
+Disallow: /*?s=*
+Allow: /wp-content/uploads/
+Allow: /wp-content/themes/*.jpg
+Allow: /wp-content/themes/*.png
+Allow: /wp-content/themes/*.svg
+Allow: /wp-content/themes/*.webp
+Allow: /wp-content/themes/*.css*
+Allow: /wp-content/themes/*.js*
+
+User-agent: Googlebot
+Disallow: /wp-admin/
+Disallow: /wp-content/
+Disallow: /wp-includes/
+Disallow: /author/
+Disallow: /specialty/
+Disallow: /diseases/
+Disallow: /feed
+Disallow: /*?s=*
+Allow: /wp-content/uploads/
+Allow: /wp-content/themes/*.jpg
+Allow: /wp-content/themes/*.png
+Allow: /wp-content/themes/*.svg
+Allow: /wp-content/themes/*.webp
+Allow: /wp-content/themes/*.css*
+Allow: /wp-content/themes/*.js*
+
 Sitemap: https://center.handlingbetter.ru/sitemap_index.xml
