@@ -29,6 +29,133 @@ class Renovatio_Task_Service {
 	}
 
 	/**
+	 * ID исполнителей по умолчанию (администраторы МИС).
+	 *
+	 * @param string $context Контекст: waiting_list|unpaid|external.
+	 * @return int[]
+	 */
+	public function get_default_assignee_ids( $context = 'waiting_list' ) {
+		$ids = [ 50472, 50473, 43951 ];
+
+		if ( 'unpaid' !== $context ) {
+			$ids[] = 43237;
+		}
+
+		/**
+		 * Фильтр списка исполнителей задачи МИС.
+		 *
+		 * @param int[]  $ids     ID сотрудников Renovatio.
+		 * @param string $context Контекст создания задачи.
+		 */
+		$ids = apply_filters( 'center_med_renovatio_task_assignee_ids', $ids, $context );
+
+		return array_values(
+			array_unique(
+				array_filter(
+					array_map( 'absint', (array) $ids )
+				)
+			)
+		);
+	}
+
+	/**
+	 * Создать задачу в МИС (общий метод).
+	 *
+	 * @param array $params Параметры: title (обяз.), desc, type, source, user_ids, responsible_id, clinic_id.
+	 * @return array|int|WP_Error
+	 */
+	public function create_task( array $params ) {
+		$title = isset( $params['title'] ) ? sanitize_text_field( (string) $params['title'] ) : '';
+		if ( '' === $title ) {
+			return new WP_Error(
+				'missing_title',
+				__( 'Не указан заголовок задачи.', 'center-med-renovatio' ),
+				[ 'status' => 400 ]
+			);
+		}
+
+		$desc = isset( $params['desc'] ) ? (string) $params['desc'] : '';
+		$desc = wp_kses(
+			$desc,
+			[
+				'br'     => [],
+				'p'      => [],
+				'strong' => [],
+				'em'     => [],
+				'b'      => [],
+				'i'      => [],
+				'ul'     => [],
+				'ol'     => [],
+				'li'     => [],
+			]
+		);
+
+		$type   = isset( $params['type'] ) ? absint( $params['type'] ) : 2;
+		$source = isset( $params['source'] ) ? sanitize_text_field( (string) $params['source'] ) : 'website';
+		if ( '' === $source ) {
+			$source = 'website';
+		}
+
+		$user_ids = [];
+		if ( isset( $params['user_ids'] ) ) {
+			$user_ids = is_array( $params['user_ids'] )
+				? $params['user_ids']
+				: preg_split( '/\s*,\s*/', (string) $params['user_ids'] );
+			$user_ids = array_values(
+				array_unique(
+					array_filter(
+						array_map( 'absint', (array) $user_ids )
+					)
+				)
+			);
+		}
+		if ( empty( $user_ids ) ) {
+			$context  = isset( $params['context'] ) ? sanitize_key( (string) $params['context'] ) : 'external';
+			$user_ids = $this->get_default_assignee_ids( $context );
+		}
+
+		$request_params = [
+			'title'   => $title,
+			'desc'    => $desc,
+			'type'    => $type > 0 ? $type : 2,
+			'source'  => $source,
+			'user_id' => implode( ',', $user_ids ),
+		];
+
+		$responsible_id = isset( $params['responsible_id'] ) ? absint( $params['responsible_id'] ) : 0;
+		if ( $responsible_id > 0 ) {
+			$request_params['responsible_id'] = $responsible_id;
+		}
+
+		$clinic_id = isset( $params['clinic_id'] ) ? absint( $params['clinic_id'] ) : 0;
+		if ( $clinic_id <= 0 ) {
+			$clinic_id = absint( center_med_renovatio_get_setting( 'clinic_id', 0 ) );
+		}
+		if ( $clinic_id > 0 ) {
+			$request_params['clinic_id'] = $clinic_id;
+		}
+
+		if ( isset( $params['priority'] ) ) {
+			$priority = absint( $params['priority'] );
+			if ( in_array( $priority, [ 10, 20, 30 ], true ) ) {
+				$request_params['priority'] = $priority;
+			}
+		}
+
+		if ( ! empty( $params['due_date'] ) ) {
+			$request_params['due_date'] = sanitize_text_field( (string) $params['due_date'] );
+		}
+		if ( ! empty( $params['due_time'] ) ) {
+			$request_params['due_time'] = sanitize_text_field( (string) $params['due_time'] );
+		}
+		if ( ! empty( $params['patient_id'] ) ) {
+			$request_params['patient_id'] = absint( $params['patient_id'] );
+		}
+
+		return $this->api_client->request( 'createTask', $request_params );
+	}
+
+	/**
 	 * Создать задачу по заявке из листа ожидания.
 	 *
 	 * @param array $payload Данные заявки.
@@ -131,32 +258,18 @@ class Renovatio_Task_Service {
 			);
 		}
 
-		$request_params = [
-			'title'  => $title,
-			'desc'   => implode( '<br />', $desc_lines ),
-			'type'   => 2,
-			'source' => 'website',
-		];
-
-        
-		//Администраторы
-        $request_params['user_id'] = [50472,50473,43237];
-        
-		//Доп пользователь
-        $request_params['user_id'][] = 43951;
-
-		if ( $doctor_id > 0 ) {
-            $request_params['responsible_id'] = $doctor_id;
-		}
-
-		if ( $clinic_id > 0 ) {
-			$request_params['clinic_id'] = $clinic_id;
-		}
-
-        $request_params['user_id'] = implode(',',$request_params['user_id']);
-
-		$return = $this->api_client->request( 'createTask', $request_params );
-		return $return;
+		return $this->create_task(
+			[
+				'title'          => $title,
+				'desc'           => implode( '<br />', $desc_lines ),
+				'type'           => 2,
+				'source'         => 'website',
+				'user_ids'       => $this->get_default_assignee_ids( 'waiting_list' ),
+				'responsible_id' => $doctor_id,
+				'clinic_id'      => $clinic_id,
+				'context'        => 'waiting_list',
+			]
+		);
 	}
 
 	/**
@@ -221,27 +334,18 @@ class Renovatio_Task_Service {
 			);
 		}
 
-		$request_params = [
-			'title'  => $title,
-			'desc'   => implode( '<br />', $desc_lines ),
-			'type'   => 2,
-			'source' => 'website',
-		];
-
-		$request_params['user_id'] = [ 50472, 50473 ];
-		$request_params['user_id'][] = 43951;
-
-		if ( $doctor_id > 0 ) {
-			$request_params['responsible_id'] = $doctor_id;
-		}
-
-		if ( $clinic_id > 0 ) {
-			$request_params['clinic_id'] = $clinic_id;
-		}
-
-		$request_params['user_id'] = implode( ',', $request_params['user_id'] );
-
-		return $this->api_client->request( 'createTask', $request_params );
+		return $this->create_task(
+			[
+				'title'          => $title,
+				'desc'           => implode( '<br />', $desc_lines ),
+				'type'           => 2,
+				'source'         => 'website',
+				'user_ids'       => $this->get_default_assignee_ids( 'unpaid' ),
+				'responsible_id' => $doctor_id,
+				'clinic_id'      => $clinic_id,
+				'context'        => 'unpaid',
+			]
+		);
 	}
 }
 

@@ -17,6 +17,7 @@ function center_med_renovatio_get_settings() {
 		'api_key'                 => '',
 		'api_base_url'            => 'https://app.rnova.org/api/public',
 		'api_timeout'             => 15,
+		'tasks_api_key'           => '',
 		'clinic_id'               => 0,
 		'reservation_ttl_minutes' => 15,
 		'notify_admin_email'      => get_option( 'admin_email' ),
