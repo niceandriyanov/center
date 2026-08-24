@@ -5,6 +5,9 @@ Disallow: /wp-includes/
 Disallow: /author/
 Disallow: /specialty/
 Disallow: /diseases/
+Disallow: /*?problems=*
+Disallow: /*?specs=*
+Disallow: /*?search=*
 Disallow: /feed
 Disallow: /*?s=*
 Allow: /wp-content/uploads/
