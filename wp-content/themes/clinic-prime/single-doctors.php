@@ -20,9 +20,12 @@
     $specialization_out = '';
     if( !is_wp_error($specialization) && !empty($specialization) ) {
         ob_start();
-        foreach( $specialization as $spec ) { ?>
-            <?php $color = get_field('color', $spec->taxonomy.'_'.$spec->term_id); ?>
-            <div class="specItemFeature<?= !empty($color) ? ' color'.$color : ''; ?>"><?= $spec->name; ?></div>
+        foreach( $specialization as $spec ) {
+            if (function_exists('clinic_is_intern_specialty_term') && clinic_is_intern_specialty_term($spec)) {
+                continue;
+            }
+            $color = get_field('color', $spec->taxonomy.'_'.$spec->term_id); ?>
+            <div class="specItemFeature<?= !empty($color) ? ' color'.$color : ''; ?>"><?= esc_html($spec->name); ?></div>
         <?php }
         $specialization_out = ob_get_clean();
     }

@@ -46,11 +46,15 @@ $specialist_type = get_field('specialist_type');
         <div class="specItemInfo">
             <a class="specItemTitle" href="<?= get_permalink($doctor_id); ?>"><?= get_the_title($doctor_id); ?></a>
             <a class="specItemText" href="<?= get_permalink($doctor_id); ?>"><?= get_the_excerpt($doctor_id); ?></a>
-            <?php if( !is_wp_error($specialization) && !empty($specialization) ) { ?>
+            <?php if (!is_wp_error($specialization) && !empty($specialization)) { ?>
             <div class="specItemFeatures">
-                <?php foreach( $specialization as $spec ) { ?>
-                    <?php $color = get_field('color', $spec->taxonomy.'_'.$spec->term_id); ?>
-                <div class="specItemFeature<?= !empty($color) ? ' color'.$color : ''; ?>"><?= $spec->name; ?></div>
+                <?php foreach ($specialization as $spec) {
+                    if (function_exists('clinic_is_intern_specialty_term') && clinic_is_intern_specialty_term($spec)) {
+                        continue;
+                    }
+                    $color = get_field('color', $spec->taxonomy . '_' . $spec->term_id);
+                ?>
+                <div class="specItemFeature<?= !empty($color) ? ' color' . $color : ''; ?>"><?= esc_html($spec->name); ?></div>
                 <?php } ?>
             </div>
             <?php } ?>

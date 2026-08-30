@@ -137,7 +137,7 @@ add_filter('terms_clauses', function( $clauses, $taxonomies, $args ) {
     if ( $pagenow !== 'edit-tags.php' ) return $clauses;
 
     // Поддерживаемые таксономии
-    $supported_taxonomies = array('category', 'post_tag', 'service_category', 'doctor_specialty', 'doctor_diseases', 'faq_category');
+    $supported_taxonomies = array('category', 'post_tag', 'service_category', 'doctor_specialty', 'doctor_diseases', 'doctor_grade', 'faq_category');
     
     // Получаем текущую таксономию
     $taxonomy = isset($_GET['taxonomy']) ? sanitize_key($_GET['taxonomy']) : '';
@@ -182,7 +182,7 @@ add_filter('terms_clauses', function( $clauses, $taxonomies, $args ) {
  * Принудительное обновление порядка для существующих терминов
  */
 function clinic_update_existing_taxonomy_orders() {
-    $taxonomies = array('category', 'post_tag', 'service_category', 'doctor_specialty', 'doctor_diseases', 'faq_category');
+    $taxonomies = array('category', 'post_tag', 'service_category', 'doctor_specialty', 'doctor_diseases', 'doctor_grade', 'faq_category');
     
     foreach ($taxonomies as $taxonomy) {
         $terms = get_terms(array(

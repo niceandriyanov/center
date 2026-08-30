@@ -140,6 +140,62 @@ function clinic_register_taxonomies() {
         'show_in_rest'      => true,
         'show_tagcloud'     => true, // Показывать облако тегов
     ));
+
+    register_taxonomy('doctor_grade', array('doctors'), array(
+        'labels' => array(
+            'name'              => __('Грейды', 'clinic-stati-prosche'),
+            'singular_name'     => __('Грейд', 'clinic-stati-prosche'),
+            'search_items'      => __('Искать грейды', 'clinic-stati-prosche'),
+            'all_items'         => __('Все грейды', 'clinic-stati-prosche'),
+            'edit_item'         => __('Редактировать грейд', 'clinic-stati-prosche'),
+            'update_item'       => __('Обновить грейд', 'clinic-stati-prosche'),
+            'add_new_item'      => __('Добавить грейд', 'clinic-stati-prosche'),
+            'new_item_name'     => __('Название грейда', 'clinic-stati-prosche'),
+            'menu_name'         => __('Грейды', 'clinic-stati-prosche'),
+        ),
+        'hierarchical'       => false,
+        'public'             => false,
+        'publicly_queryable' => false,
+        'show_ui'            => true,
+        'show_admin_column'  => true,
+        'show_in_nav_menus'  => false,
+        'query_var'          => false,
+        'rewrite'            => false,
+        'show_in_rest'       => false,
+        'meta_box_cb'        => false,
+    ));
 }
 
 add_action('init', 'clinic_register_taxonomies');
+
+/**
+ * Создание базовых терминов грейдов
+ */
+function clinic_seed_doctor_grade_terms() {
+    $grades = array(
+        'intern'             => 'Стажер',
+        'specialist'         => 'Специалист',
+        'senior-specialist'  => 'Старший специалист',
+        'leading-specialist' => 'Ведущий специалист',
+        'expert'             => 'Эксперт',
+    );
+
+    $order = 1;
+
+    foreach ($grades as $slug => $name) {
+        $term = get_term_by('slug', $slug, 'doctor_grade');
+
+        if (!$term || is_wp_error($term)) {
+            $result = wp_insert_term($name, 'doctor_grade', array('slug' => $slug));
+
+            if (!is_wp_error($result)) {
+                update_term_meta((int) $result['term_id'], 'taxonomy_order', $order);
+            }
+        } elseif (!get_term_meta($term->term_id, 'taxonomy_order', true)) {
+            update_term_meta($term->term_id, 'taxonomy_order', $order);
+        }
+
+        $order++;
+    }
+}
+add_action('init', 'clinic_seed_doctor_grade_terms', 20);

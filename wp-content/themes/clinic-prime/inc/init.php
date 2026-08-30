@@ -44,6 +44,7 @@ require_once THEME_DIR . '/inc/admin/taxonomy-sorting.php';
 
 // Подключение кастомных типов записей
 require_once THEME_DIR . '/inc/post-types.php';
+require_once THEME_DIR . '/inc/doctors-catalog.php';
 
 // Подключение кастомайзера
 require_once THEME_DIR . '/inc/customizer.php';
