@@ -420,11 +420,6 @@ class BookingSystem {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const maxDate = new Date(
-            today.getFullYear() - CONFIG.VALIDATION.MIN_AGE,
-            today.getMonth(),
-            today.getDate()
-        );
         const minDate = new Date(
             today.getFullYear() - CONFIG.VALIDATION.MAX_AGE,
             today.getMonth(),
@@ -442,13 +437,30 @@ class BookingSystem {
             allowInput: true,
             disableMobile: true,
             minDate,
-            maxDate,
+            maxDate: today,
             monthSelectorType: 'dropdown',
             nextArrow: '<svg width="11" height="10" viewBox="0 0 11 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.59402 9.2777L4.69913 8.39276L7.80637 5.28551H0.000976562V3.9929H7.80637L4.69913 0.890625L5.59402 0.000709772L10.2325 4.6392L5.59402 9.2777Z"/></svg>',
             prevArrow: '<svg width="11" height="10" viewBox="0 0 11 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.63876 9.2777L0.000266373 4.6392L4.63876 0.000709772L5.53365 0.885653L2.4264 3.9929H10.2318V5.28551H2.4264L5.53365 8.38778L4.63876 9.2777Z"/></svg>',
             parseDate: (datestr) => Utils.parseBirthDate(String(datestr || '').replace(/_/g, '')) || undefined,
             onReady: (selectedDates, dateStr, instance) => {
                 instance.calendarContainer.classList.add('birthdate-calendar');
+                this.initBirthDateYearSelect(instance);
+                if (!selectedDates.length) {
+                    instance.jumpToDate(today, false);
+                    this.syncBirthDateYearSelect(instance);
+                }
+            },
+            onOpen: (selectedDates, dateStr, instance) => {
+                if (!selectedDates.length) {
+                    instance.jumpToDate(new Date(), false);
+                }
+                this.syncBirthDateYearSelect(instance);
+            },
+            onMonthChange: (selectedDates, dateStr, instance) => {
+                this.syncBirthDateYearSelect(instance);
+            },
+            onYearChange: (selectedDates, dateStr, instance) => {
+                this.syncBirthDateYearSelect(instance);
             },
             onChange: (selectedDates, dateStr) => {
                 const formData = formType === 'self' ? this.state.selfForm.data : this.state.manyForm.data;
@@ -456,10 +468,139 @@ class BookingSystem {
                 this.validateBirthDateField(field);
                 this.updateUI();
             },
-            onClose: () => {
+            onClose: (selectedDates, dateStr, instance) => {
+                this.closeBirthDateYearSelect(instance);
                 this.validateBirthDateField(field);
             }
         });
+    }
+
+    /**
+     * Заменяет поле года на селект с поиском.
+     *
+     * @param {object} instance
+     */
+    initBirthDateYearSelect(instance) {
+        const monthWrap = instance.calendarContainer.querySelector('.flatpickr-current-month');
+        if (!monthWrap || monthWrap.querySelector('.birthdate-year-select')) return;
+
+        const minYear = instance.config.minDate
+            ? instance.config.minDate.getFullYear()
+            : new Date().getFullYear() - CONFIG.VALIDATION.MAX_AGE;
+        const maxYear = instance.config.maxDate
+            ? instance.config.maxDate.getFullYear()
+            : new Date().getFullYear();
+
+        const years = [];
+        for (let year = maxYear; year >= minYear; year -= 1) {
+            years.push(year);
+        }
+
+        const wrap = document.createElement('div');
+        wrap.className = 'birthdate-year-select';
+        wrap.innerHTML = `
+            <button type="button" class="birthdate-year-trigger" aria-label="Выбрать год">${maxYear}</button>
+            <div class="birthdate-year-dropdown">
+                <input type="search" class="birthdate-year-search" placeholder="Поиск года" autocomplete="off">
+                <div class="birthdate-year-list"></div>
+            </div>
+        `;
+
+        const trigger = wrap.querySelector('.birthdate-year-trigger');
+        const dropdown = wrap.querySelector('.birthdate-year-dropdown');
+        const search = wrap.querySelector('.birthdate-year-search');
+        const list = wrap.querySelector('.birthdate-year-list');
+
+        const renderList = (query) => {
+            const needle = String(query || '').trim();
+            list.innerHTML = '';
+            years.forEach((year) => {
+                if (needle && String(year).indexOf(needle) === -1) return;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'birthdate-year-option';
+                btn.dataset.year = String(year);
+                btn.textContent = String(year);
+                if (year === instance.currentYear) {
+                    btn.classList.add('is-active');
+                }
+                list.appendChild(btn);
+            });
+        };
+
+        const openDropdown = () => {
+            wrap.classList.add('is-open');
+            search.value = '';
+            renderList('');
+            search.focus();
+            const active = list.querySelector('.is-active');
+            if (active) {
+                active.scrollIntoView({ block: 'center' });
+            }
+        };
+
+        const closeDropdown = () => {
+            wrap.classList.remove('is-open');
+        };
+
+        trigger.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (wrap.classList.contains('is-open')) {
+                closeDropdown();
+            } else {
+                openDropdown();
+            }
+        });
+
+        search.addEventListener('input', () => renderList(search.value));
+        search.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeDropdown();
+                trigger.focus();
+            }
+        });
+
+        list.addEventListener('click', (event) => {
+            const option = event.target.closest('.birthdate-year-option');
+            if (!option) return;
+            const year = Number(option.dataset.year);
+            instance.changeYear(year);
+            instance.jumpToDate(new Date(year, instance.currentMonth, 1), false);
+            this.syncBirthDateYearSelect(instance);
+            closeDropdown();
+        });
+
+        wrap.addEventListener('mousedown', (event) => {
+            event.stopPropagation();
+        });
+
+        monthWrap.appendChild(wrap);
+        instance._birthYearSelect = { wrap, trigger, closeDropdown, renderList };
+        renderList('');
+        this.syncBirthDateYearSelect(instance);
+    }
+
+    /**
+     * Синхронизирует выбранный год в селекте.
+     *
+     * @param {object} instance
+     */
+    syncBirthDateYearSelect(instance) {
+        const select = instance?._birthYearSelect;
+        if (!select) return;
+
+        select.trigger.textContent = String(instance.currentYear);
+        select.renderList(select.wrap.querySelector('.birthdate-year-search')?.value || '');
+    }
+
+    /**
+     * Закрывает селект года.
+     *
+     * @param {object} instance
+     */
+    closeBirthDateYearSelect(instance) {
+        instance?._birthYearSelect?.closeDropdown();
     }
 
     getInitialState() {

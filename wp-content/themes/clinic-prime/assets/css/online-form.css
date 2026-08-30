@@ -1434,8 +1434,7 @@ span.flatpickr-weekday {
     cursor: default !important;
 }
 
-.birthdate-calendar .flatpickr-current-month .flatpickr-monthDropdown-months,
-.birthdate-calendar .flatpickr-current-month input.cur-year {
+.birthdate-calendar .flatpickr-current-month .flatpickr-monthDropdown-months {
     color: #366159;
     font-size: 14px;
     font-weight: 600;
@@ -1447,9 +1446,94 @@ span.flatpickr-weekday {
     cursor: pointer !important;
 }
 
-.birthdate-calendar .numInputWrapper .arrowUp,
-.birthdate-calendar .numInputWrapper .arrowDown {
-    display: block !important;
+.birthdate-calendar .numInputWrapper {
+    display: none !important;
+}
+
+.birthdate-year-select {
+    position: relative;
+    margin-left: 6px;
+}
+
+.birthdate-year-trigger {
+    min-width: 76px;
+    padding: 4px 28px 4px 10px;
+    border: 0;
+    border-radius: 8px;
+    background: #F2F4F7 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23366159' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 8px center;
+    color: #366159;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+    cursor: pointer;
+}
+
+.birthdate-year-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 5;
+    width: 120px;
+    padding: 8px;
+    border: 1px solid #F2F4F7;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 12px 28px -16px rgba(0, 0, 0, 0.32);
+}
+
+.birthdate-year-select.is-open .birthdate-year-dropdown {
+    display: block;
+}
+
+.birthdate-year-search {
+    width: 100%;
+    margin-bottom: 6px;
+    padding: 6px 8px;
+    border: 1px solid #D8D9DC;
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+.birthdate-year-search:focus {
+    outline: none;
+    border-color: #366159;
+}
+
+.birthdate-year-list {
+    max-height: 180px;
+    overflow-y: auto;
+}
+
+.birthdate-year-option {
+    display: block;
+    width: 100%;
+    padding: 6px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #1E1E1E;
+    font-size: 13px;
+    text-align: left;
+    cursor: pointer;
+}
+
+.birthdate-year-option:hover,
+.birthdate-year-option.is-active {
+    background: #F0FDFA;
+    color: #366159;
+}
+
+.birthdate-calendar .flatpickr-day.today {
+    border: 2px solid #366159;
+    background: #F0FDFA;
+    color: #366159;
+    font-weight: 700;
+}
+
+.birthdate-calendar .flatpickr-day.today.selected {
+    background: #366159;
+    color: #fff;
 }
 
 .birthdate-calendar .flatpickr-prev-month,
@@ -1527,10 +1611,6 @@ span.flatpickr-weekday {
 
 .birthdate-calendar .flatpickr-day:hover {
     background: #d7fff8;
-    border-color: #366159;
-}
-
-.birthdate-calendar .flatpickr-day.today {
     border-color: #366159;
 }
 
