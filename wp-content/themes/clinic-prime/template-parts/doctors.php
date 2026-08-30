@@ -76,6 +76,7 @@ $bottom_text = !empty($catalog['bottom_text']) ? $catalog['bottom_text'] : '';
 
             if (function_exists('clinic_filter_catalog_terms_by_doctors')) {
                 $diseases = clinic_filter_catalog_terms_by_doctors($diseases, 'doctor_diseases', $base_doctor_ids);
+                $grades = clinic_filter_catalog_terms_by_doctors($grades, 'doctor_grade', $base_doctor_ids);
             }
 
             $filter_context = array(
@@ -103,7 +104,6 @@ $bottom_text = !empty($catalog['bottom_text']) ? $catalog['bottom_text'] : '';
 
             $available_problems_lookup = array_flip($filter_availability['problems']);
             $available_grades_lookup = array_flip($filter_availability['grades']);
-            $has_assigned_grades = !empty($filter_availability['grades']);
 
             $problems_text = 'Что вас беспокоит?';
             if (!empty($problems)) {
@@ -238,7 +238,7 @@ $bottom_text = !empty($catalog['bottom_text']) ? $catalog['bottom_text'] : '';
                                     <a href="#" class="specItemGrade<?= !$grade ? ' active' : ''; ?>" data-grade="0">Все грейды</a>
                                     <?php foreach ($grades as $grade_term) {
                                         $grade_description = get_field('filter_description', 'doctor_grade_' . $grade_term->term_id);
-                                        $grade_unavailable = $has_assigned_grades && !isset($available_grades_lookup[(int) $grade_term->term_id]);
+                                        $grade_unavailable = !isset($available_grades_lookup[(int) $grade_term->term_id]);
                                     ?>
                                     <a href="#" class="specItemGrade<?= $grade === (int) $grade_term->term_id ? ' active' : ''; ?><?= $grade_unavailable ? ' filter-unavailable' : ''; ?>" data-grade="<?= (int) $grade_term->term_id; ?>" data-description="<?= esc_attr($grade_description); ?>"><?= esc_html($grade_term->name); ?></a>
                                     <?php } ?>

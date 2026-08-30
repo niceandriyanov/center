@@ -417,7 +417,12 @@ function initScript() {
                 item.classList.toggle('filter-unavailable', !termIdInList(id, availability.problems));
             });
 
-            var hasAssignedGrades = Array.isArray(availability.grades) && availability.grades.length > 0;
+            var gradesList = Array.isArray(availability.grades) ? availability.grades : [];
+            var gradesWrap = document.querySelector('.specItemGrades');
+
+            if (gradesWrap) {
+                gradesWrap.style.display = gradesList.length ? '' : 'none';
+            }
 
             document.querySelectorAll('.specItemGrade[data-grade]').forEach(function(el) {
                 var grade = el.getAttribute('data-grade');
@@ -426,13 +431,13 @@ function initScript() {
                     return;
                 }
 
-                el.classList.toggle('filter-unavailable', hasAssignedGrades && !termIdInList(grade, availability.grades));
+                el.classList.toggle('filter-unavailable', !termIdInList(grade, gradesList));
             });
 
             var needsRefetch = false;
             var activeGradeId = getActiveGradeId();
 
-            if (hasAssignedGrades && activeGradeId !== '0' && !termIdInList(activeGradeId, availability.grades)) {
+            if (activeGradeId !== '0' && (gradesList.length === 0 || !termIdInList(activeGradeId, gradesList))) {
                 resetGradeToAll();
                 needsRefetch = true;
             }
