@@ -1411,16 +1411,25 @@ span.flatpickr-weekday {
     border-radius: 16px;
     box-shadow: 0 16px 40px -20px rgba(0, 0, 0, 0.28) !important;
     background: #fff;
+    overflow: visible !important;
     z-index: 50;
 }
 
 .birthdate-calendar .flatpickr-months {
-    margin-bottom: 4px;
+    overflow: visible !important;
+    margin-bottom: 8px;
     align-items: center;
+    position: relative;
+    z-index: 4;
 }
 
+.birthdate-calendar .flatpickr-months .flatpickr-month,
 .birthdate-calendar .flatpickr-month {
-    height: 40px;
+    overflow: visible !important;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .birthdate-calendar .flatpickr-current-month {
@@ -1428,53 +1437,52 @@ span.flatpickr-weekday {
     align-items: center;
     justify-content: center;
     gap: 6px;
-    font-size: 14px;
-    padding-top: 4px;
+    width: auto;
+    height: 48px;
+    padding: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    overflow: visible !important;
     pointer-events: auto !important;
     cursor: default !important;
 }
 
-.birthdate-calendar .flatpickr-current-month .flatpickr-monthDropdown-months {
-    color: #366159;
-    font-size: 14px;
-    font-weight: 600;
-    background: #F2F4F7;
-    border: 0;
-    border-radius: 8px;
-    padding: 4px 8px;
-    pointer-events: auto !important;
-    cursor: pointer !important;
-}
-
-.birthdate-calendar .numInputWrapper {
+.birthdate-calendar .flatpickr-monthDropdown-months,
+.birthdate-calendar .numInputWrapper,
+.birthdate-calendar input.cur-year {
     display: none !important;
 }
 
-.birthdate-year-select {
+.birthdate-nav-select {
     position: relative;
-    margin-left: 6px;
 }
 
-.birthdate-year-trigger {
-    min-width: 76px;
-    padding: 4px 28px 4px 10px;
+.birthdate-nav-trigger {
+    min-width: 88px;
+    height: 32px;
+    padding: 0 28px 0 10px;
     border: 0;
     border-radius: 8px;
     background: #F2F4F7 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' fill='none' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%23366159' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") no-repeat right 8px center;
     color: #366159;
     font-size: 14px;
     font-weight: 600;
-    line-height: 1.4;
+    line-height: 32px;
+    white-space: nowrap;
     cursor: pointer;
 }
 
-.birthdate-year-dropdown {
+.birthdate-nav-select--year .birthdate-nav-trigger {
+    min-width: 76px;
+}
+
+.birthdate-nav-dropdown {
     display: none;
     position: absolute;
-    top: calc(100% + 4px);
+    top: calc(100% + 6px);
     left: 0;
-    z-index: 5;
-    width: 120px;
+    z-index: 20;
+    width: 148px;
     padding: 8px;
     border: 1px solid #F2F4F7;
     border-radius: 12px;
@@ -1482,11 +1490,15 @@ span.flatpickr-weekday {
     box-shadow: 0 12px 28px -16px rgba(0, 0, 0, 0.32);
 }
 
-.birthdate-year-select.is-open .birthdate-year-dropdown {
+.birthdate-nav-select--year .birthdate-nav-dropdown {
+    width: 120px;
+}
+
+.birthdate-nav-select.is-open .birthdate-nav-dropdown {
     display: block;
 }
 
-.birthdate-year-search {
+.birthdate-nav-search {
     width: 100%;
     margin-bottom: 6px;
     padding: 6px 8px;
@@ -1495,17 +1507,17 @@ span.flatpickr-weekday {
     font-size: 13px;
 }
 
-.birthdate-year-search:focus {
+.birthdate-nav-search:focus {
     outline: none;
     border-color: #366159;
 }
 
-.birthdate-year-list {
+.birthdate-nav-list {
     max-height: 180px;
     overflow-y: auto;
 }
 
-.birthdate-year-option {
+.birthdate-nav-option {
     display: block;
     width: 100%;
     padding: 6px 8px;
@@ -1518,8 +1530,8 @@ span.flatpickr-weekday {
     cursor: pointer;
 }
 
-.birthdate-year-option:hover,
-.birthdate-year-option.is-active {
+.birthdate-nav-option:hover,
+.birthdate-nav-option.is-active {
     background: #F0FDFA;
     color: #366159;
 }
@@ -1538,15 +1550,17 @@ span.flatpickr-weekday {
 
 .birthdate-calendar .flatpickr-prev-month,
 .birthdate-calendar .flatpickr-next-month {
+    top: 50%;
+    transform: translateY(-50%);
     width: 32px;
     height: 32px !important;
     padding: 0;
+    margin: 0 2px;
     border-radius: 8px;
     border: 1px solid #F2F4F7;
     display: flex;
     align-items: center;
     justify-content: center;
-    top: 8px;
 }
 
 .birthdate-calendar .flatpickr-prev-month svg,

@@ -444,23 +444,23 @@ class BookingSystem {
             parseDate: (datestr) => Utils.parseBirthDate(String(datestr || '').replace(/_/g, '')) || undefined,
             onReady: (selectedDates, dateStr, instance) => {
                 instance.calendarContainer.classList.add('birthdate-calendar');
-                this.initBirthDateYearSelect(instance);
+                this.initBirthDateHeaderSelects(instance);
                 if (!selectedDates.length) {
                     instance.jumpToDate(today, false);
-                    this.syncBirthDateYearSelect(instance);
+                    this.syncBirthDateHeaderSelects(instance);
                 }
             },
             onOpen: (selectedDates, dateStr, instance) => {
                 if (!selectedDates.length) {
                     instance.jumpToDate(new Date(), false);
                 }
-                this.syncBirthDateYearSelect(instance);
+                this.syncBirthDateHeaderSelects(instance);
             },
             onMonthChange: (selectedDates, dateStr, instance) => {
-                this.syncBirthDateYearSelect(instance);
+                this.syncBirthDateHeaderSelects(instance);
             },
             onYearChange: (selectedDates, dateStr, instance) => {
-                this.syncBirthDateYearSelect(instance);
+                this.syncBirthDateHeaderSelects(instance);
             },
             onChange: (selectedDates, dateStr) => {
                 const formData = formType === 'self' ? this.state.selfForm.data : this.state.manyForm.data;
@@ -469,21 +469,25 @@ class BookingSystem {
                 this.updateUI();
             },
             onClose: (selectedDates, dateStr, instance) => {
-                this.closeBirthDateYearSelect(instance);
+                this.closeBirthDateHeaderSelects(instance);
                 this.validateBirthDateField(field);
             }
         });
     }
 
     /**
-     * Заменяет поле года на селект с поиском.
+     * Кастомные селекты месяца и года в шапке календаря даты рождения.
      *
      * @param {object} instance
      */
-    initBirthDateYearSelect(instance) {
+    initBirthDateHeaderSelects(instance) {
         const monthWrap = instance.calendarContainer.querySelector('.flatpickr-current-month');
-        if (!monthWrap || monthWrap.querySelector('.birthdate-year-select')) return;
+        if (!monthWrap || monthWrap.querySelector('.birthdate-nav-select')) return;
 
+        const monthNames = instance.l10n?.months?.longhand || [
+            'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+            'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+        ];
         const minYear = instance.config.minDate
             ? instance.config.minDate.getFullYear()
             : new Date().getFullYear() - CONFIG.VALIDATION.MAX_AGE;
@@ -491,44 +495,89 @@ class BookingSystem {
             ? instance.config.maxDate.getFullYear()
             : new Date().getFullYear();
 
-        const years = [];
+        const monthItems = monthNames.map((label, value) => ({ value, label }));
+        const yearItems = [];
         for (let year = maxYear; year >= minYear; year -= 1) {
-            years.push(year);
+            yearItems.push({ value: year, label: String(year) });
         }
 
+        instance._birthMonthSelect = this.createBirthDateNavSelect(instance, {
+            type: 'month',
+            items: monthItems,
+            placeholder: 'Месяц',
+            ariaLabel: 'Выбрать месяц',
+            getValue: () => instance.currentMonth,
+            onSelect: (value) => {
+                instance.changeMonth(Number(value), false);
+                instance.jumpToDate(new Date(instance.currentYear, Number(value), 1), false);
+            }
+        });
+
+        instance._birthYearSelect = this.createBirthDateNavSelect(instance, {
+            type: 'year',
+            items: yearItems,
+            placeholder: 'Год',
+            ariaLabel: 'Выбрать год',
+            getValue: () => instance.currentYear,
+            onSelect: (value) => {
+                instance.changeYear(Number(value));
+                instance.jumpToDate(new Date(Number(value), instance.currentMonth, 1), false);
+            }
+        });
+
+        monthWrap.appendChild(instance._birthMonthSelect.wrap);
+        monthWrap.appendChild(instance._birthYearSelect.wrap);
+        this.syncBirthDateHeaderSelects(instance);
+    }
+
+    /**
+     * Собирает кастомный селект для шапки календаря даты рождения.
+     *
+     * @param {object} instance
+     * @param {object} config
+     * @returns {object}
+     */
+    createBirthDateNavSelect(instance, config) {
         const wrap = document.createElement('div');
-        wrap.className = 'birthdate-year-select';
+        wrap.className = `birthdate-nav-select birthdate-nav-select--${config.type}`;
         wrap.innerHTML = `
-            <button type="button" class="birthdate-year-trigger" aria-label="Выбрать год">${maxYear}</button>
-            <div class="birthdate-year-dropdown">
-                <input type="search" class="birthdate-year-search" placeholder="Поиск года" autocomplete="off">
-                <div class="birthdate-year-list"></div>
+            <button type="button" class="birthdate-nav-trigger" aria-label="${config.ariaLabel}"></button>
+            <div class="birthdate-nav-dropdown">
+                <input type="search" class="birthdate-nav-search" placeholder="${config.placeholder}" autocomplete="off">
+                <div class="birthdate-nav-list"></div>
             </div>
         `;
 
-        const trigger = wrap.querySelector('.birthdate-year-trigger');
-        const dropdown = wrap.querySelector('.birthdate-year-dropdown');
-        const search = wrap.querySelector('.birthdate-year-search');
-        const list = wrap.querySelector('.birthdate-year-list');
+        const trigger = wrap.querySelector('.birthdate-nav-trigger');
+        const search = wrap.querySelector('.birthdate-nav-search');
+        const list = wrap.querySelector('.birthdate-nav-list');
 
         const renderList = (query) => {
-            const needle = String(query || '').trim();
+            const needle = String(query || '').trim().toLowerCase();
+            const current = config.getValue();
             list.innerHTML = '';
-            years.forEach((year) => {
-                if (needle && String(year).indexOf(needle) === -1) return;
+            config.items.forEach((item) => {
+                const haystack = `${item.label} ${item.value}`.toLowerCase();
+                if (needle && haystack.indexOf(needle) === -1) return;
                 const btn = document.createElement('button');
                 btn.type = 'button';
-                btn.className = 'birthdate-year-option';
-                btn.dataset.year = String(year);
-                btn.textContent = String(year);
-                if (year === instance.currentYear) {
+                btn.className = 'birthdate-nav-option';
+                btn.dataset.value = String(item.value);
+                btn.textContent = item.label;
+                if (item.value === current) {
                     btn.classList.add('is-active');
                 }
                 list.appendChild(btn);
             });
         };
 
+        const closeOthers = () => {
+            if (config.type !== 'month') instance._birthMonthSelect?.closeDropdown();
+            if (config.type !== 'year') instance._birthYearSelect?.closeDropdown();
+        };
+
         const openDropdown = () => {
+            closeOthers();
             wrap.classList.add('is-open');
             search.value = '';
             renderList('');
@@ -541,6 +590,13 @@ class BookingSystem {
 
         const closeDropdown = () => {
             wrap.classList.remove('is-open');
+        };
+
+        const sync = () => {
+            const current = config.getValue();
+            const item = config.items.find((entry) => entry.value === current);
+            trigger.textContent = item ? item.label : String(current);
+            renderList(search.value);
         };
 
         trigger.addEventListener('click', (event) => {
@@ -562,12 +618,10 @@ class BookingSystem {
         });
 
         list.addEventListener('click', (event) => {
-            const option = event.target.closest('.birthdate-year-option');
+            const option = event.target.closest('.birthdate-nav-option');
             if (!option) return;
-            const year = Number(option.dataset.year);
-            instance.changeYear(year);
-            instance.jumpToDate(new Date(year, instance.currentMonth, 1), false);
-            this.syncBirthDateYearSelect(instance);
+            config.onSelect(option.dataset.value);
+            sync();
             closeDropdown();
         });
 
@@ -575,31 +629,27 @@ class BookingSystem {
             event.stopPropagation();
         });
 
-        monthWrap.appendChild(wrap);
-        instance._birthYearSelect = { wrap, trigger, closeDropdown, renderList };
         renderList('');
-        this.syncBirthDateYearSelect(instance);
+        return { wrap, trigger, closeDropdown, sync };
     }
 
     /**
-     * Синхронизирует выбранный год в селекте.
+     * Синхронизирует селекты месяца и года.
      *
      * @param {object} instance
      */
-    syncBirthDateYearSelect(instance) {
-        const select = instance?._birthYearSelect;
-        if (!select) return;
-
-        select.trigger.textContent = String(instance.currentYear);
-        select.renderList(select.wrap.querySelector('.birthdate-year-search')?.value || '');
+    syncBirthDateHeaderSelects(instance) {
+        instance?._birthMonthSelect?.sync();
+        instance?._birthYearSelect?.sync();
     }
 
     /**
-     * Закрывает селект года.
+     * Закрывает селекты шапки календаря даты рождения.
      *
      * @param {object} instance
      */
-    closeBirthDateYearSelect(instance) {
+    closeBirthDateHeaderSelects(instance) {
+        instance?._birthMonthSelect?.closeDropdown();
         instance?._birthYearSelect?.closeDropdown();
     }
 
