@@ -19,7 +19,7 @@ function clinic_enqueue_scripts() {
     wp_enqueue_script('clinic-swiper', THEME_URI . '/assets/js/lib/swiper-bundle.min.js', [], null, true);
     wp_enqueue_script('clinic-locale-ru', THEME_URI . '/assets/js/locale/ru.js', [], null, true);
     if(is_page_template('template-parts/online-form.php')) {
-        wp_enqueue_script('online-form', THEME_URI . '/assets/js/online-form.js', [], THEME_VERSION, true);
+        wp_enqueue_script('online-form', THEME_URI . '/assets/js/online-form.js', ['clinic-mask'], THEME_VERSION, true);
     }
     wp_enqueue_script('clinic-scripts', THEME_URI . '/assets/js/script.js', [], THEME_VERSION, true);
     if(!is_page_template('template-parts/online-form.php')) {

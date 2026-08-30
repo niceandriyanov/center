@@ -55,6 +55,50 @@ const Utils = {
             .map(cb => cb.value);
     },
 
+    /**
+     * Разбирает дату рождения в формате дд.мм.гггг.
+     *
+     * @param {string} value
+     * @returns {Date|null}
+     */
+    parseBirthDate(value) {
+        const match = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(String(value || '').trim());
+        if (!match) return null;
+
+        const day = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10);
+        const year = parseInt(match[3], 10);
+        const date = new Date(year, month - 1, day);
+
+        if (
+            date.getFullYear() !== year ||
+            date.getMonth() !== month - 1 ||
+            date.getDate() !== day
+        ) {
+            return null;
+        }
+
+        return date;
+    },
+
+    /**
+     * Возраст по дате рождения.
+     *
+     * @param {Date} birthDate
+     * @returns {number}
+     */
+    getAge(birthDate) {
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age -= 1;
+        }
+
+        return age;
+    },
+
     // Formatting
     formatPhone(value) {
         let digits = value.replace(/\D/g, '');
@@ -296,45 +340,49 @@ class BookingSystem {
         this.initElements();
         this.initManagers();
         this.bindEvents();
-        this.initPhoneMasks();
+        this.initInputMasks();
         this.updateUI();
         this.handlePaymentReturnFlow();
     }
 
     // ==================== МАСКИ ВВОДА ====================
-    initPhoneMasks() {
-        // Маска для телефона в форме "Для себя"
-        if (this.elements.clientPhone) {
-            Inputmask({
-                mask: '+7 (999) 999-99-99',
-                placeholder: '_',
-                showMaskOnHover: false,
-                clearIncomplete: true,
-                onBeforeMask: function(value, opts) {
-                    // Преобразуем 8 в начале в +7
-                    if (value.startsWith('8')) {
-                        return '7' + value.substring(1);
-                    }
-                    return value;
+    initInputMasks() {
+        if (typeof Inputmask !== 'function') return;
+        const phoneMaskOptions = {
+            mask: '+7 (999) 999-99-99',
+            placeholder: '_',
+            showMaskOnHover: false,
+            clearIncomplete: true,
+            onBeforeMask: function(value) {
+                if (value.startsWith('8')) {
+                    return '7' + value.substring(1);
                 }
-            }).mask(this.elements.clientPhone);
+                return value;
+            }
+        };
+
+        const birthDateMaskOptions = {
+            mask: '99.99.9999',
+            placeholder: 'дд.мм.гггг',
+            showMaskOnHover: false,
+            clearIncomplete: true,
+            insertMode: false
+        };
+
+        if (this.elements.clientPhone) {
+            Inputmask(phoneMaskOptions).mask(this.elements.clientPhone);
         }
 
-        // Маска для телефона в форме "Для пары" - ДОБАВЬТЕ ЭТОТ БЛОК
         if (this.elements.manyClient1Phone) {
-            Inputmask({
-                mask: '+7 (999) 999-99-99',
-                placeholder: '_',
-                showMaskOnHover: false,
-                clearIncomplete: true,
-                onBeforeMask: function(value, opts) {
-                    // Преобразуем 8 в начале в +7
-                    if (value.startsWith('8')) {
-                        return '7' + value.substring(1);
-                    }
-                    return value;
-                }
-            }).mask(this.elements.manyClient1Phone);
+            Inputmask(phoneMaskOptions).mask(this.elements.manyClient1Phone);
+        }
+
+        if (this.elements.clientBirthDate) {
+            Inputmask(birthDateMaskOptions).mask(this.elements.clientBirthDate);
+        }
+
+        if (this.elements.manyClient1BirthDate) {
+            Inputmask(birthDateMaskOptions).mask(this.elements.manyClient1BirthDate);
         }
     }
 
@@ -377,12 +425,12 @@ class BookingSystem {
             experienceDetails: '',
             selfHarm: 'no',
             selfHarmIntensity: 0,
-
-            // Шаг 2
-            concerns: { question1: [] },
             visitingPsychologist: 'no',
             specialistName: '',
             recommendationInfo: '',
+
+            // Шаг 2
+            concerns: { question1: [] },
 
             // Шаг 3
             selectedSpecialistId: null,
@@ -392,7 +440,7 @@ class BookingSystem {
 
             // Шаг 4
             clientName: '',
-            clientAge: '',
+            clientBirthDate: '',
             clientPhone: '',
             clientEmail: '',
             clientTelegram: '',
@@ -416,7 +464,7 @@ class BookingSystem {
 
             // Шаг 3
             client1Name: '',
-            client1Age: '',
+            client1BirthDate: '',
             client1Phone: '',
             client1Email: '',
             clientTelegram: '',
@@ -512,6 +560,8 @@ class BookingSystem {
         e.selectPlaceholder = Utils.$('.online-select-placeholder');
         e.specialistNameInput = d.getElementById('specialistName');
         e.recommendationFreeInput = d.getElementById('recomendFreeName');
+        e.concernsSearch = d.getElementById('concernsSearch');
+        e.concernsSearchEmpty = d.getElementById('concernsSearchEmpty');
     }
 
     initStep3Elements(e, d) {
@@ -529,7 +579,7 @@ class BookingSystem {
     initStep4Elements(e, d) {
         e.step4Container = d.getElementById('step4');
         e.clientName = d.getElementById('clientName');
-        e.clientAge = d.getElementById('clientAge');
+        e.clientBirthDate = d.getElementById('clientBirthDate');
         e.clientPhone = d.getElementById('clientPhone');
         e.clientEmail = d.getElementById('clientEmail');
         e.clientTelegram = d.getElementById('clientTelegram');
@@ -563,7 +613,7 @@ class BookingSystem {
 
         // Шаг 3
         e.manyClient1Name = d.getElementById('manyClient1Name');
-        e.manyClient1Age = d.getElementById('manyClient1Age');
+        e.manyClient1BirthDate = d.getElementById('manyClient1BirthDate');
         e.manyClient1Phone = d.getElementById('manyClient1Phone');
         e.manyClient1Email = d.getElementById('manyClient1Email');
         e.manyClientTelegram = d.getElementById('manyClientTelegram');
@@ -682,6 +732,7 @@ class BookingSystem {
         // Радиокнопки
         this.setupRadioValidation('experiencePsi', () => this.validatePsychiatristExperience(), 'self');
         this.setupRadioValidation('selfHarm', () => this.validateSelfHarm(), 'self');
+        this.setupRadioValidation('visitPsi', () => this.validateVisitingPsychologist(), 'self');
 
         // Шкала
         if (e.scaleTicks) {
@@ -694,7 +745,6 @@ class BookingSystem {
     bindStep2Events() {
         const e = this.elements;
 
-        // Делегирование событий для шага 2
         if (e.selfStepContainers[1]) {
             Utils.on(e.selfStepContainers[1], 'change', (event) => {
                 const target = event.target;
@@ -702,16 +752,16 @@ class BookingSystem {
                 if (target.type === 'checkbox' && target.closest('.online-question-group')) {
                     this.onQuestionCheckbox(target, 'question1');
                 }
-
-                if (target.name === 'visitPsi') {
-                    this.onVisitingChange();
-                    // Добавить валидацию при изменении
-                    setTimeout(() => this.validateVisitingPsychologist(), 50);
-                }
             });
         }
 
         this.bindInput(e.recommendationFreeInput, 'recommendationInfo', 'self');
+
+        if (e.concernsSearch) {
+            Utils.on(e.concernsSearch, 'input', () => {
+                this.filterConcerns(e.concernsSearch.value);
+            });
+        }
     }
 
 
@@ -748,7 +798,7 @@ class BookingSystem {
 
         // Контактные поля
         this.bindDebouncedInput(e.clientName, 'clientName', () => this.validateClientName(), 'self');
-        this.bindDebouncedInput(e.clientAge, 'clientAge', () => this.validateClientAge(), 'self');
+        this.bindDebouncedInput(e.clientBirthDate, 'clientBirthDate', () => this.validateClientBirthDate(), 'self');
         this.bindDebouncedInput(e.clientEmail, 'clientEmail', () => this.validateEmail(), 'self');
         this.bindDebouncedInput(e.clientTelegram, 'clientTelegram', () => this.validateTelegram(), 'self');
 
@@ -783,7 +833,7 @@ class BookingSystem {
 
         // Шаг 3 формы "Для пары" - поля только для первого клиента
         this.bindDebouncedInput(e.manyClient1Name, 'client1Name', () => this.validateManyClientName(), 'many');
-        this.bindDebouncedInput(e.manyClient1Age, 'client1Age', () => this.validateManyClientAge(), 'many');
+        this.bindDebouncedInput(e.manyClient1BirthDate, 'client1BirthDate', () => this.validateManyClientBirthDate(), 'many');
         this.bindDebouncedInput(e.manyClient1Email, 'client1Email', () => this.validateManyEmail(), 'many');
         this.bindDebouncedInput(e.manyClientTelegram, 'ClientTelegram', () => this.validateManyTelegram(), 'many');
 
@@ -850,6 +900,7 @@ class BookingSystem {
             Utils.on(radio, 'change', () => {
                 if (name === 'experiencePsi') this.onPsychiatristChange();
                 if (name === 'selfHarm') this.onSelfHarmChange();
+                if (name === 'visitPsi') this.onVisitingChange();
 
                 setTimeout(() => validationFn.call(this), 50);
                 this.updateUI();
@@ -1034,6 +1085,39 @@ class BookingSystem {
         this.scheduleSelfSpecialistsPreparation();
     }
 
+    /**
+     * Фильтрует чекбоксы «Что вас беспокоит» по строке поиска.
+     *
+     * @param {string} query
+     */
+    filterConcerns(query) {
+        const group = this.elements.questionGroups?.[0];
+        if (!group) return;
+
+        const needle = String(query || '').trim().toLowerCase();
+        const labels = group.querySelectorAll('.online-checkbox-label');
+        let visibleCount = 0;
+
+        labels.forEach((label) => {
+            const text = (label.querySelector('.online-checkbox-text')?.textContent || '').toLowerCase();
+            const isMatch = !needle || text.includes(needle);
+            Utils.toggleClass(label, 'is-hidden', !isMatch);
+            if (isMatch) visibleCount += 1;
+        });
+
+        Utils.toggle(this.elements.concernsSearchEmpty, needle.length > 0 && visibleCount === 0);
+    }
+
+    /**
+     * Сбрасывает поиск по темам обращения.
+     */
+    resetConcernsSearch() {
+        if (this.elements.concernsSearch) {
+            this.elements.concernsSearch.value = '';
+        }
+        this.filterConcerns('');
+    }
+
     onManyConcernsChange(checkbox) {
         const value = checkbox.value;
         const isChecked = checkbox.checked;
@@ -1133,6 +1217,7 @@ class BookingSystem {
             this.validatePsychiatristExperience(),
             this.validateExperienceDetails(),
             this.validateSelfHarm(),
+            this.validateVisitingPsychologist(),
         ].every(Boolean);
     }
 
@@ -1201,10 +1286,7 @@ class BookingSystem {
     }
 
     validateSelfStep2() {
-        return [
-            this.validateAllQuestions(),
-            this.validateVisitingPsychologist() // Используем обновленный метод
-        ].every(Boolean);
+        return this.validateAllQuestions();
     }
 
     validateAllQuestions() {
@@ -1264,7 +1346,7 @@ class BookingSystem {
     validateSelfStep4() {
         return [
             this.validateClientName(),
-            this.validateClientAge(),
+            this.validateClientBirthDate(),
             this.validatePhone(),
             this.validateEmail(),
             this.validateTelegram(),
@@ -1296,26 +1378,60 @@ class BookingSystem {
         return isValid;
     }
 
-    validateClientAge() {
-        const value = this.elements.clientAge.value.trim();
-        const field = this.elements.clientAge;
+    validateClientBirthDate() {
+        return this.validateBirthDateField(this.elements.clientBirthDate);
+    }
 
-        if (!Utils.isNotEmpty(value)) {
+    /**
+     * Валидирует поле даты рождения и возраст 18–120.
+     *
+     * @param {HTMLInputElement|null} field
+     * @returns {boolean}
+     */
+    validateBirthDateField(field) {
+        if (!field) return false;
+
+        const value = String(field.value || '').trim();
+        const isIncomplete = !value || value.includes('_');
+
+        if (isIncomplete) {
             this.showFieldError(field, false, 'Это поле обязательно для заполнения');
             return false;
         }
 
-        const age = parseInt(value);
-        let isValid = true;
-        let message = '';
-
-        if (!Utils.isNumberInRange(age, CONFIG.VALIDATION.MIN_AGE, CONFIG.VALIDATION.MAX_AGE)) {
-            isValid = false;
-            message = 'Пожалуйста, укажите возраст от 18 до 120 лет';
+        const birthDate = Utils.parseBirthDate(value);
+        if (!birthDate) {
+            this.showFieldError(field, false, 'Укажите корректную дату в формате дд.мм.гггг');
+            return false;
         }
 
-        this.showFieldError(field, isValid, message);
-        return isValid;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (birthDate > today) {
+            this.showFieldError(field, false, 'Дата рождения не может быть в будущем');
+            return false;
+        }
+
+        const age = Utils.getAge(birthDate);
+        if (!Utils.isNumberInRange(age, CONFIG.VALIDATION.MIN_AGE, CONFIG.VALIDATION.MAX_AGE)) {
+            this.showFieldError(field, false, 'Запись доступна для возраста от 18 до 120 лет');
+            return false;
+        }
+
+        this.showFieldError(field, true);
+        return true;
+    }
+
+    /**
+     * Возраст строкой по значению поля даты рождения.
+     *
+     * @param {string} value
+     * @returns {string}
+     */
+    getAgeFromBirthDateValue(value) {
+        const birthDate = Utils.parseBirthDate(value);
+        if (!birthDate) return '';
+        return String(Utils.getAge(birthDate));
     }
 
     validatePhone() {
@@ -1436,7 +1552,7 @@ class BookingSystem {
     validateManyStep3() {
         return [
             this.validateManyClientName(),
-            this.validateManyClientAge(),
+            this.validateManyClientBirthDate(),
             this.validateManyPhone(),
             this.validateManyEmail(),
             this.validateManyTelegram(),
@@ -1468,26 +1584,8 @@ class BookingSystem {
         return isValid;
     }
 
-    validateManyClientAge() {
-        const value = this.elements.manyClient1Age.value.trim();
-        const field = this.elements.manyClient1Age;
-
-        if (!Utils.isNotEmpty(value)) {
-            this.showFieldError(field, false, 'Это поле обязательно для заполнения');
-            return false;
-        }
-
-        const age = parseInt(value);
-        let isValid = true;
-        let message = '';
-
-        if (!Utils.isNumberInRange(age, CONFIG.VALIDATION.MIN_AGE, CONFIG.VALIDATION.MAX_AGE)) {
-            isValid = false;
-            message = 'Пожалуйста, укажите возраст от 18 до 120 лет';
-        }
-
-        this.showFieldError(field, isValid, message);
-        return isValid;
+    validateManyClientBirthDate() {
+        return this.validateBirthDateField(this.elements.manyClient1BirthDate);
     }
 
     // ==================== ВАЛИДАЦИЯ (ДЛЯ ПАРЫ) ====================
@@ -2179,7 +2277,7 @@ class BookingSystem {
 
     hideStep4Errors(formType = 'self') {
         if (formType === 'self') {
-            const fields = ['clientName', 'clientAge', 'clientPhone', 'clientEmail'];
+            const fields = ['clientName', 'clientBirthDate', 'clientPhone', 'clientEmail'];
             fields.forEach(fieldId => {
                 const field = document.getElementById(fieldId);
                 const error = field?.parentNode.querySelector('.online-error-message');
@@ -2193,7 +2291,7 @@ class BookingSystem {
             Utils.hide(this.elements.informedConsentError);
         } else {
             const fields = [
-                'manyClient1Name', 'manyClient1Age', 'manyClient1Phone', 'manyClient1Email', 'manyClientTelegram'
+                'manyClient1Name', 'manyClient1BirthDate', 'manyClient1Phone', 'manyClient1Email', 'manyClientTelegram'
             ];
             fields.forEach(fieldId => {
                 const field = document.getElementById(fieldId);
@@ -2833,6 +2931,7 @@ class BookingSystem {
         const phone = String(this.elements.clientPhone?.value || step1.clientPhone || '').trim();
         const email = String(this.elements.clientEmail?.value || step1.clientEmail || '').trim();
         const telegram = String(this.elements.clientTelegram?.value || step1.clientTelegram || '').trim();
+        const birthDate = String(this.elements.clientBirthDate?.value || step1.clientBirthDate || '').trim();
 
         return {
             name: name,
@@ -2866,7 +2965,8 @@ class BookingSystem {
                 clientName: name,
                 clientPhone: phone,
                 clientEmail: email,
-                clientAge: step1.clientAge || '',
+                clientBirthDate: birthDate,
+                clientAge: this.getAgeFromBirthDateValue(birthDate),
                 agreementPrivacy: !!step1.agreementPrivacy,
                 agreementOffer: !!step1.agreementOffer,
                 agreementInformedConsent: !!step1.agreementInformedConsent,
@@ -2924,6 +3024,7 @@ class BookingSystem {
         const phone = String(this.elements.manyClient1Phone?.value || step1.client1Phone || '').trim();
         const email = String(this.elements.manyClient1Email?.value || step1.client1Email || '').trim();
         const telegram = String(this.elements.manyClientTelegram?.value || step1.clientTelegram || '').trim();
+        const birthDate = String(this.elements.manyClient1BirthDate?.value || step1.client1BirthDate || '').trim();
 
         return {
             name: name,
@@ -2950,7 +3051,8 @@ class BookingSystem {
                 clientName: name,
                 clientPhone: phone,
                 clientEmail: email,
-                clientAge: step1.client1Age || '',
+                clientBirthDate: birthDate,
+                clientAge: this.getAgeFromBirthDateValue(birthDate),
                 agreementPrivacy: !!step1.agreementPrivacy,
                 agreementOffer: !!step1.agreementOffer,
                 agreementInformedConsent: !!step1.agreementInformedConsent,
@@ -3613,6 +3715,11 @@ class BookingSystem {
             return;
         }
 
+        if (e.visitingGroupError && e.visitingGroupError.style.display === 'block') {
+            Utils.scrollToElement(e.visitingGroup);
+            return;
+        }
+
         const firstError = Utils.$('.online-error-message[style*="block"]');
         if (firstError) {
             const field = firstError.closest('.online-form-group, .online-question-group');
@@ -3822,13 +3929,13 @@ class BookingSystem {
             [this.elements.specialistNameInput, ''],
             [this.elements.recommendationFreeInput, ''],
             [this.elements.clientName, ''],
-            [this.elements.clientAge, ''],
+            [this.elements.clientBirthDate, ''],
             [this.elements.clientPhone, ''],
             [this.elements.clientEmail, ''],
             [this.elements.clientTelegram, ''],
             [this.elements.manyWorkMain, ''],
             [this.elements.manyClient1Name, ''],
-            [this.elements.manyClient1Age, ''],
+            [this.elements.manyClient1BirthDate, ''],
             [this.elements.manyClient1Phone, ''],
             [this.elements.manyClient1Email, ''],
             [this.elements.manyClientTelegram, '']
@@ -3844,6 +3951,8 @@ class BookingSystem {
         if (this.elements.psychiatristRadios[0]) this.elements.psychiatristRadios[0].checked = true;
         if (this.elements.selfHarmRadios[0]) this.elements.selfHarmRadios[0].checked = true;
         if (this.elements.visitingRadios[0]) this.elements.visitingRadios[0].checked = true;
+
+        this.resetConcernsSearch();
 
         // Сброс радио-кнопок visiting
         if (this.elements.visitingGroupError) {

@@ -165,10 +165,6 @@
 
                     </div>
 
-                </div>
-
-                <!-- Шаг 2 Что вас беспокоит -->
-                <div class="online-form-step" id="step2" style="display: none;">
                     <div class="online-form-group" id="visitingGroup">
                         <h2>Посещает ли кто-то из ваших близких психологов нашего Центра?</h2>
                         <div class="online-radio-group width33" id="visitingRadioGroup">
@@ -228,10 +224,17 @@
                         </div>
                     </div>
 
-                    
+                </div>
 
+                <!-- Шаг 2 Что вас беспокоит -->
+                <div class="online-form-step" id="step2" style="display: none;">
                     <h2 class="small-margin">Что вас беспокоит <span class="required"></span></h2>
                     <p>Отметьте всё, что подходит. Это помогает быстро подобрать специалиста и формат работы.</p>
+                    <div class="online-concerns-search">
+                        <img src="<?= THEME_URI; ?>/assets/img/ico/search.svg" alt="" width="20" height="20">
+                        <input type="search" id="concernsSearch" class="field" placeholder="Поиск" autocomplete="off">
+                    </div>
+                    <p class="online-concerns-empty" id="concernsSearchEmpty" style="display: none;">Ничего не найдено</p>
                     <div class="online-questions-container last">
                         <!-- Вопрос 1 -->
                         <div class="online-question-group" data-question="1">
@@ -321,11 +324,11 @@
                                 <div class="online-error-message">Это поле обязательно для заполнения</div>
                             </div>
 
-                            <!-- Возраст -->
+                            <!-- Дата рождения -->
                             <div class="contact-field-group">
-                                <label for="clientAge">Ваш возраст <span class="required"></span></label>
-                                <input type="number" id="clientAge" name="clientAge" class="field" placeholder="Например: 28" min="18" max="120">
-                                <div class="online-error-message">Пожалуйста, укажите возраст от 18 до 120 лет</div>
+                                <label for="clientBirthDate">Дата рождения <span class="required"></span></label>
+                                <input type="text" id="clientBirthDate" name="clientBirthDate" class="field" placeholder="дд.мм.гггг" inputmode="numeric" autocomplete="bday">
+                                <div class="online-error-message">Пожалуйста, укажите дату рождения</div>
                             </div>
 
                             <!-- Телефон -->
@@ -538,9 +541,9 @@
                             </div>
 
                             <div class="contact-field-group">
-                                <label for="manyClient1Age">Возраст <span class="required"></span></label>
-                                <input type="number" id="manyClient1Age" name="manyClient1Age" class="field" placeholder="Например: 28" min="18" max="120">
-                                <div class="online-error-message">Пожалуйста, укажите возраст от 18 до 120 лет</div>
+                                <label for="manyClient1BirthDate">Дата рождения <span class="required"></span></label>
+                                <input type="text" id="manyClient1BirthDate" name="manyClient1BirthDate" class="field" placeholder="дд.мм.гггг" inputmode="numeric" autocomplete="bday">
+                                <div class="online-error-message">Пожалуйста, укажите дату рождения</div>
                             </div>
 
                             <div class="contact-field-group">

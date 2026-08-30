@@ -1668,6 +1668,13 @@ function center_med_renovatio_ajax_create_appointment_request() {
 	$visit_psi_specialist_id = absint( $visit_psi_specialist_raw );
 	$recommendation_info = isset( $message['recommendationInfo'] ) ? sanitize_textarea_field( (string) $message['recommendationInfo'] ) : '';
 	$client_age         = isset( $message['clientAge'] ) ? sanitize_text_field( (string) $message['clientAge'] ) : '';
+	$client_birth_date  = isset( $message['clientBirthDate'] ) ? sanitize_text_field( (string) $message['clientBirthDate'] ) : '';
+	if ( '' !== $client_birth_date ) {
+		$birth_datetime = DateTime::createFromFormat( 'd.m.Y', $client_birth_date );
+		if ( $birth_datetime instanceof DateTime && $birth_datetime->format( 'd.m.Y' ) === $client_birth_date ) {
+			$client_age = (string) $birth_datetime->diff( current_datetime() )->y;
+		}
+	}
 	$agreement_privacy  = ! empty( $message['agreementPrivacy'] );
 	$agreement_offer    = ! empty( $message['agreementOffer'] );
 	$agreement_informed_consent = ! empty( $message['agreementInformedConsent'] );
@@ -1882,7 +1889,10 @@ function center_med_renovatio_ajax_create_appointment_request() {
 		$comment_lines = [
 			sprintf( 'Форма: %s', $form_label ),
 			sprintf( 'Клиент: %s', '' !== $name ? $name : '-' ),
-			sprintf( 'Возраст: %s', '' !== $client_age ? $client_age : '-' ),
+			sprintf(
+				'Дата рождения: %s',
+				'' !== $client_birth_date ? $client_birth_date : ( '' !== $client_age ? $client_age : '-' )
+			),
 			sprintf( 'Телефон: %s', '' !== $phone ? $phone : '-' ),
 			sprintf( 'Email: %s', '' !== $email ? $email : '-' ),
 			sprintf( 'Telegram: %s', '' !== $telegram ? $telegram : '-' ),
@@ -1979,6 +1989,7 @@ function center_med_renovatio_ajax_create_appointment_request() {
 		'appointmentTime' => $appointment_time,
 		'concerns'        => $concerns_flat,
 		'clientAge'       => $client_age,
+		'clientBirthDate' => $client_birth_date,
 		'agreementPrivacy' => $agreement_privacy ? 1 : 0,
 		'agreementOffer'  => $agreement_offer ? 1 : 0,
 		'agreementInformedConsent' => $agreement_informed_consent ? 1 : 0,
