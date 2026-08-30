@@ -327,7 +327,7 @@
                             <!-- Дата рождения -->
                             <div class="contact-field-group">
                                 <label for="clientBirthDate">Дата рождения <span class="required"></span></label>
-                                <input type="text" id="clientBirthDate" name="clientBirthDate" class="field" placeholder="дд.мм.гггг" inputmode="numeric" autocomplete="bday">
+                                <input type="text" id="clientBirthDate" name="clientBirthDate" class="field birthdate-field" placeholder="дд.мм.гггг" inputmode="numeric" autocomplete="bday">
                                 <div class="online-error-message">Пожалуйста, укажите дату рождения</div>
                             </div>
 
@@ -459,6 +459,11 @@
 
                     <h2 class="small-margin">Что вас беспокоит? <span class="required"></span></h2>
                     <p>Отметьте всё, что подходит. Это помогает быстро подобрать специалиста и формат работы.</p>
+                    <div class="online-concerns-search">
+                        <img src="<?= THEME_URI; ?>/assets/img/ico/search.svg" alt="" width="20" height="20">
+                        <input type="search" id="manyConcernsSearch" class="field" placeholder="Поиск" autocomplete="off">
+                    </div>
+                    <p class="online-concerns-empty" id="manyConcernsSearchEmpty" style="display: none;">Ничего не найдено</p>
 
                     <div class="online-form-group" id="manyConcernsGroup">
                         <div class="online-checkbox-group">
@@ -542,7 +547,7 @@
 
                             <div class="contact-field-group">
                                 <label for="manyClient1BirthDate">Дата рождения <span class="required"></span></label>
-                                <input type="text" id="manyClient1BirthDate" name="manyClient1BirthDate" class="field" placeholder="дд.мм.гггг" inputmode="numeric" autocomplete="bday">
+                                <input type="text" id="manyClient1BirthDate" name="manyClient1BirthDate" class="field birthdate-field" placeholder="дд.мм.гггг" inputmode="numeric" autocomplete="bday">
                                 <div class="online-error-message">Пожалуйста, укажите дату рождения</div>
                             </div>
 

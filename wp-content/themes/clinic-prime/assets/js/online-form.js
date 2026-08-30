@@ -332,6 +332,7 @@ class BookingSystem {
         this.paymentStatusPollTimer = null;
         this.pendingPaymentStorageKey = 'clinic_pending_payment_snapshot_v1';
         this.bookingModalActionHandler = null;
+        this.birthDatePickers = [];
         this.init();
     }
 
@@ -341,6 +342,7 @@ class BookingSystem {
         this.initManagers();
         this.bindEvents();
         this.initInputMasks();
+        this.initBirthDatePickers();
         this.updateUI();
         this.handlePaymentReturnFlow();
     }
@@ -384,6 +386,80 @@ class BookingSystem {
         if (this.elements.manyClient1BirthDate) {
             Inputmask(birthDateMaskOptions).mask(this.elements.manyClient1BirthDate);
         }
+    }
+
+    /**
+     * Календарь даты рождения: русский язык, понедельник — первый день.
+     */
+    initBirthDatePickers() {
+        if (typeof flatpickr !== 'function') return;
+
+        this.birthDatePickers = [];
+
+        const fields = [
+            [this.elements.clientBirthDate, 'self', 'clientBirthDate'],
+            [this.elements.manyClient1BirthDate, 'many', 'client1BirthDate']
+        ];
+
+        fields.forEach(([field, formType, fieldName]) => {
+            if (!field) return;
+            const picker = this.createBirthDatePicker(field, formType, fieldName);
+            if (picker) this.birthDatePickers.push(picker);
+        });
+    }
+
+    /**
+     * Создаёт Flatpickr для поля даты рождения.
+     *
+     * @param {HTMLInputElement} field
+     * @param {string} formType
+     * @param {string} fieldName
+     * @returns {object|null}
+     */
+    createBirthDatePicker(field, formType, fieldName) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const maxDate = new Date(
+            today.getFullYear() - CONFIG.VALIDATION.MIN_AGE,
+            today.getMonth(),
+            today.getDate()
+        );
+        const minDate = new Date(
+            today.getFullYear() - CONFIG.VALIDATION.MAX_AGE,
+            today.getMonth(),
+            today.getDate()
+        );
+
+        const locale = {
+            ...(flatpickr.l10ns && flatpickr.l10ns.ru ? flatpickr.l10ns.ru : {}),
+            firstDayOfWeek: 1
+        };
+
+        return flatpickr(field, {
+            locale,
+            dateFormat: 'd.m.Y',
+            allowInput: true,
+            disableMobile: true,
+            minDate,
+            maxDate,
+            monthSelectorType: 'dropdown',
+            nextArrow: '<svg width="11" height="10" viewBox="0 0 11 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.59402 9.2777L4.69913 8.39276L7.80637 5.28551H0.000976562V3.9929H7.80637L4.69913 0.890625L5.59402 0.000709772L10.2325 4.6392L5.59402 9.2777Z"/></svg>',
+            prevArrow: '<svg width="11" height="10" viewBox="0 0 11 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.63876 9.2777L0.000266373 4.6392L4.63876 0.000709772L5.53365 0.885653L2.4264 3.9929H10.2318V5.28551H2.4264L5.53365 8.38778L4.63876 9.2777Z"/></svg>',
+            parseDate: (datestr) => Utils.parseBirthDate(String(datestr || '').replace(/_/g, '')) || undefined,
+            onReady: (selectedDates, dateStr, instance) => {
+                instance.calendarContainer.classList.add('birthdate-calendar');
+            },
+            onChange: (selectedDates, dateStr) => {
+                const formData = formType === 'self' ? this.state.selfForm.data : this.state.manyForm.data;
+                formData[fieldName] = dateStr;
+                this.validateBirthDateField(field);
+                this.updateUI();
+            },
+            onClose: () => {
+                this.validateBirthDateField(field);
+            }
+        });
     }
 
     getInitialState() {
@@ -600,6 +676,8 @@ class BookingSystem {
         e.manyConcernsGroup = d.getElementById('manyConcernsGroup');
         e.manyConcernsError = d.getElementById('manyConcernsError');
         e.manyConcernsCheckboxes = Utils.$$('input[name="manyConcerns[]"]');
+        e.manyConcernsSearch = d.getElementById('manyConcernsSearch');
+        e.manyConcernsSearchEmpty = d.getElementById('manyConcernsSearchEmpty');
 
         // Шаг 2 (используем те же контейнеры, но с префиксами)
         e.manyStep2MainTitle = d.getElementById('manyStep2MainTitle');
@@ -759,7 +837,7 @@ class BookingSystem {
 
         if (e.concernsSearch) {
             Utils.on(e.concernsSearch, 'input', () => {
-                this.filterConcerns(e.concernsSearch.value);
+                this.filterConcerns(e.concernsSearch.value, e.questionGroups?.[0], e.concernsSearchEmpty);
             });
         }
     }
@@ -825,6 +903,12 @@ class BookingSystem {
                 if (target.name === 'manyConcerns[]') {
                     this.onManyConcernsChange(target);
                 }
+            });
+        }
+
+        if (e.manyConcernsSearch) {
+            Utils.on(e.manyConcernsSearch, 'input', () => {
+                this.filterConcerns(e.manyConcernsSearch.value, e.manyConcernsGroup, e.manyConcernsSearchEmpty);
             });
         }
 
@@ -1089,9 +1173,10 @@ class BookingSystem {
      * Фильтрует чекбоксы «Что вас беспокоит» по строке поиска.
      *
      * @param {string} query
+     * @param {Element|null} group
+     * @param {Element|null} emptyEl
      */
-    filterConcerns(query) {
-        const group = this.elements.questionGroups?.[0];
+    filterConcerns(query, group, emptyEl) {
         if (!group) return;
 
         const needle = String(query || '').trim().toLowerCase();
@@ -1105,7 +1190,7 @@ class BookingSystem {
             if (isMatch) visibleCount += 1;
         });
 
-        Utils.toggle(this.elements.concernsSearchEmpty, needle.length > 0 && visibleCount === 0);
+        Utils.toggle(emptyEl, needle.length > 0 && visibleCount === 0);
     }
 
     /**
@@ -1115,7 +1200,12 @@ class BookingSystem {
         if (this.elements.concernsSearch) {
             this.elements.concernsSearch.value = '';
         }
-        this.filterConcerns('');
+        this.filterConcerns('', this.elements.questionGroups?.[0], this.elements.concernsSearchEmpty);
+
+        if (this.elements.manyConcernsSearch) {
+            this.elements.manyConcernsSearch.value = '';
+        }
+        this.filterConcerns('', this.elements.manyConcernsGroup, this.elements.manyConcernsSearchEmpty);
     }
 
     onManyConcernsChange(checkbox) {
@@ -3944,6 +4034,12 @@ class BookingSystem {
         fieldsToReset.forEach(([element, value]) => {
             if (element) {
                 element.value = '';
+            }
+        });
+
+        this.birthDatePickers.forEach((picker) => {
+            if (picker && typeof picker.clear === 'function') {
+                picker.clear();
             }
         });
 
