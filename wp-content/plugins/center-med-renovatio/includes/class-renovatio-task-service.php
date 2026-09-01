@@ -20,12 +20,158 @@ class Renovatio_Task_Service {
 	private $api_client;
 
 	/**
+	 * Последние параметры, ушедшие в createTask (без api_key).
+	 *
+	 * @var array
+	 */
+	private $last_request_params = [];
+
+	/**
 	 * Конструктор.
 	 *
 	 * @param Renovatio_Api_Client $api_client Экземпляр API-клиента.
 	 */
 	public function __construct( Renovatio_Api_Client $api_client ) {
 		$this->api_client = $api_client;
+	}
+
+	/**
+	 * Параметры последнего запроса createTask.
+	 *
+	 * @return array
+	 */
+	public function get_last_request_params() {
+		return $this->last_request_params;
+	}
+
+	/**
+	 * ID исполнителей по умолчанию (администраторы МИС).
+	 *
+	 * @param string $context Контекст: waiting_list|unpaid|external.
+	 * @return int[]
+	 */
+	public function get_default_assignee_ids( $context = 'waiting_list' ) {
+		$ids = [ 50472, 50473, 43951 ];
+
+		if ( 'unpaid' !== $context ) {
+			$ids[] = 43237;
+		}
+
+		/**
+		 * Фильтр списка исполнителей задачи МИС.
+		 *
+		 * @param int[]  $ids     ID сотрудников Renovatio.
+		 * @param string $context Контекст создания задачи.
+		 */
+		$ids = apply_filters( 'center_med_renovatio_task_assignee_ids', $ids, $context );
+
+		return array_values(
+			array_unique(
+				array_filter(
+					array_map( 'absint', (array) $ids )
+				)
+			)
+		);
+	}
+
+	/**
+	 * Создать задачу в МИС (общий метод).
+	 *
+	 * @param array $params Параметры: title (обяз.), desc, type, source, user_ids, responsible_id, clinic_id.
+	 * @return array|int|WP_Error
+	 */
+	public function create_task( array $params ) {
+		$title = isset( $params['title'] ) ? sanitize_text_field( (string) $params['title'] ) : '';
+		if ( '' === $title ) {
+			return new WP_Error(
+				'missing_title',
+				__( 'Не указан заголовок задачи.', 'center-med-renovatio' ),
+				[ 'status' => 400 ]
+			);
+		}
+
+		$desc = isset( $params['desc'] ) ? (string) $params['desc'] : '';
+		$desc = wp_kses(
+			$desc,
+			[
+				'br'     => [],
+				'p'      => [],
+				'strong' => [],
+				'em'     => [],
+				'b'      => [],
+				'i'      => [],
+				'ul'     => [],
+				'ol'     => [],
+				'li'     => [],
+			]
+		);
+
+		$type   = isset( $params['type'] ) ? absint( $params['type'] ) : 2;
+		$source = isset( $params['source'] ) ? sanitize_text_field( (string) $params['source'] ) : 'website';
+		if ( '' === $source ) {
+			$source = 'website';
+		}
+
+		$user_ids = [];
+		if ( isset( $params['user_ids'] ) ) {
+			$user_ids = is_array( $params['user_ids'] )
+				? $params['user_ids']
+				: preg_split( '/\s*,\s*/', (string) $params['user_ids'] );
+			$user_ids = array_values(
+				array_unique(
+					array_filter(
+						array_map( 'absint', (array) $user_ids )
+					)
+				)
+			);
+		}
+		if ( empty( $user_ids ) ) {
+			$context  = isset( $params['context'] ) ? sanitize_key( (string) $params['context'] ) : 'external';
+			$user_ids = $this->get_default_assignee_ids( $context );
+		}
+
+		$request_params = [
+			'title'              => $title,
+			'desc'               => $desc,
+			'type'               => $type > 0 ? $type : 2,
+			'source'             => $source,
+			'user_id'            => implode( ',', $user_ids ),
+			'send_notifications' => 1,
+		];
+
+		$responsible_id = isset( $params['responsible_id'] ) ? absint( $params['responsible_id'] ) : 0;
+		if ( $responsible_id > 0 ) {
+			$request_params['responsible_id'] = $responsible_id;
+		}
+
+		$clinic_id = isset( $params['clinic_id'] ) ? absint( $params['clinic_id'] ) : 0;
+		if ( $clinic_id <= 0 ) {
+			$clinic_id = absint( center_med_renovatio_get_setting( 'clinic_id', 0 ) );
+		}
+		if ( $clinic_id > 0 ) {
+			$request_params['clinic_id'] = $clinic_id;
+		}
+
+		if ( isset( $params['priority'] ) ) {
+			$priority = absint( $params['priority'] );
+			if ( in_array( $priority, [ 10, 20, 30 ], true ) ) {
+				$request_params['priority'] = $priority;
+			}
+		}
+
+		if ( ! empty( $params['due_date'] ) ) {
+			$request_params['due_date'] = sanitize_text_field( (string) $params['due_date'] );
+		}
+		if ( ! empty( $params['due_time'] ) ) {
+			$request_params['due_time'] = sanitize_text_field( (string) $params['due_time'] );
+		}
+		if ( ! empty( $params['patient_id'] ) ) {
+			$request_params['patient_id'] = absint( $params['patient_id'] );
+		}
+
+		$this->last_request_params = $request_params;
+
+		return $this->api_client->request( 'createTask', $request_params );
 	}
 
 	/**
@@ -119,32 +265,106 @@ class Renovatio_Task_Service {
 
 		$desc_lines[] = 'Специалист: ' . $specialist_name;
 
-		$request_params = [
-			'title'  => $title,
-			'desc'   => implode( '<br />', $desc_lines ),
-			'type'   => 2,
-			'source' => 'website',
+		$utm_source   = isset( $payload['utm_source'] ) ? sanitize_text_field( (string) $payload['utm_source'] ) : '';
+		$utm_medium   = isset( $payload['utm_medium'] ) ? sanitize_text_field( (string) $payload['utm_medium'] ) : '';
+		$utm_campaign = isset( $payload['utm_campaign'] ) ? sanitize_text_field( (string) $payload['utm_campaign'] ) : '';
+		if ( '' !== $utm_source || '' !== $utm_medium || '' !== $utm_campaign ) {
+			$desc_lines[] = sprintf(
+				'UTM: source=%s; medium=%s; campaign=%s',
+				'' !== $utm_source ? $utm_source : '-',
+				'' !== $utm_medium ? $utm_medium : '-',
+				'' !== $utm_campaign ? $utm_campaign : '-'
+			);
+		}
+
+		return $this->create_task(
+			[
+				'title'          => $title,
+				'desc'           => implode( '<br />', $desc_lines ),
+				'type'           => 2,
+				'source'         => 'website',
+				'user_ids'       => $this->get_default_assignee_ids( 'waiting_list' ),
+				'responsible_id' => $doctor_id,
+				'clinic_id'      => $clinic_id,
+				'context'        => 'waiting_list',
+			]
+		);
+	}
+
+	/**
+	 * Задача в МИС по неоплаченной онлайн-записи (после снятия слота).
+	 *
+	 * @param array $booking Строка брони из БД.
+	 * @return array|int|WP_Error
+	 */
+	public function create_unpaid_booking_followup_task( array $booking ) {
+		$payload = [];
+		if ( ! empty( $booking['payload_json'] ) ) {
+			$decoded = json_decode( (string) $booking['payload_json'], true );
+			if ( is_array( $decoded ) ) {
+				$payload = $decoded;
+			}
+		}
+
+		$form_type = isset( $payload['formType'] ) ? sanitize_text_field( (string) $payload['formType'] ) : 'self';
+		$name       = isset( $booking['first_name'] ) ? sanitize_text_field( (string) $booking['first_name'] ) : '';
+		$phone      = isset( $booking['phone'] ) ? sanitize_text_field( (string) $booking['phone'] ) : '';
+		$email      = isset( $booking['email'] ) ? sanitize_email( (string) $booking['email'] ) : '';
+		$telegram   = isset( $booking['telegram'] ) ? sanitize_text_field( (string) $booking['telegram'] ) : '';
+		$service    = isset( $payload['service'] ) ? sanitize_text_field( (string) $payload['service'] ) : '';
+		$public_id  = isset( $booking['public_id'] ) ? sanitize_text_field( (string) $booking['public_id'] ) : '';
+		$doctor_id  = ! empty( $booking['doctor_id'] ) ? absint( $booking['doctor_id'] ) : 0;
+		$clinic_id  = ! empty( $booking['clinic_id'] ) ? absint( $booking['clinic_id'] ) : 0;
+		$spec_name  = isset( $payload['specialistName'] ) ? sanitize_text_field( (string) $payload['specialistName'] ) : '';
+
+		$appointment_date = isset( $payload['appointmentDate'] ) ? sanitize_text_field( (string) $payload['appointmentDate'] ) : '';
+		$appointment_time = isset( $payload['appointmentTime'] ) ? sanitize_text_field( (string) $payload['appointmentTime'] ) : '';
+		$date_string      = isset( $payload['dateString'] ) ? sanitize_text_field( (string) $payload['dateString'] ) : '';
+		$slot_when        = '' !== $date_string ? $date_string : trim( $appointment_date . ' ' . $appointment_time );
+
+		$utm_source   = isset( $payload['utm_source'] ) ? sanitize_text_field( (string) $payload['utm_source'] ) : '';
+		$utm_medium   = isset( $payload['utm_medium'] ) ? sanitize_text_field( (string) $payload['utm_medium'] ) : '';
+		$utm_campaign = isset( $payload['utm_campaign'] ) ? sanitize_text_field( (string) $payload['utm_campaign'] ) : '';
+
+		$title = $spec_name !== ''
+			? sprintf( 'Неоплаченная запись: %s', $spec_name )
+			: 'Неоплаченная онлайн-запись';
+
+		$form_label = ( 'many' === $form_type ) ? 'Для пары' : 'Для себя';
+		$desc_lines = [
+			sprintf( 'Форма: %s', $form_label ),
+			sprintf( 'Клиент: %s', $name !== '' ? $name : '-' ),
+			sprintf( 'Телефон: %s', $phone !== '' ? $phone : '-' ),
+			sprintf( 'Email: %s', $email !== '' ? $email : '-' ),
+			sprintf( 'Telegram: %s', $telegram !== '' ? $telegram : '-' ),
+			sprintf( 'Услуга: %s', $service !== '' ? $service : '-' ),
+			sprintf( 'Специалист: %s', $spec_name !== '' ? $spec_name : '-' ),
+			sprintf( 'Дата и время слота: %s', $slot_when !== '' ? $slot_when : '-' ),
+			sprintf( 'Booking ID: %s', $public_id !== '' ? $public_id : '-' ),
+			sprintf( 'Причина: %s', __( 'Оплата не поступила в срок резерва.', 'center-med-renovatio' ) ),
 		];
 
-        
-		//Администраторы
-        $request_params['user_id'] = [50472,50473];
-        
-		//Доп пользователь
-        $request_params['user_id'][] = 43951;
-
-		if ( $doctor_id > 0 ) {
-            $request_params['responsible_id'] = $doctor_id;
+		if ( '' !== $utm_source || '' !== $utm_medium || '' !== $utm_campaign ) {
+			$desc_lines[] = sprintf(
+				'UTM: source=%s; medium=%s; campaign=%s',
+				'' !== $utm_source ? $utm_source : '-',
+				'' !== $utm_medium ? $utm_medium : '-',
+				'' !== $utm_campaign ? $utm_campaign : '-'
+			);
 		}
 
-		if ( $clinic_id > 0 ) {
-			$request_params['clinic_id'] = $clinic_id;
-		}
-
-        $request_params['user_id'] = implode(',',$request_params['user_id']);
-
-		$return = $this->api_client->request( 'createTask', $request_params );
-		return $return;
+		return $this->create_task(
+			[
+				'title'          => $title,
+				'desc'           => implode( '<br />', $desc_lines ),
+				'type'           => 2,
+				'source'         => 'website',
+				'user_ids'       => $this->get_default_assignee_ids( 'unpaid' ),
+				'responsible_id' => $doctor_id,
+				'clinic_id'      => $clinic_id,
+				'context'        => 'unpaid',
+			]
+		);
 	}
 }
 

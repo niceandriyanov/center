@@ -36,117 +36,69 @@ add_action('wp_ajax_clinic_appointment', 'clinic_ajax_appointment');
 add_action('wp_ajax_nopriv_clinic_appointment', 'clinic_ajax_appointment');
 
 /**
- * AJAX функция для фильтрации врачей
+ * AJAX функция для фильтрации специалистов
  */
 function clinic_ajax_filter_doctors() {
-    // Проверяем, что это AJAX запрос
     if (!isset($_SERVER['HTTP_X_REQUESTED_WITH']) || $_SERVER['HTTP_X_REQUESTED_WITH'] !== 'XMLHttpRequest') {
         return;
     }
-    
-    $search = isset($_GET['search']) ? sanitize_text_field($_GET['search']) : '';
-    $problems = isset($_GET['problems']) ? sanitize_text_field($_GET['problems']) : '';
-    $specs = isset($_GET['specs']) ? sanitize_text_field($_GET['specs']) : '';
-    
-    // Базовые аргументы для запроса
-    $args = array(
-        'post_type' => 'doctors',
-        'posts_per_page' => -1,
-        'orderby' => array(
-            'menu_order' => 'ASC',
-            'date' => 'ASC'
-        ),
-        'post_status' => 'publish',
+
+    $filters = array(
+        'search'         => isset($_GET['search']) ? sanitize_text_field(wp_unslash($_GET['search'])) : '',
+        'problems'       => isset($_GET['problems']) ? sanitize_text_field(wp_unslash($_GET['problems'])) : '',
+        'specs'          => isset($_GET['specs']) ? sanitize_text_field(wp_unslash($_GET['specs'])) : '',
+        'grade'          => isset($_GET['grade']) ? absint($_GET['grade']) : 0,
+        'specialty_slug' => isset($_GET['specialty_slug']) ? sanitize_text_field(wp_unslash($_GET['specialty_slug'])) : '',
     );
-    
-    $meta_query = array();
-    $tax_query = array();
-    
-    // Поиск по имени врача (только по заголовку, не по контенту)
-    if (!empty($search)) {
-        global $wpdb;
-        
-        // SQL запрос для поиска только по заголовку
-        $post_ids = $wpdb->get_col($wpdb->prepare("
-            SELECT ID 
-            FROM {$wpdb->posts} 
-            WHERE post_type = 'doctors' 
-            AND post_status = 'publish' 
-            AND post_title LIKE %s
-        ", '%' . $wpdb->esc_like($search) . '%'));
-        
-        // Если найдены посты, добавляем их ID в основной запрос
-        if (!empty($post_ids)) {
-            $args['post__in'] = $post_ids;
-        } else {
-            // Если ничего не найдено, возвращаем пустой результат
-            $args['post__in'] = array(0);
-        }
-    }
-    
-    // Фильтр по проблемам (заболеваниям)
-    if (!empty($problems)) {
-        $tax_query[] = array(
-            'taxonomy' => 'doctor_diseases',
-            'field'    => 'term_id',
-            'terms'    => $problems,
+
+    $args = function_exists('clinic_build_doctors_query_args')
+        ? clinic_build_doctors_query_args($filters)
+        : array(
+            'post_type'      => 'doctors',
+            'posts_per_page' => -1,
+            'post_status'    => 'publish',
         );
-    }
-    
-    // Фильтр по специальностям
-    if (!empty($specs)) {
-        $tax_query[] = array(
-            'taxonomy' => 'doctor_specialty',
-            'field'    => 'term_id',
-            'terms'    => $specs,
-        );
-    }
-    
-    // Добавляем таксономические запросы
-    if (!empty($tax_query)) {
-        $args['tax_query'] = $tax_query;
-    }
-    
+
     $doctors = new WP_Query($args);
-    
+
     $response_data = array(
         'success' => true,
-        'data' => array(
+        'data'    => array(
             'specItems_wrap' => '',
-            'innerPageMiddle' => '',
-            'found' => false
-        )
+            'found'          => false,
+            'found_count'    => 0,
+        ),
     );
-    
-    if($doctors->have_posts()) {
-        // Генерируем HTML для specItems_wrap
+
+    if ($doctors->have_posts()) {
         ob_start();
-        ?>
-        
-            <?php while($doctors->have_posts()) : $doctors->the_post(); 
+
+        while ($doctors->have_posts()) {
+            $doctors->the_post();
             get_template_part('template-parts/parts/doctor', null, array('id' => get_the_ID()));
-            endwhile; ?>
-        
-        <?php
+        }
+
         $response_data['data']['specItems_wrap'] = ob_get_clean();
         $response_data['data']['found'] = true;
+        $response_data['data']['found_count'] = (int) $doctors->found_posts;
     } else {
-        // Генерируем HTML для случая "ничего не найдено"
         ob_start();
         ?>
-        
-            <div class="no-results">
-                <p>По вашему запросу ничего не найдено</p>
-            </div>
-        
+        <div class="no-results">
+            <p>По вашему запросу ничего не найдено</p>
+        </div>
         <?php
         $response_data['data']['specItems_wrap'] = ob_get_clean();
         $response_data['data']['found'] = false;
+        $response_data['data']['found_count'] = 0;
     }
-    
+
     wp_reset_postdata();
-    
-    // Отправляем JSON ответ
+
+    if (function_exists('clinic_get_doctors_catalog_filter_availability')) {
+        $response_data['data']['filter_availability'] = clinic_get_doctors_catalog_filter_availability($filters);
+    }
+
     wp_send_json($response_data);
 }
 add_action('wp_ajax_clinic_filter_doctors', 'clinic_ajax_filter_doctors');

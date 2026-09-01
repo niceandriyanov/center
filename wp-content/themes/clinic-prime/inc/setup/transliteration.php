@@ -219,7 +219,7 @@ function clinic_update_existing_slugs() {
  * Принудительное обновление ярлыков для существующих терминов
  */
 function clinic_update_existing_term_slugs() {
-    $taxonomies = array('category', 'post_tag', 'service_category', 'doctor_specialty', 'doctor_diseases', 'faq_category');
+    $taxonomies = array('category', 'post_tag', 'service_category', 'doctor_specialty', 'doctor_diseases', 'doctor_grade', 'faq_category');
     
     foreach ($taxonomies as $taxonomy) {
         $terms = get_terms(array(

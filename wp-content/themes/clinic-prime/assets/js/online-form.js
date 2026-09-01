@@ -55,6 +55,50 @@ const Utils = {
             .map(cb => cb.value);
     },
 
+    /**
+     * Разбирает дату рождения в формате дд.мм.гггг.
+     *
+     * @param {string} value
+     * @returns {Date|null}
+     */
+    parseBirthDate(value) {
+        const match = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(String(value || '').trim());
+        if (!match) return null;
+
+        const day = parseInt(match[1], 10);
+        const month = parseInt(match[2], 10);
+        const year = parseInt(match[3], 10);
+        const date = new Date(year, month - 1, day);
+
+        if (
+            date.getFullYear() !== year ||
+            date.getMonth() !== month - 1 ||
+            date.getDate() !== day
+        ) {
+            return null;
+        }
+
+        return date;
+    },
+
+    /**
+     * Возраст по дате рождения.
+     *
+     * @param {Date} birthDate
+     * @returns {number}
+     */
+    getAge(birthDate) {
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const monthDiff = today.getMonth() - birthDate.getMonth();
+
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+            age -= 1;
+        }
+
+        return age;
+    },
+
     // Formatting
     formatPhone(value) {
         let digits = value.replace(/\D/g, '');
@@ -288,6 +332,7 @@ class BookingSystem {
         this.paymentStatusPollTimer = null;
         this.pendingPaymentStorageKey = 'clinic_pending_payment_snapshot_v1';
         this.bookingModalActionHandler = null;
+        this.birthDatePickers = [];
         this.init();
     }
 
@@ -296,46 +341,316 @@ class BookingSystem {
         this.initElements();
         this.initManagers();
         this.bindEvents();
-        this.initPhoneMasks();
+        this.initInputMasks();
+        this.initBirthDatePickers();
         this.updateUI();
         this.handlePaymentReturnFlow();
     }
 
     // ==================== МАСКИ ВВОДА ====================
-    initPhoneMasks() {
-        // Маска для телефона в форме "Для себя"
-        if (this.elements.clientPhone) {
-            Inputmask({
-                mask: '+7 (999) 999-99-99',
-                placeholder: '_',
-                showMaskOnHover: false,
-                clearIncomplete: true,
-                onBeforeMask: function(value, opts) {
-                    // Преобразуем 8 в начале в +7
-                    if (value.startsWith('8')) {
-                        return '7' + value.substring(1);
-                    }
-                    return value;
+    initInputMasks() {
+        if (typeof Inputmask !== 'function') return;
+        const phoneMaskOptions = {
+            mask: '+7 (999) 999-99-99',
+            placeholder: '_',
+            showMaskOnHover: false,
+            clearIncomplete: true,
+            onBeforeMask: function(value) {
+                if (value.startsWith('8')) {
+                    return '7' + value.substring(1);
                 }
-            }).mask(this.elements.clientPhone);
+                return value;
+            }
+        };
+
+        const birthDateMaskOptions = {
+            mask: '99.99.9999',
+            placeholder: 'дд.мм.гггг',
+            showMaskOnHover: false,
+            clearIncomplete: true,
+            insertMode: false
+        };
+
+        if (this.elements.clientPhone) {
+            Inputmask(phoneMaskOptions).mask(this.elements.clientPhone);
         }
 
-        // Маска для телефона в форме "Для пары" - ДОБАВЬТЕ ЭТОТ БЛОК
         if (this.elements.manyClient1Phone) {
-            Inputmask({
-                mask: '+7 (999) 999-99-99',
-                placeholder: '_',
-                showMaskOnHover: false,
-                clearIncomplete: true,
-                onBeforeMask: function(value, opts) {
-                    // Преобразуем 8 в начале в +7
-                    if (value.startsWith('8')) {
-                        return '7' + value.substring(1);
-                    }
-                    return value;
-                }
-            }).mask(this.elements.manyClient1Phone);
+            Inputmask(phoneMaskOptions).mask(this.elements.manyClient1Phone);
         }
+
+        if (this.elements.clientBirthDate) {
+            Inputmask(birthDateMaskOptions).mask(this.elements.clientBirthDate);
+        }
+
+        if (this.elements.manyClient1BirthDate) {
+            Inputmask(birthDateMaskOptions).mask(this.elements.manyClient1BirthDate);
+        }
+    }
+
+    /**
+     * Календарь даты рождения: русский язык, понедельник — первый день.
+     */
+    initBirthDatePickers() {
+        if (typeof flatpickr !== 'function') return;
+
+        this.birthDatePickers = [];
+
+        const fields = [
+            [this.elements.clientBirthDate, 'self', 'clientBirthDate'],
+            [this.elements.manyClient1BirthDate, 'many', 'client1BirthDate']
+        ];
+
+        fields.forEach(([field, formType, fieldName]) => {
+            if (!field) return;
+            const picker = this.createBirthDatePicker(field, formType, fieldName);
+            if (picker) this.birthDatePickers.push(picker);
+        });
+    }
+
+    /**
+     * Создаёт Flatpickr для поля даты рождения.
+     *
+     * @param {HTMLInputElement} field
+     * @param {string} formType
+     * @param {string} fieldName
+     * @returns {object|null}
+     */
+    createBirthDatePicker(field, formType, fieldName) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const minDate = new Date(
+            today.getFullYear() - CONFIG.VALIDATION.MAX_AGE,
+            today.getMonth(),
+            today.getDate()
+        );
+
+        const locale = {
+            ...(flatpickr.l10ns && flatpickr.l10ns.ru ? flatpickr.l10ns.ru : {}),
+            firstDayOfWeek: 1
+        };
+
+        return flatpickr(field, {
+            locale,
+            dateFormat: 'd.m.Y',
+            allowInput: true,
+            disableMobile: true,
+            minDate,
+            maxDate: today,
+            monthSelectorType: 'dropdown',
+            nextArrow: '<svg width="11" height="10" viewBox="0 0 11 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M5.59402 9.2777L4.69913 8.39276L7.80637 5.28551H0.000976562V3.9929H7.80637L4.69913 0.890625L5.59402 0.000709772L10.2325 4.6392L5.59402 9.2777Z"/></svg>',
+            prevArrow: '<svg width="11" height="10" viewBox="0 0 11 10" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4.63876 9.2777L0.000266373 4.6392L4.63876 0.000709772L5.53365 0.885653L2.4264 3.9929H10.2318V5.28551H2.4264L5.53365 8.38778L4.63876 9.2777Z"/></svg>',
+            parseDate: (datestr) => Utils.parseBirthDate(String(datestr || '').replace(/_/g, '')) || undefined,
+            onReady: (selectedDates, dateStr, instance) => {
+                instance.calendarContainer.classList.add('birthdate-calendar');
+                this.initBirthDateHeaderSelects(instance);
+                if (!selectedDates.length) {
+                    instance.jumpToDate(today, false);
+                    this.syncBirthDateHeaderSelects(instance);
+                }
+            },
+            onOpen: (selectedDates, dateStr, instance) => {
+                if (!selectedDates.length) {
+                    instance.jumpToDate(new Date(), false);
+                }
+                this.syncBirthDateHeaderSelects(instance);
+            },
+            onMonthChange: (selectedDates, dateStr, instance) => {
+                this.syncBirthDateHeaderSelects(instance);
+            },
+            onYearChange: (selectedDates, dateStr, instance) => {
+                this.syncBirthDateHeaderSelects(instance);
+            },
+            onChange: (selectedDates, dateStr) => {
+                const formData = formType === 'self' ? this.state.selfForm.data : this.state.manyForm.data;
+                formData[fieldName] = dateStr;
+                this.validateBirthDateField(field);
+                this.updateUI();
+            },
+            onClose: (selectedDates, dateStr, instance) => {
+                this.closeBirthDateHeaderSelects(instance);
+                this.validateBirthDateField(field);
+            }
+        });
+    }
+
+    /**
+     * Кастомные селекты месяца и года в шапке календаря даты рождения.
+     *
+     * @param {object} instance
+     */
+    initBirthDateHeaderSelects(instance) {
+        const monthWrap = instance.calendarContainer.querySelector('.flatpickr-current-month');
+        if (!monthWrap || monthWrap.querySelector('.birthdate-nav-select')) return;
+
+        const monthNames = instance.l10n?.months?.longhand || [
+            'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+            'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'
+        ];
+        const minYear = instance.config.minDate
+            ? instance.config.minDate.getFullYear()
+            : new Date().getFullYear() - CONFIG.VALIDATION.MAX_AGE;
+        const maxYear = instance.config.maxDate
+            ? instance.config.maxDate.getFullYear()
+            : new Date().getFullYear();
+
+        const monthItems = monthNames.map((label, value) => ({ value, label }));
+        const yearItems = [];
+        for (let year = maxYear; year >= minYear; year -= 1) {
+            yearItems.push({ value: year, label: String(year) });
+        }
+
+        instance._birthMonthSelect = this.createBirthDateNavSelect(instance, {
+            type: 'month',
+            items: monthItems,
+            placeholder: 'Месяц',
+            ariaLabel: 'Выбрать месяц',
+            getValue: () => instance.currentMonth,
+            onSelect: (value) => {
+                instance.changeMonth(Number(value), false);
+                instance.jumpToDate(new Date(instance.currentYear, Number(value), 1), false);
+            }
+        });
+
+        instance._birthYearSelect = this.createBirthDateNavSelect(instance, {
+            type: 'year',
+            items: yearItems,
+            placeholder: 'Год',
+            ariaLabel: 'Выбрать год',
+            getValue: () => instance.currentYear,
+            onSelect: (value) => {
+                instance.changeYear(Number(value));
+                instance.jumpToDate(new Date(Number(value), instance.currentMonth, 1), false);
+            }
+        });
+
+        monthWrap.appendChild(instance._birthMonthSelect.wrap);
+        monthWrap.appendChild(instance._birthYearSelect.wrap);
+        this.syncBirthDateHeaderSelects(instance);
+    }
+
+    /**
+     * Собирает кастомный селект для шапки календаря даты рождения.
+     *
+     * @param {object} instance
+     * @param {object} config
+     * @returns {object}
+     */
+    createBirthDateNavSelect(instance, config) {
+        const wrap = document.createElement('div');
+        wrap.className = `birthdate-nav-select birthdate-nav-select--${config.type}`;
+        wrap.innerHTML = `
+            <button type="button" class="birthdate-nav-trigger" aria-label="${config.ariaLabel}"></button>
+            <div class="birthdate-nav-dropdown">
+                <input type="search" class="birthdate-nav-search" placeholder="${config.placeholder}" autocomplete="off">
+                <div class="birthdate-nav-list"></div>
+            </div>
+        `;
+
+        const trigger = wrap.querySelector('.birthdate-nav-trigger');
+        const search = wrap.querySelector('.birthdate-nav-search');
+        const list = wrap.querySelector('.birthdate-nav-list');
+
+        const renderList = (query) => {
+            const needle = String(query || '').trim().toLowerCase();
+            const current = config.getValue();
+            list.innerHTML = '';
+            config.items.forEach((item) => {
+                const haystack = `${item.label} ${item.value}`.toLowerCase();
+                if (needle && haystack.indexOf(needle) === -1) return;
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.className = 'birthdate-nav-option';
+                btn.dataset.value = String(item.value);
+                btn.textContent = item.label;
+                if (item.value === current) {
+                    btn.classList.add('is-active');
+                }
+                list.appendChild(btn);
+            });
+        };
+
+        const closeOthers = () => {
+            if (config.type !== 'month') instance._birthMonthSelect?.closeDropdown();
+            if (config.type !== 'year') instance._birthYearSelect?.closeDropdown();
+        };
+
+        const openDropdown = () => {
+            closeOthers();
+            wrap.classList.add('is-open');
+            search.value = '';
+            renderList('');
+            search.focus();
+            const active = list.querySelector('.is-active');
+            if (active) {
+                active.scrollIntoView({ block: 'center' });
+            }
+        };
+
+        const closeDropdown = () => {
+            wrap.classList.remove('is-open');
+        };
+
+        const sync = () => {
+            const current = config.getValue();
+            const item = config.items.find((entry) => entry.value === current);
+            trigger.textContent = item ? item.label : String(current);
+            renderList(search.value);
+        };
+
+        trigger.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (wrap.classList.contains('is-open')) {
+                closeDropdown();
+            } else {
+                openDropdown();
+            }
+        });
+
+        search.addEventListener('input', () => renderList(search.value));
+        search.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') {
+                closeDropdown();
+                trigger.focus();
+            }
+        });
+
+        list.addEventListener('click', (event) => {
+            const option = event.target.closest('.birthdate-nav-option');
+            if (!option) return;
+            config.onSelect(option.dataset.value);
+            sync();
+            closeDropdown();
+        });
+
+        wrap.addEventListener('mousedown', (event) => {
+            event.stopPropagation();
+        });
+
+        renderList('');
+        return { wrap, trigger, closeDropdown, sync };
+    }
+
+    /**
+     * Синхронизирует селекты месяца и года.
+     *
+     * @param {object} instance
+     */
+    syncBirthDateHeaderSelects(instance) {
+        instance?._birthMonthSelect?.sync();
+        instance?._birthYearSelect?.sync();
+    }
+
+    /**
+     * Закрывает селекты шапки календаря даты рождения.
+     *
+     * @param {object} instance
+     */
+    closeBirthDateHeaderSelects(instance) {
+        instance?._birthMonthSelect?.closeDropdown();
+        instance?._birthYearSelect?.closeDropdown();
     }
 
     getInitialState() {
@@ -377,12 +692,12 @@ class BookingSystem {
             experienceDetails: '',
             selfHarm: 'no',
             selfHarmIntensity: 0,
-
-            // Шаг 2
-            concerns: { question1: [] },
             visitingPsychologist: 'no',
             specialistName: '',
             recommendationInfo: '',
+
+            // Шаг 2
+            concerns: { question1: [] },
 
             // Шаг 3
             selectedSpecialistId: null,
@@ -392,7 +707,7 @@ class BookingSystem {
 
             // Шаг 4
             clientName: '',
-            clientAge: '',
+            clientBirthDate: '',
             clientPhone: '',
             clientEmail: '',
             clientTelegram: '',
@@ -416,7 +731,7 @@ class BookingSystem {
 
             // Шаг 3
             client1Name: '',
-            client1Age: '',
+            client1BirthDate: '',
             client1Phone: '',
             client1Email: '',
             clientTelegram: '',
@@ -512,6 +827,8 @@ class BookingSystem {
         e.selectPlaceholder = Utils.$('.online-select-placeholder');
         e.specialistNameInput = d.getElementById('specialistName');
         e.recommendationFreeInput = d.getElementById('recomendFreeName');
+        e.concernsSearch = d.getElementById('concernsSearch');
+        e.concernsSearchEmpty = d.getElementById('concernsSearchEmpty');
     }
 
     initStep3Elements(e, d) {
@@ -529,7 +846,7 @@ class BookingSystem {
     initStep4Elements(e, d) {
         e.step4Container = d.getElementById('step4');
         e.clientName = d.getElementById('clientName');
-        e.clientAge = d.getElementById('clientAge');
+        e.clientBirthDate = d.getElementById('clientBirthDate');
         e.clientPhone = d.getElementById('clientPhone');
         e.clientEmail = d.getElementById('clientEmail');
         e.clientTelegram = d.getElementById('clientTelegram');
@@ -550,6 +867,8 @@ class BookingSystem {
         e.manyConcernsGroup = d.getElementById('manyConcernsGroup');
         e.manyConcernsError = d.getElementById('manyConcernsError');
         e.manyConcernsCheckboxes = Utils.$$('input[name="manyConcerns[]"]');
+        e.manyConcernsSearch = d.getElementById('manyConcernsSearch');
+        e.manyConcernsSearchEmpty = d.getElementById('manyConcernsSearchEmpty');
 
         // Шаг 2 (используем те же контейнеры, но с префиксами)
         e.manyStep2MainTitle = d.getElementById('manyStep2MainTitle');
@@ -563,7 +882,7 @@ class BookingSystem {
 
         // Шаг 3
         e.manyClient1Name = d.getElementById('manyClient1Name');
-        e.manyClient1Age = d.getElementById('manyClient1Age');
+        e.manyClient1BirthDate = d.getElementById('manyClient1BirthDate');
         e.manyClient1Phone = d.getElementById('manyClient1Phone');
         e.manyClient1Email = d.getElementById('manyClient1Email');
         e.manyClientTelegram = d.getElementById('manyClientTelegram');
@@ -682,6 +1001,7 @@ class BookingSystem {
         // Радиокнопки
         this.setupRadioValidation('experiencePsi', () => this.validatePsychiatristExperience(), 'self');
         this.setupRadioValidation('selfHarm', () => this.validateSelfHarm(), 'self');
+        this.setupRadioValidation('visitPsi', () => this.validateVisitingPsychologist(), 'self');
 
         // Шкала
         if (e.scaleTicks) {
@@ -694,7 +1014,6 @@ class BookingSystem {
     bindStep2Events() {
         const e = this.elements;
 
-        // Делегирование событий для шага 2
         if (e.selfStepContainers[1]) {
             Utils.on(e.selfStepContainers[1], 'change', (event) => {
                 const target = event.target;
@@ -702,16 +1021,16 @@ class BookingSystem {
                 if (target.type === 'checkbox' && target.closest('.online-question-group')) {
                     this.onQuestionCheckbox(target, 'question1');
                 }
-
-                if (target.name === 'visitPsi') {
-                    this.onVisitingChange();
-                    // Добавить валидацию при изменении
-                    setTimeout(() => this.validateVisitingPsychologist(), 50);
-                }
             });
         }
 
         this.bindInput(e.recommendationFreeInput, 'recommendationInfo', 'self');
+
+        if (e.concernsSearch) {
+            Utils.on(e.concernsSearch, 'input', () => {
+                this.filterConcerns(e.concernsSearch.value, e.questionGroups?.[0], e.concernsSearchEmpty);
+            });
+        }
     }
 
 
@@ -748,7 +1067,7 @@ class BookingSystem {
 
         // Контактные поля
         this.bindDebouncedInput(e.clientName, 'clientName', () => this.validateClientName(), 'self');
-        this.bindDebouncedInput(e.clientAge, 'clientAge', () => this.validateClientAge(), 'self');
+        this.bindDebouncedInput(e.clientBirthDate, 'clientBirthDate', () => this.validateClientBirthDate(), 'self');
         this.bindDebouncedInput(e.clientEmail, 'clientEmail', () => this.validateEmail(), 'self');
         this.bindDebouncedInput(e.clientTelegram, 'clientTelegram', () => this.validateTelegram(), 'self');
 
@@ -778,12 +1097,18 @@ class BookingSystem {
             });
         }
 
+        if (e.manyConcernsSearch) {
+            Utils.on(e.manyConcernsSearch, 'input', () => {
+                this.filterConcerns(e.manyConcernsSearch.value, e.manyConcernsGroup, e.manyConcernsSearchEmpty);
+            });
+        }
+
         // Шаг 1 формы "Для пары" - текстовое поле
         this.bindDebouncedInput(e.manyWorkMain, 'workMain', () => this.validateManyWorkMain(), 'many');
 
         // Шаг 3 формы "Для пары" - поля только для первого клиента
         this.bindDebouncedInput(e.manyClient1Name, 'client1Name', () => this.validateManyClientName(), 'many');
-        this.bindDebouncedInput(e.manyClient1Age, 'client1Age', () => this.validateManyClientAge(), 'many');
+        this.bindDebouncedInput(e.manyClient1BirthDate, 'client1BirthDate', () => this.validateManyClientBirthDate(), 'many');
         this.bindDebouncedInput(e.manyClient1Email, 'client1Email', () => this.validateManyEmail(), 'many');
         this.bindDebouncedInput(e.manyClientTelegram, 'ClientTelegram', () => this.validateManyTelegram(), 'many');
 
@@ -850,6 +1175,7 @@ class BookingSystem {
             Utils.on(radio, 'change', () => {
                 if (name === 'experiencePsi') this.onPsychiatristChange();
                 if (name === 'selfHarm') this.onSelfHarmChange();
+                if (name === 'visitPsi') this.onVisitingChange();
 
                 setTimeout(() => validationFn.call(this), 50);
                 this.updateUI();
@@ -1034,6 +1360,45 @@ class BookingSystem {
         this.scheduleSelfSpecialistsPreparation();
     }
 
+    /**
+     * Фильтрует чекбоксы «Что вас беспокоит» по строке поиска.
+     *
+     * @param {string} query
+     * @param {Element|null} group
+     * @param {Element|null} emptyEl
+     */
+    filterConcerns(query, group, emptyEl) {
+        if (!group) return;
+
+        const needle = String(query || '').trim().toLowerCase();
+        const labels = group.querySelectorAll('.online-checkbox-label');
+        let visibleCount = 0;
+
+        labels.forEach((label) => {
+            const text = (label.querySelector('.online-checkbox-text')?.textContent || '').toLowerCase();
+            const isMatch = !needle || text.includes(needle);
+            Utils.toggleClass(label, 'is-hidden', !isMatch);
+            if (isMatch) visibleCount += 1;
+        });
+
+        Utils.toggle(emptyEl, needle.length > 0 && visibleCount === 0);
+    }
+
+    /**
+     * Сбрасывает поиск по темам обращения.
+     */
+    resetConcernsSearch() {
+        if (this.elements.concernsSearch) {
+            this.elements.concernsSearch.value = '';
+        }
+        this.filterConcerns('', this.elements.questionGroups?.[0], this.elements.concernsSearchEmpty);
+
+        if (this.elements.manyConcernsSearch) {
+            this.elements.manyConcernsSearch.value = '';
+        }
+        this.filterConcerns('', this.elements.manyConcernsGroup, this.elements.manyConcernsSearchEmpty);
+    }
+
     onManyConcernsChange(checkbox) {
         const value = checkbox.value;
         const isChecked = checkbox.checked;
@@ -1133,6 +1498,7 @@ class BookingSystem {
             this.validatePsychiatristExperience(),
             this.validateExperienceDetails(),
             this.validateSelfHarm(),
+            this.validateVisitingPsychologist(),
         ].every(Boolean);
     }
 
@@ -1201,10 +1567,7 @@ class BookingSystem {
     }
 
     validateSelfStep2() {
-        return [
-            this.validateAllQuestions(),
-            this.validateVisitingPsychologist() // Используем обновленный метод
-        ].every(Boolean);
+        return this.validateAllQuestions();
     }
 
     validateAllQuestions() {
@@ -1264,7 +1627,7 @@ class BookingSystem {
     validateSelfStep4() {
         return [
             this.validateClientName(),
-            this.validateClientAge(),
+            this.validateClientBirthDate(),
             this.validatePhone(),
             this.validateEmail(),
             this.validateTelegram(),
@@ -1296,26 +1659,60 @@ class BookingSystem {
         return isValid;
     }
 
-    validateClientAge() {
-        const value = this.elements.clientAge.value.trim();
-        const field = this.elements.clientAge;
+    validateClientBirthDate() {
+        return this.validateBirthDateField(this.elements.clientBirthDate);
+    }
 
-        if (!Utils.isNotEmpty(value)) {
+    /**
+     * Валидирует поле даты рождения и возраст 18–120.
+     *
+     * @param {HTMLInputElement|null} field
+     * @returns {boolean}
+     */
+    validateBirthDateField(field) {
+        if (!field) return false;
+
+        const value = String(field.value || '').trim();
+        const isIncomplete = !value || value.includes('_');
+
+        if (isIncomplete) {
             this.showFieldError(field, false, 'Это поле обязательно для заполнения');
             return false;
         }
 
-        const age = parseInt(value);
-        let isValid = true;
-        let message = '';
-
-        if (!Utils.isNumberInRange(age, CONFIG.VALIDATION.MIN_AGE, CONFIG.VALIDATION.MAX_AGE)) {
-            isValid = false;
-            message = 'Пожалуйста, укажите возраст от 18 до 120 лет';
+        const birthDate = Utils.parseBirthDate(value);
+        if (!birthDate) {
+            this.showFieldError(field, false, 'Укажите корректную дату в формате дд.мм.гггг');
+            return false;
         }
 
-        this.showFieldError(field, isValid, message);
-        return isValid;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (birthDate > today) {
+            this.showFieldError(field, false, 'Дата рождения не может быть в будущем');
+            return false;
+        }
+
+        const age = Utils.getAge(birthDate);
+        if (!Utils.isNumberInRange(age, CONFIG.VALIDATION.MIN_AGE, CONFIG.VALIDATION.MAX_AGE)) {
+            this.showFieldError(field, false, 'Запись доступна для возраста от 18 до 120 лет');
+            return false;
+        }
+
+        this.showFieldError(field, true);
+        return true;
+    }
+
+    /**
+     * Возраст строкой по значению поля даты рождения.
+     *
+     * @param {string} value
+     * @returns {string}
+     */
+    getAgeFromBirthDateValue(value) {
+        const birthDate = Utils.parseBirthDate(value);
+        if (!birthDate) return '';
+        return String(Utils.getAge(birthDate));
     }
 
     validatePhone() {
@@ -1436,7 +1833,7 @@ class BookingSystem {
     validateManyStep3() {
         return [
             this.validateManyClientName(),
-            this.validateManyClientAge(),
+            this.validateManyClientBirthDate(),
             this.validateManyPhone(),
             this.validateManyEmail(),
             this.validateManyTelegram(),
@@ -1468,26 +1865,8 @@ class BookingSystem {
         return isValid;
     }
 
-    validateManyClientAge() {
-        const value = this.elements.manyClient1Age.value.trim();
-        const field = this.elements.manyClient1Age;
-
-        if (!Utils.isNotEmpty(value)) {
-            this.showFieldError(field, false, 'Это поле обязательно для заполнения');
-            return false;
-        }
-
-        const age = parseInt(value);
-        let isValid = true;
-        let message = '';
-
-        if (!Utils.isNumberInRange(age, CONFIG.VALIDATION.MIN_AGE, CONFIG.VALIDATION.MAX_AGE)) {
-            isValid = false;
-            message = 'Пожалуйста, укажите возраст от 18 до 120 лет';
-        }
-
-        this.showFieldError(field, isValid, message);
-        return isValid;
+    validateManyClientBirthDate() {
+        return this.validateBirthDateField(this.elements.manyClient1BirthDate);
     }
 
     // ==================== ВАЛИДАЦИЯ (ДЛЯ ПАРЫ) ====================
@@ -2179,7 +2558,7 @@ class BookingSystem {
 
     hideStep4Errors(formType = 'self') {
         if (formType === 'self') {
-            const fields = ['clientName', 'clientAge', 'clientPhone', 'clientEmail'];
+            const fields = ['clientName', 'clientBirthDate', 'clientPhone', 'clientEmail'];
             fields.forEach(fieldId => {
                 const field = document.getElementById(fieldId);
                 const error = field?.parentNode.querySelector('.online-error-message');
@@ -2193,7 +2572,7 @@ class BookingSystem {
             Utils.hide(this.elements.informedConsentError);
         } else {
             const fields = [
-                'manyClient1Name', 'manyClient1Age', 'manyClient1Phone', 'manyClient1Email', 'manyClientTelegram'
+                'manyClient1Name', 'manyClient1BirthDate', 'manyClient1Phone', 'manyClient1Email', 'manyClientTelegram'
             ];
             fields.forEach(fieldId => {
                 const field = document.getElementById(fieldId);
@@ -2833,6 +3212,7 @@ class BookingSystem {
         const phone = String(this.elements.clientPhone?.value || step1.clientPhone || '').trim();
         const email = String(this.elements.clientEmail?.value || step1.clientEmail || '').trim();
         const telegram = String(this.elements.clientTelegram?.value || step1.clientTelegram || '').trim();
+        const birthDate = String(this.elements.clientBirthDate?.value || step1.clientBirthDate || '').trim();
 
         return {
             name: name,
@@ -2866,7 +3246,8 @@ class BookingSystem {
                 clientName: name,
                 clientPhone: phone,
                 clientEmail: email,
-                clientAge: step1.clientAge || '',
+                clientBirthDate: birthDate,
+                clientAge: this.getAgeFromBirthDateValue(birthDate),
                 agreementPrivacy: !!step1.agreementPrivacy,
                 agreementOffer: !!step1.agreementOffer,
                 agreementInformedConsent: !!step1.agreementInformedConsent,
@@ -2924,6 +3305,7 @@ class BookingSystem {
         const phone = String(this.elements.manyClient1Phone?.value || step1.client1Phone || '').trim();
         const email = String(this.elements.manyClient1Email?.value || step1.client1Email || '').trim();
         const telegram = String(this.elements.manyClientTelegram?.value || step1.clientTelegram || '').trim();
+        const birthDate = String(this.elements.manyClient1BirthDate?.value || step1.client1BirthDate || '').trim();
 
         return {
             name: name,
@@ -2950,7 +3332,8 @@ class BookingSystem {
                 clientName: name,
                 clientPhone: phone,
                 clientEmail: email,
-                clientAge: step1.client1Age || '',
+                clientBirthDate: birthDate,
+                clientAge: this.getAgeFromBirthDateValue(birthDate),
                 agreementPrivacy: !!step1.agreementPrivacy,
                 agreementOffer: !!step1.agreementOffer,
                 agreementInformedConsent: !!step1.agreementInformedConsent,
@@ -3613,6 +3996,11 @@ class BookingSystem {
             return;
         }
 
+        if (e.visitingGroupError && e.visitingGroupError.style.display === 'block') {
+            Utils.scrollToElement(e.visitingGroup);
+            return;
+        }
+
         const firstError = Utils.$('.online-error-message[style*="block"]');
         if (firstError) {
             const field = firstError.closest('.online-form-group, .online-question-group');
@@ -3822,13 +4210,13 @@ class BookingSystem {
             [this.elements.specialistNameInput, ''],
             [this.elements.recommendationFreeInput, ''],
             [this.elements.clientName, ''],
-            [this.elements.clientAge, ''],
+            [this.elements.clientBirthDate, ''],
             [this.elements.clientPhone, ''],
             [this.elements.clientEmail, ''],
             [this.elements.clientTelegram, ''],
             [this.elements.manyWorkMain, ''],
             [this.elements.manyClient1Name, ''],
-            [this.elements.manyClient1Age, ''],
+            [this.elements.manyClient1BirthDate, ''],
             [this.elements.manyClient1Phone, ''],
             [this.elements.manyClient1Email, ''],
             [this.elements.manyClientTelegram, '']
@@ -3840,10 +4228,18 @@ class BookingSystem {
             }
         });
 
+        this.birthDatePickers.forEach((picker) => {
+            if (picker && typeof picker.clear === 'function') {
+                picker.clear();
+            }
+        });
+
         // Сброс радио-кнопок
         if (this.elements.psychiatristRadios[0]) this.elements.psychiatristRadios[0].checked = true;
         if (this.elements.selfHarmRadios[0]) this.elements.selfHarmRadios[0].checked = true;
         if (this.elements.visitingRadios[0]) this.elements.visitingRadios[0].checked = true;
+
+        this.resetConcernsSearch();
 
         // Сброс радио-кнопок visiting
         if (this.elements.visitingGroupError) {

@@ -94,6 +94,22 @@ class Renovatio_Admin_Settings {
 		);
 
 		add_settings_section(
+			'renovatio_tasks_api_section',
+			__( 'Внешний API задач (clinic)', 'center-med-renovatio' ),
+			[ __CLASS__, 'render_section_tasks_api' ],
+			'center-med-renovatio'
+		);
+
+		add_settings_field(
+			'tasks_api_key',
+			__( 'Ключ внешнего API', 'center-med-renovatio' ),
+			[ __CLASS__, 'render_field_tasks_api_key' ],
+			'center-med-renovatio',
+			'renovatio_tasks_api_section',
+			[ 'label_for' => 'center_med_renovatio_tasks_api_key' ]
+		);
+
+		add_settings_section(
 			'renovatio_clinic_section',
 			__( 'Рабочая клиника', 'center-med-renovatio' ),
 			[ __CLASS__, 'render_section_clinic' ],
@@ -164,6 +180,7 @@ class Renovatio_Admin_Settings {
 			'api_key'                 => '',
 			'api_base_url'            => 'https://app.rnova.org/api/public',
 			'api_timeout'             => 15,
+			'tasks_api_key'           => '',
 			'clinic_id'               => 0,
 			'reservation_ttl_minutes' => 15,
 			'notify_admin_email'      => get_option( 'admin_email' ),
@@ -177,6 +194,10 @@ class Renovatio_Admin_Settings {
 
 		if ( isset( $input['api_key'] ) && is_string( $input['api_key'] ) ) {
 			$out['api_key'] = sanitize_text_field( trim( $input['api_key'] ) );
+		}
+
+		if ( isset( $input['tasks_api_key'] ) && is_string( $input['tasks_api_key'] ) ) {
+			$out['tasks_api_key'] = sanitize_text_field( trim( $input['tasks_api_key'] ) );
 		}
 
 		if ( isset( $input['api_base_url'] ) && is_string( $input['api_base_url'] ) ) {
@@ -274,6 +295,33 @@ class Renovatio_Admin_Settings {
 			class="small-text"
 		/>
 		<p class="description"><?php esc_html_e( 'От 5 до 60 секунд.', 'center-med-renovatio' ); ?></p>
+		<?php
+	}
+
+	/**
+	 * Описание секции внешнего API задач.
+	 */
+	public static function render_section_tasks_api() {
+		echo '<p class="description">';
+		esc_html_e( 'Ключ для создания задач из clinic.handlingbetter.ru. Endpoint: POST /wp-json/renovatio/v1/tasks, заголовок X-Renovatio-Tasks-Key.', 'center-med-renovatio' );
+		echo '</p>';
+	}
+
+	/**
+	 * Поле: ключ внешнего API задач.
+	 */
+	public static function render_field_tasks_api_key() {
+		$opts = self::get_options();
+		$val  = isset( $opts['tasks_api_key'] ) ? $opts['tasks_api_key'] : '';
+		?>
+		<input type="text"
+			id="center_med_renovatio_tasks_api_key"
+			name="<?php echo esc_attr( self::OPTION_NAME ); ?>[tasks_api_key]"
+			value="<?php echo esc_attr( $val ); ?>"
+			class="regular-text"
+			autocomplete="off"
+		/>
+		<p class="description"><?php esc_html_e( 'Сгенерируйте длинный секрет и сохраните его также на clinic.handlingbetter.ru.', 'center-med-renovatio' ); ?></p>
 		<?php
 	}
 
@@ -546,6 +594,7 @@ class Renovatio_Admin_Settings {
 			'api_key'                 => '',
 			'api_base_url'            => 'https://app.rnova.org/api/public',
 			'api_timeout'             => 15,
+			'tasks_api_key'           => '',
 			'clinic_id'               => 0,
 			'reservation_ttl_minutes' => 15,
 			'notify_admin_email'      => get_option( 'admin_email' ),

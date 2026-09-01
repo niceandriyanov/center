@@ -8,6 +8,10 @@ function initScript() {
     phoneMask();
     onlineModal();
     psiForm();
+    gradeFilters();
+    mobileFilters();
+    filterScroll();
+    scrollToActiveItem();
     spoiler();
 
     // Ждем загрузки DOM
@@ -216,34 +220,32 @@ function initScript() {
     }
 
     function filters() {
-        var filterBtns = document.querySelectorAll('.page_filters__filter--main--btn');
-        var filterItems = document.querySelectorAll('.page_filters__filter--main--items--block--item');
-        var filterResetLink = document.querySelector('.filterResetLink');
+        if (!document.querySelector('.specItemsFilters')) {
+            return;
+        }
 
-        // Функция для добавления поиска в каждый фильтр
+        var filterBtns = document.querySelectorAll('.page_filters__filter--main--btn');
+
         function initSearchInFilters() {
             var searchInputs = document.querySelectorAll('.filter-search-input');
-            
+
             searchInputs.forEach(function(searchInput) {
-                // Удаляем старые обработчики, чтобы не навешивать повторно
                 searchInput.removeEventListener('input', handleSearchInput);
                 searchInput.addEventListener('input', handleSearchInput);
             });
         }
 
-        // Обработчик поиска
         function handleSearchInput(e) {
             var searchText = e.target.value.toLowerCase().trim();
             var filterBlock = e.target.closest('.page_filters__filter--main--items');
             var itemsBlock = filterBlock.querySelector('.page_filters__filter--main--items--block');
             var items = itemsBlock.querySelectorAll('.page_filters__filter--main--items--block--item');
-            
-            // Пропускаем первый элемент "Все проблемы" (индекс 0)
+
             for (var i = 1; i < items.length; i++) {
                 var item = items[i];
                 var label = item.querySelector('label');
                 var itemText = label.textContent.toLowerCase();
-                
+
                 if (searchText === '' || itemText.includes(searchText)) {
                     item.classList.remove('hidden');
                 } else {
@@ -252,24 +254,21 @@ function initScript() {
             }
         }
 
-        // Обновляем обработчики кликов по кнопкам фильтров
         Array.from(filterBtns).forEach(function(section) {
-            section.addEventListener('click', function(el) {
+            section.addEventListener('click', function() {
                 var diff = Array.from(filterBtns).filter(element => element !== section);
                 diff.forEach(function(otherEl) {
                     otherEl.parentNode.classList.remove('opened');
                 });
-                
+
                 section.parentNode.classList.toggle('opened');
-                
-                // Если фильтр открылся, очищаем поиск и фокусируемся на поле ввода
+
                 if (section.parentNode.classList.contains('opened')) {
                     var searchInput = section.parentNode.querySelector('.filter-search-input');
                     if (searchInput) {
-                        searchInput.value = ''; // Очищаем поле
-                        searchInput.focus(); // Ставим фокус
-                        
-                        // Показываем все элементы
+                        searchInput.value = '';
+                        searchInput.focus();
+
                         var items = section.parentNode.querySelectorAll('.page_filters__filter--main--items--block--item');
                         items.forEach(function(item) {
                             item.classList.remove('hidden');
@@ -279,25 +278,22 @@ function initScript() {
             });
         });
 
-        // Обновляем обработчики кликов по элементам фильтра
         document.addEventListener('click', function(e) {
             var filterItem = e.target.closest('.page_filters__filter--main--items--block--item');
-            
+
             if (filterItem) {
                 var filterBlock = filterItem.closest('.page_filters__filter--main');
                 var filterBtnSpan = filterBlock.querySelector('.page_filters__filter--main--btn span');
                 var label = filterItem.querySelector('label');
-                
+
                 if (label && filterBtnSpan) {
                     filterBtnSpan.innerHTML = label.innerHTML;
                     filterBlock.classList.remove('opened');
-                    
-                    // Очищаем поиск при выборе значения
+
                     var searchInput = filterBlock.querySelector('.filter-search-input');
                     if (searchInput) {
                         searchInput.value = '';
-                        
-                        // Показываем все элементы
+
                         var items = filterBlock.querySelectorAll('.page_filters__filter--main--items--block--item');
                         items.forEach(function(item) {
                             item.classList.remove('hidden');
@@ -307,7 +303,6 @@ function initScript() {
             }
         });
 
-        // Закрытие при клике вне фильтра
         document.addEventListener('click', function(e) {
             if (!e.target.closest('.page_filters__filter--main')) {
                 filterBtns.forEach(function(btn) {
@@ -316,291 +311,505 @@ function initScript() {
             }
         });
 
-        // Инициализация поиска при загрузке
         initSearchInFilters();
 
-        // AJAX поиск и фильтрация
+        var catalogFilters = document.getElementById('specItemsFilters');
+        var specialtyId = catalogFilters ? catalogFilters.getAttribute('data-specialty-id') : '';
         var searchInput = document.querySelector('.specItemsFilters input[name="search"]');
-        var radioButtons = document.querySelectorAll('.specItemsFilters input[type="radio"]');
+        var problemRadios = document.querySelectorAll('.specItemsFilters input[name="problems"]');
         var searchTimeout;
-        
 
-        // Функция для отправки AJAX запроса
-        function sendAjaxRequest() {
+        function getActiveGradeId() {
+            var activeGrade = document.querySelector('.specItemGrade.active');
+
+            if (!activeGrade) {
+                return '0';
+            }
+
+            return activeGrade.getAttribute('data-grade') || '0';
+        }
+
+        function buildFilterParams() {
             var params = new URLSearchParams();
-            var hasFilters = false;
-            
-            // Добавляем action для WordPress AJAX
+
             params.append('action', 'clinic_filter_doctors');
-            
-            // Добавляем поисковый запрос (даже если он пустой)
-            if(searchInput) {
-                if(searchInput.value.length >= 3) {
+
+            if (specialtyId) {
+                params.append('specs', specialtyId);
+            }
+
+            var gradeId = getActiveGradeId();
+
+            if (gradeId && gradeId !== '0') {
+                params.append('grade', gradeId);
+            }
+
+            if (searchInput) {
+                if (searchInput.value.length >= 3) {
                     params.append('search', searchInput.value);
-                    hasFilters = true;
-                } else if(searchInput.value.length === 0) {
-                    // Если поле очищено, все равно отправляем запрос для сброса
-                    hasFilters = true;
                 }
             }
-            
-            // Добавляем выбранные фильтры
-            radioButtons.forEach(function(radio) {
-                if(radio.checked) {
+
+            problemRadios.forEach(function(radio) {
+                if (radio.checked && radio.value !== '0') {
                     params.append(radio.name, radio.value);
-                    hasFilters = true;
                 }
             });
-            
-            // Обновляем URL без перезагрузки страницы
+
+            return params;
+        }
+
+        function shouldSendAjax(params) {
+            if (specialtyId) {
+                return true;
+            }
+
+            return params.has('search') || params.has('problems') || params.has('grade');
+        }
+
+        function updateDoctorsCount(count) {
+            document.querySelectorAll('.specDoctorsCount').forEach(function(el) {
+                el.textContent = count;
+            });
+        }
+
+        function resetProblemToAll() {
+            problemRadios.forEach(function(radio) {
+                radio.checked = radio.value === '0';
+            });
+
+            var filterBtnSpan = document.querySelector('.page_filters__filter--main--btn span');
+
+            if (filterBtnSpan) {
+                filterBtnSpan.innerHTML = 'Что вас беспокоит?';
+            }
+        }
+
+        function resetGradeToAll() {
+            document.querySelectorAll('.specItemGrade').forEach(function(gradeEl) {
+                gradeEl.classList.toggle('active', gradeEl.getAttribute('data-grade') === '0');
+            });
+
+            if (typeof window.clinicDoctorsGradeDescriptionUpdate === 'function') {
+                var allGradesBtn = document.querySelector('.specItemGrade[data-grade="0"]');
+
+                if (allGradesBtn) {
+                    window.clinicDoctorsGradeDescriptionUpdate(allGradesBtn);
+                }
+            }
+        }
+
+        function termIdInList(termId, list) {
+            if (!Array.isArray(list)) {
+                return false;
+            }
+
+            return list.indexOf(parseInt(termId, 10)) !== -1;
+        }
+
+        function updateFilterAvailability(availability) {
+            if (!availability) {
+                return false;
+            }
+
+            document.querySelectorAll('.page_filters__filter--main--items--block--item[data-term-id]').forEach(function(item) {
+                var id = parseInt(item.getAttribute('data-term-id'), 10);
+                item.classList.toggle('filter-unavailable', !termIdInList(id, availability.problems));
+            });
+
+            var gradesList = Array.isArray(availability.grades) ? availability.grades : [];
+            var gradesWrap = document.querySelector('.specItemGrades');
+
+            if (gradesWrap) {
+                gradesWrap.style.display = gradesList.length ? '' : 'none';
+            }
+
+            document.querySelectorAll('.specItemGrade[data-grade]').forEach(function(el) {
+                var grade = el.getAttribute('data-grade');
+
+                if (grade === '0') {
+                    return;
+                }
+
+                el.classList.toggle('filter-unavailable', !termIdInList(grade, gradesList));
+            });
+
+            var needsRefetch = false;
+            var activeGradeId = getActiveGradeId();
+
+            if (activeGradeId !== '0' && (gradesList.length === 0 || !termIdInList(activeGradeId, gradesList))) {
+                resetGradeToAll();
+                needsRefetch = true;
+            }
+
+            var checkedProblem = document.querySelector('.specItemsFilters input[name="problems"]:checked');
+
+            if (checkedProblem && checkedProblem.value !== '0' && !termIdInList(checkedProblem.value, availability.problems)) {
+                resetProblemToAll();
+                needsRefetch = true;
+            }
+
+            return needsRefetch;
+        }
+
+        function handleAjaxResponse(data, specItemsWrap, isRefetch) {
+            if (!data.success) {
+                console.error('Ошибка в ответе сервера:', data);
+                return false;
+            }
+
+            if (data.data.specItems_wrap && specItemsWrap) {
+                specItemsWrap.innerHTML = data.data.specItems_wrap;
+            }
+
+            var bottomTextResults = document.querySelector('.bottomTextResults');
+
+            if (bottomTextResults) {
+                bottomTextResults.style.display = data.data.found ? 'block' : 'none';
+            }
+
+            if (typeof data.data.found_count !== 'undefined') {
+                updateDoctorsCount(data.data.found_count);
+            }
+
+            if (data.data.filter_availability) {
+                var needsRefetch = updateFilterAvailability(data.data.filter_availability);
+
+                if (needsRefetch && !isRefetch) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        function sendAjaxRequest(forceRequest, isRefetch) {
+            var params = buildFilterParams();
+
             updateURL(params);
-            
-            // Если нет фильтров, не отправляем AJAX запрос
-            if(!hasFilters) {
+
+            if (!forceRequest && !shouldSendAjax(params)) {
                 return;
             }
-            
-            // Показываем индикатор загрузки
+
             var specItemsWrap = document.querySelector('.specItems_wrap');
-            if(specItemsWrap) {
+
+            if (specItemsWrap) {
                 specItemsWrap.style.opacity = '0.5';
                 specItemsWrap.style.pointerEvents = 'none';
             }
-            
-            // Отправляем AJAX запрос
+
             fetch(clinic_ajax.ajax_url + '?' + params.toString(), {
                 method: 'GET',
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest'
                 }
             })
-            .then(response => response.json())
-            .then(data => {
-                // Проверяем успешность ответа
-                if (data.success) {
-                    // Обновляем контент specItems_wrap
-                    if (data.data.specItems_wrap && specItemsWrap) {
-                        specItemsWrap.innerHTML = data.data.specItems_wrap;
-                    }
+            .then(function(response) {
+                return response.json();
+            })
+            .then(function(data) {
+                var needsRefetch = handleAjaxResponse(data, specItemsWrap, isRefetch);
 
-                    var currentInnerPageMiddle = document.querySelector('.bottomTextResults');
-                    if( data.data.found == false ) {
-                        currentInnerPageMiddle.style.display = 'none';
-                    } else {
-                        currentInnerPageMiddle.style.display = 'block';
-                    }
-                } else {
-                    console.error('Ошибка в ответе сервера:', data);
-                }
-                
-                // Убираем индикатор загрузки
-                if(specItemsWrap) {
-                    specItemsWrap.style.opacity = '1';
-                    specItemsWrap.style.pointerEvents = 'auto';
+                if (needsRefetch) {
+                    sendAjaxRequest(true, true);
                 }
             })
-            .catch(error => {
+            .catch(function(error) {
                 console.error('Ошибка AJAX запроса:', error);
-                // Убираем индикатор загрузки в случае ошибки
-                if(specItemsWrap) {
+            })
+            .finally(function() {
+                if (specItemsWrap) {
                     specItemsWrap.style.opacity = '1';
                     specItemsWrap.style.pointerEvents = 'auto';
                 }
             });
         }
 
-        // Функция для обновления URL без перезагрузки страницы
+        window.clinicDoctorsFilterRefresh = sendAjaxRequest;
+
         function updateURL(params) {
             var url = new URL(window.location);
-            
-            // Очищаем существующие параметры поиска
+
             url.searchParams.delete('search');
             url.searchParams.delete('problems');
-            url.searchParams.delete('specs');
-            
-            // Добавляем новые параметры (кроме action), но только если они не пустые и не равны 0
-            for (var [key, value] of params) {
-                if (key !== 'action' && value && value !== '0' && value.trim() !== '') {
+            url.searchParams.delete('grade');
+
+            params.forEach(function(value, key) {
+                if (key !== 'action' && key !== 'specs' && value && value !== '0' && String(value).trim() !== '') {
                     url.searchParams.set(key, value);
                 }
-            }
-            
-            // Обновляем URL в браузере без перезагрузки
+            });
+
             window.history.pushState({}, '', url);
         }
 
-        // Функция для загрузки параметров из URL при загрузке страницы
         function loadParamsFromURL() {
             var urlParams = new URLSearchParams(window.location.search);
-            var hasParams = false;
-            
-            // Загружаем поисковый запрос
             var searchValue = urlParams.get('search');
-            if(searchValue && searchInput) {
+
+            if (searchValue && searchInput) {
                 searchInput.value = searchValue;
-                hasParams = true;
             }
-            
-            // Загружаем выбранные фильтры
+
             var problemsValue = urlParams.get('problems');
-            var specsValue = urlParams.get('specs');
-            
-            if(problemsValue || specsValue) {
-                radioButtons.forEach(function(radio) {
-                    if((radio.name === 'problems' && radio.value === problemsValue) ||
-                       (radio.name === 'specs' && radio.value === specsValue)) {
+
+            if (problemsValue) {
+                problemRadios.forEach(function(radio) {
+                    if (radio.value === problemsValue) {
                         radio.checked = true;
-                        hasParams = true;
-                        
-                        // Обновляем текст кнопки фильтра
+
                         var filterBtn = radio.closest('.page_filters__filter--main');
-                        if(filterBtn) {
+
+                        if (filterBtn) {
                             var btnSpan = filterBtn.querySelector('.page_filters__filter--main--btn span');
-                            var label = radio.querySelector('label');
-                            if(btnSpan && label) {
+                            var label = document.querySelector('label[for="' + radio.id + '"]');
+
+                            if (btnSpan && label) {
                                 btnSpan.innerHTML = label.innerHTML;
                             }
                         }
                     }
                 });
             }
-            
-            // Если есть параметры, НЕ отправляем AJAX запрос, так как данные уже загружены на сервере
-            // Просто восстанавливаем состояние формы
-            if(hasParams) {
-                // Данные уже загружены на сервере, просто восстанавливаем состояние формы
-                console.log('Параметры найдены в URL, данные уже загружены на сервере');
-            } else {
-                // Убеждаемся что innerPageMiddle видим при загрузке без параметров
-                var currentInnerPageMiddle = document.querySelector('.innerPageMiddle');
-                if(currentInnerPageMiddle) {
-                    currentInnerPageMiddle.style.display = 'block';
-                }
-            }
         }
 
-        // Обработчик для поля поиска
-        if(searchInput) {
+        if (searchInput) {
             searchInput.addEventListener('input', function() {
                 clearTimeout(searchTimeout);
-                
-                if(this.value.length >= 3) {
+
+                if (this.value.length >= 3 || this.value.length === 0) {
                     searchTimeout = setTimeout(function() {
-                        sendAjaxRequest();
-                    }, 500); // Задержка 500мс для избежания частых запросов
-                } else if(this.value.length === 0) {
-                    // Если поле очищено, отправляем запрос для сброса
-                    sendAjaxRequest();
+                        sendAjaxRequest(true);
+                    }, 500);
                 }
             });
         }
 
-        // Обработчик для радио кнопок
-        radioButtons.forEach(function(radio) {
+        problemRadios.forEach(function(radio) {
             radio.addEventListener('change', function() {
-                sendAjaxRequest();
+                sendAjaxRequest(true);
             });
         });
 
-        // Сброс фильтров
-        if(filterResetLink) {
-            filterResetLink.addEventListener('click', function(e) {
+        function resetFilters(e) {
+            if (e) {
                 e.preventDefault();
-                
-                // Сбрасываем все радио кнопки
-                radioButtons.forEach(function(radio) {
-                    radio.checked = false;
-                });
-                
-                // Сбрасываем поле поиска
-                if(searchInput) {
-                    searchInput.value = '';
-                }
-                
-                // Сбрасываем текст кнопок фильтров на исходный
-                var filterBtnSpans = document.querySelectorAll('.page_filters__filter--main--btn span');
-                filterBtnSpans.forEach(function(span, index) {
-                    if(index === 0) {
-                        span.innerHTML = 'Что вас беспокоит?';
-                    } else if(index === 1) {
-                        span.innerHTML = 'Специальность';
-                    }
-                });
-                
-                // Закрываем все открытые фильтры
-                filterBtns.forEach(function(btn) {
-                    btn.parentNode.classList.remove('opened');
-                });
-                
-                // Показываем innerPageMiddle обратно
-                var currentInnerPageMiddle = document.querySelector('.innerPageMiddle');
-                if(currentInnerPageMiddle) {
-                    currentInnerPageMiddle.style.display = 'block';
-                }
-                
-                // Очищаем URL
-                var url = new URL(window.location);
-                url.searchParams.delete('search');
-                url.searchParams.delete('problems');
-                url.searchParams.delete('specs');
-                window.history.pushState({}, '', url);
-                
-                // Отправляем AJAX запрос для получения всех врачей
-                var params = new URLSearchParams();
-                params.append('action', 'clinic_filter_doctors');
-                
-                // Показываем индикатор загрузки
-                var specItemsWrap = document.querySelector('.specItems_wrap');
-                if(specItemsWrap) {
-                    specItemsWrap.style.opacity = '0.5';
-                    specItemsWrap.style.pointerEvents = 'none';
-                }
-                
-                // Отправляем AJAX запрос
-                fetch(clinic_ajax.ajax_url + '?' + params.toString(), {
-                    method: 'GET',
-                    headers: {
-                        'X-Requested-With': 'XMLHttpRequest'
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    // Проверяем успешность ответа
-                    if (data.success) {
-                        // Обновляем контент specItems_wrap
-                        if (data.data.specItems_wrap && specItemsWrap) {
-                            specItemsWrap.innerHTML = data.data.specItems_wrap;
-                        }
+            }
 
-                        var currentInnerPageMiddle = document.querySelector('.bottomTextResults');
-                        if( data.data.found == false ) {
-                            currentInnerPageMiddle.style.display = 'none';
-                        } else {
-                            currentInnerPageMiddle.style.display = 'block';
-                        }
-                    } else {
-                        console.error('Ошибка в ответе сервера при сбросе:', data);
-                    }
-                    
-                    // Убираем индикатор загрузки
-                    if(specItemsWrap) {
-                        specItemsWrap.style.opacity = '1';
-                        specItemsWrap.style.pointerEvents = 'auto';
-                    }
-                })
-                .catch(error => {
-                    console.error('Ошибка AJAX запроса:', error);
-                    // Убираем индикатор загрузки в случае ошибки
-                    if(specItemsWrap) {
-                        specItemsWrap.style.opacity = '1';
-                        specItemsWrap.style.pointerEvents = 'auto';
-                    }
+            resetProblemToAll();
+
+            if (searchInput) {
+                searchInput.value = '';
+            }
+
+            resetGradeToAll();
+
+            var filterBtnSpans = document.querySelectorAll('.page_filters__filter--main--btn span');
+            filterBtnSpans.forEach(function(span) {
+                span.innerHTML = 'Что вас беспокоит?';
+            });
+
+            filterBtns.forEach(function(btn) {
+                btn.parentNode.classList.remove('opened');
+            });
+
+            var bottomTextResults = document.querySelector('.bottomTextResults');
+
+            if (bottomTextResults) {
+                bottomTextResults.style.display = 'block';
+            }
+
+            var url = new URL(window.location);
+            url.searchParams.delete('search');
+            url.searchParams.delete('problems');
+            url.searchParams.delete('grade');
+            window.history.pushState({}, '', url);
+
+            sendAjaxRequest(true);
+        }
+
+        document.querySelectorAll('.filterResetLink').forEach(function(link) {
+            link.addEventListener('click', resetFilters);
+        });
+
+        loadParamsFromURL();
+    }
+
+    function gradeFilters() {
+        var gradeFiltersEls = document.querySelectorAll('.specItemGrade');
+        var descriptionBlock = document.querySelector('.specItemGradeDescription');
+
+        if (!gradeFiltersEls.length || !descriptionBlock) {
+            return;
+        }
+
+        function updateDescription(gradeElement) {
+            var grade = gradeElement.getAttribute('data-grade');
+
+            if (grade === '0' || grade === 'all') {
+                descriptionBlock.style.display = 'none';
+                descriptionBlock.textContent = '';
+            } else {
+                var description = gradeElement.getAttribute('data-description') || '';
+                descriptionBlock.textContent = description;
+                descriptionBlock.style.display = description ? 'block' : 'none';
+            }
+        }
+
+        window.clinicDoctorsGradeDescriptionUpdate = updateDescription;
+
+        function setActiveGrade(activeElement) {
+            gradeFiltersEls.forEach(function(filter) {
+                filter.classList.remove('active');
+            });
+            activeElement.classList.add('active');
+            updateDescription(activeElement);
+        }
+
+        gradeFiltersEls.forEach(function(filter) {
+            filter.addEventListener('click', function(e) {
+                e.preventDefault();
+                setActiveGrade(this);
+
+                if (typeof window.clinicDoctorsFilterRefresh === 'function') {
+                    window.clinicDoctorsFilterRefresh(true);
+                }
+            });
+        });
+
+        var activeGrade = document.querySelector('.specItemGrade.active');
+        var urlParams = new URLSearchParams(window.location.search);
+        var gradeValue = urlParams.get('grade');
+
+        if (gradeValue) {
+            document.querySelectorAll('.specItemGrade').forEach(function(gradeEl) {
+                gradeEl.classList.toggle('active', gradeEl.getAttribute('data-grade') === gradeValue);
+            });
+            activeGrade = document.querySelector('.specItemGrade.active');
+        }
+
+        if (activeGrade) {
+            updateDescription(activeGrade);
+        }
+    }
+
+    function mobileFilters() {
+        var filterButton = document.querySelector('.specItemsFiltersSwitchBut');
+        var filterWrap = document.querySelector('.specItemsFiltersSwitchWrap');
+        var overlay = document.querySelector('.specItemsFiltersOverlay');
+
+        if (!filterButton || !filterWrap) {
+            return;
+        }
+
+        function closeFilters() {
+            filterWrap.classList.remove('open');
+            if (overlay) {
+                overlay.classList.remove('active');
+            }
+            document.body.style.overflow = '';
+        }
+
+        function openFilters() {
+            filterWrap.classList.add('open');
+            if (overlay) {
+                overlay.classList.add('active');
+            }
+            document.body.style.overflow = 'hidden';
+        }
+
+        filterButton.addEventListener('click', function(e) {
+            e.stopPropagation();
+            openFilters();
+        });
+
+        if (overlay) {
+            overlay.addEventListener('click', closeFilters);
+        }
+
+        document.querySelectorAll('.butShow').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (filterWrap.classList.contains('open')) {
+                    closeFilters();
+                }
+            });
+        });
+
+        document.querySelectorAll('.modalWrapClose').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (filterWrap.classList.contains('open')) {
+                    closeFilters();
+                }
+            });
+        });
+
+        document.addEventListener('click', function(e) {
+            var isClickInsideWrap = filterWrap.contains(e.target);
+            var isClickOnButton = filterButton.contains(e.target);
+            var isClickOnButShow = e.target.closest('.butShow');
+
+            if (!isClickInsideWrap && !isClickOnButton && !isClickOnButShow && filterWrap.classList.contains('open')) {
+                closeFilters();
+            }
+        });
+    }
+
+    function filterScroll() {
+        var filterScrollButton = document.querySelector('.filterScroll');
+        var targetBlock = document.querySelector('#specItemsFilters');
+        var headerHeight = 80;
+
+        if (filterScrollButton && targetBlock) {
+            filterScrollButton.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                var targetPosition = targetBlock.getBoundingClientRect().top + window.scrollY;
+                var offsetPosition = targetPosition - headerHeight;
+
+                window.scrollTo({
+                    top: offsetPosition,
+                    behavior: 'smooth'
                 });
             });
         }
 
-        // Загружаем параметры из URL при инициализации
-        loadParamsFromURL();
+        if (filterScrollButton) {
+            window.addEventListener('scroll', function() {
+                if (window.scrollY >= 600) {
+                    filterScrollButton.classList.add('show');
+                } else {
+                    filterScrollButton.classList.remove('show');
+                }
+            });
+
+            if (window.scrollY >= 600) {
+                filterScrollButton.classList.add('show');
+            }
+        }
+    }
+
+    function scrollToActiveItem() {
+        var container = document.querySelector('.specItemsFiltersTop');
+
+        if (!container) {
+            return;
+        }
+
+        var activeItem = container.querySelector('.specItemsFiltersTopItem.active');
+
+        if (activeItem) {
+            var containerLeft = container.getBoundingClientRect().left;
+            var activeLeft = activeItem.getBoundingClientRect().left;
+            var scrollOffset = activeLeft - containerLeft - (container.clientWidth / 2) + (activeItem.clientWidth / 2);
+
+            container.scrollTo({
+                left: container.scrollLeft + scrollOffset,
+                behavior: 'smooth'
+            });
+        }
     }
 
     function spoiler() {
@@ -636,15 +845,6 @@ function initScript() {
             vidjetOpen.classList.add('active');
         });
 
-        // Автоматическое разворачивание через 10 секунд
-        setTimeout(function() {
-            // Проверяем, не открыт ли уже виджет и не закрыт ли он навсегда (если есть такая логика)
-            if (!vidjetOpen.classList.contains('active') && vidjetMini.classList.contains('active')) {
-                console.log('Auto opening vidjet after 10 seconds');
-                vidjetMini.classList.remove('active');
-                vidjetOpen.classList.add('active');
-            }
-        }, 10000); // 10000 миллисекунд = 10 секунд
     }
     
 

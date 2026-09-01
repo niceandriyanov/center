@@ -58,6 +58,8 @@ class TochkaBankPayment {
         }
         
         // Подключаем классы плагина
+        require_once TOCHKA_BANK_PLUGIN_PATH . 'includes/class-tochka-ssl.php';
+        TochkaSsl::init();
         require_once TOCHKA_BANK_PLUGIN_PATH . 'includes/class-tochka-payment.php';
         require_once TOCHKA_BANK_PLUGIN_PATH . 'includes/class-tochka-admin.php';
         require_once TOCHKA_BANK_PLUGIN_PATH . 'includes/class-tochka-redirect-handler.php';

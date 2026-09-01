@@ -26,6 +26,7 @@ require_once THEME_DIR . '/inc/setup/widgets.php';
 require_once THEME_DIR . '/inc/widgets/contact-widget.php';
 
 // Подключение вспомогательных функций
+require_once THEME_DIR . '/inc/helpers/utm-attribution.php';
 require_once THEME_DIR . '/inc/helpers/content.php';
 require_once THEME_DIR . '/inc/helpers/ajax.php';
 require_once THEME_DIR . '/inc/helpers/seo.php';
@@ -43,6 +44,7 @@ require_once THEME_DIR . '/inc/admin/taxonomy-sorting.php';
 
 // Подключение кастомных типов записей
 require_once THEME_DIR . '/inc/post-types.php';
+require_once THEME_DIR . '/inc/doctors-catalog.php';
 
 // Подключение кастомайзера
 require_once THEME_DIR . '/inc/customizer.php';
