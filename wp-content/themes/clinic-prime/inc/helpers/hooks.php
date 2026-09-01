@@ -226,6 +226,38 @@ function clinic_log_wp_mail_failure($wp_error) {
 add_action('wp_mail_failed', 'clinic_log_wp_mail_failure');
 
 /**
+ * Добавляет center@handlingbetter.ru к получателям писем Contact Form 7.
+ *
+ * @param array             $components   Компоненты письма CF7.
+ * @param WPCF7_ContactForm $contact_form Форма.
+ * @param WPCF7_Mail        $mail         Объект письма.
+ * @return array
+ */
+function clinic_cf7_add_center_recipient($components, $contact_form = null, $mail = null) {
+    if (!is_array($components)) {
+        return $components;
+    }
+
+    if (is_object($mail) && method_exists($mail, 'name') && $mail->name() === 'mail_2') {
+        return $components;
+    }
+
+    $extra_email = 'center@handlingbetter.ru';
+    $recipient_raw = isset($components['recipient']) ? (string) $components['recipient'] : '';
+    $recipients = preg_split('/[\s,;]+/', $recipient_raw, -1, PREG_SPLIT_NO_EMPTY);
+    $recipients = array_values(array_unique(array_filter($recipients, 'is_email')));
+
+    if (!in_array($extra_email, array_map('strtolower', $recipients), true)) {
+        $recipients[] = $extra_email;
+    }
+
+    $components['recipient'] = implode(', ', $recipients);
+
+    return $components;
+}
+add_filter('wpcf7_mail_components', 'clinic_cf7_add_center_recipient', 10, 3);
+
+/**
  * Убираем стандартный метабокс "Болезни" у doctors, чтобы исключить
  * конфликт с ACF-полем taxonomy (оно и есть источник истины).
  */

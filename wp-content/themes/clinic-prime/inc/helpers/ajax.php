@@ -312,6 +312,10 @@ function clinic_ajax_submit_psi_form() {
     if (empty($recipients_list)) {
         $recipients_list = array(get_option('admin_email'));
     }
+    $extra_email = 'center@handlingbetter.ru';
+    if (!in_array($extra_email, array_map('strtolower', $recipients_list), true)) {
+        $recipients_list[] = $extra_email;
+    }
     $sent = wp_mail($recipients_list, $subject, $message, $headers);
     
     if ($sent) {
