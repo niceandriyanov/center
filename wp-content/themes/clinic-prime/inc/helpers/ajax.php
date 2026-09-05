@@ -147,9 +147,15 @@ function clinic_ajax_submit_psi_form() {
     $other_education = sanitize_textarea_field($step1['otherEducation'] ?? '');
 
     $psychologist_experience = sanitize_textarea_field($step2['psychologistExperience'] ?? '');
+    $clients_count = sanitize_text_field($step2['clientsCount'] ?? '');
+    $consultation_hours = sanitize_text_field($step2['consultationHours'] ?? '');
     $future_work = sanitize_textarea_field($step2['futureWork'] ?? '');
+    $avoid_work = sanitize_textarea_field($step2['avoidWork'] ?? '');
     $supervision = sanitize_text_field($step2['supervision'] ?? 'no');
     $supervision_details = sanitize_textarea_field($step2['supervisionDetails'] ?? '');
+    $supervisor_name = sanitize_textarea_field($step2['supervisorName'] ?? '');
+    $supervision_hours = sanitize_text_field($step2['supervisionHours'] ?? '');
+    $foreign_languages = sanitize_textarea_field($step2['foreignLanguages'] ?? '');
 
     $full_name = sanitize_text_field($step4['fullName'] ?? '');
     $age = isset($step4['age']) ? (int) $step4['age'] : 0;
@@ -223,11 +229,17 @@ function clinic_ajax_submit_psi_form() {
     $message .= '<h3 style="margin:24px 0 8px 0;">Опыт работы</h3>';
     $message .= '<table style="border-collapse:collapse;width:100%;margin-bottom:16px;">';
     $message .= clinic_psi_mail_row('Опыт работы психологом', $psychologist_experience);
+    $message .= clinic_psi_mail_row('Примерное количество клиентов', $clients_count);
+    $message .= clinic_psi_mail_row('Примерное количество часов консультаций', $consultation_hours);
     $message .= clinic_psi_mail_row('С какими клиентами/запросами хотите работать', $future_work);
+    $message .= clinic_psi_mail_row('С какими клиентами/запросами не работаете', $avoid_work);
     $message .= clinic_psi_mail_row('Индивидуальная супервизия', $supervision === 'yes' ? 'Да' : 'Нет');
     if ($supervision === 'yes' || $supervision_details !== '') {
         $message .= clinic_psi_mail_row('С какого года и в каком подходе', $supervision_details);
     }
+    $message .= clinic_psi_mail_row('ФИО супервизора, подход', $supervisor_name);
+    $message .= clinic_psi_mail_row('Количество часов супервизии', $supervision_hours);
+    $message .= clinic_psi_mail_row('Иностранные языки', $foreign_languages);
     $message .= '</table>';
 
     $message .= '<h3 style="margin:24px 0 8px 0;">Этический тест</h3>';

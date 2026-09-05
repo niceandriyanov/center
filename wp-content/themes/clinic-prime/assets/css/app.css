@@ -4642,6 +4642,28 @@ body {
 	color: #999;
 }
 
+.psi-form-subfields {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 16px;
+	margin-top: 16px;
+}
+
+.psi-form-subfield {
+	flex: 1 1 calc(50% - 8px);
+	min-width: 200px;
+}
+
+.psi-form-subfield label,
+.psi-form-group > label {
+	display: block;
+	margin-bottom: 8px;
+	color: #1E1E1E;
+	font-size: 14px;
+	font-weight: 400;
+	line-height: 145%;
+}
+
 
 .psi-form-footer {
 	padding: 32px;

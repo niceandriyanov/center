@@ -85,6 +85,28 @@ if (!defined('ABSPATH')) {
                                 placeholder="Опишите:&#10;- Когда начали практику индивидуальных консультаций&#10;- В каких подходах работали&#10;- Как давно ведёте клиентов в рамках КПТ&#10;- С какими запросами в основном работали"
                         ></textarea>
                             <div class="psi-error-message">Это поле обязательно для заполнения</div>
+                            <div class="psi-form-subfields">
+                                <div class="psi-form-subfield">
+                                    <label for="clientsCount">Примерное количество клиентов</label>
+                                    <input
+                                            type="text"
+                                            id="clientsCount"
+                                            name="clientsCount"
+                                            placeholder="Например: 40"
+                                            class="psi-input"
+                                    >
+                                </div>
+                                <div class="psi-form-subfield">
+                                    <label for="consultationHours">Примерное количество часов консультаций</label>
+                                    <input
+                                            type="text"
+                                            id="consultationHours"
+                                            name="consultationHours"
+                                            placeholder="Например: 800"
+                                            class="psi-input"
+                                    >
+                                </div>
+                            </div>
                         </div>
 
                         <h2>С какими клиентами/запросами хотите работать в дальнейшем? <span class="required"></span></h2>
@@ -95,6 +117,15 @@ if (!defined('ABSPATH')) {
                                 placeholder="Опишите направления работы, которые вас интересуют"
                         ></textarea>
                             <div class="psi-error-message">Это поле обязательно для заполнения</div>
+                        </div>
+
+                        <h2>С какими клиентами/запросами не работаете и не планируете в дальнейшем?</h2>
+                        <div class="psi-form-group">
+                        <textarea
+                                id="avoidWork"
+                                name="avoidWork"
+                                placeholder="Опишите запросы и категории клиентов, с которыми не работаете и не планируете работать"
+                        ></textarea>
                         </div>
 
                         <h2>Проходите ли вы индивидуальную супервизию?</h2>
@@ -121,6 +152,35 @@ if (!defined('ABSPATH')) {
                                         rows="2"
                                 ></textarea>
                             </div>
+                        </div>
+
+                        <h2>Укажите ФИО супервизора, подход — при наличии</h2>
+                        <div class="psi-form-group">
+                        <textarea
+                                id="supervisorName"
+                                name="supervisorName"
+                                placeholder="Например: Иванова Анна Сергеевна, КПТ"
+                        ></textarea>
+                        </div>
+
+                        <h2>Количество пройденных часов супервизии</h2>
+                        <div class="psi-form-group">
+                            <input
+                                    type="text"
+                                    id="supervisionHours"
+                                    name="supervisionHours"
+                                    placeholder="Например: 50"
+                                    class="psi-input"
+                            >
+                        </div>
+
+                        <h2>Иностранные языки (язык и уровень владения)</h2>
+                        <div class="psi-form-group">
+                        <textarea
+                                id="foreignLanguages"
+                                name="foreignLanguages"
+                                placeholder="Например: английский — B2, немецкий — A2"
+                        ></textarea>
                         </div>
                     </div>
 

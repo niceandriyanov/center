@@ -954,9 +954,15 @@ function initScript() {
                 this.otherEducation = this.form.querySelector('#otherEducation');
 
                 this.psychologistExperience = this.form.querySelector('#psychologistExperience');
+                this.clientsCount = this.form.querySelector('#clientsCount');
+                this.consultationHours = this.form.querySelector('#consultationHours');
                 this.futureWork = this.form.querySelector('#futureWork');
+                this.avoidWork = this.form.querySelector('#avoidWork');
                 this.supervisionDetails = this.form.querySelector('#supervisionDetails');
                 this.supervisionDetailsContainer = this.form.querySelector('.psi-supervision-details');
+                this.supervisorName = this.form.querySelector('#supervisorName');
+                this.supervisionHours = this.form.querySelector('#supervisionHours');
+                this.foreignLanguages = this.form.querySelector('#foreignLanguages');
 
                 this.questionGroups = this.form.querySelectorAll('.psi-question-group');
 
@@ -1168,9 +1174,15 @@ function initScript() {
                 const supervisionChecked = this.form.querySelector('input[name="supervision"]:checked');
                 this.formData.step2 = {
                     psychologistExperience: this.psychologistExperience ? this.psychologistExperience.value.trim() : '',
+                    clientsCount: this.clientsCount ? this.clientsCount.value.trim() : '',
+                    consultationHours: this.consultationHours ? this.consultationHours.value.trim() : '',
                     futureWork: this.futureWork ? this.futureWork.value.trim() : '',
+                    avoidWork: this.avoidWork ? this.avoidWork.value.trim() : '',
                     supervision: supervisionChecked ? supervisionChecked.value : 'no',
-                    supervisionDetails: this.supervisionDetails ? this.supervisionDetails.value.trim() : ''
+                    supervisionDetails: this.supervisionDetails ? this.supervisionDetails.value.trim() : '',
+                    supervisorName: this.supervisorName ? this.supervisorName.value.trim() : '',
+                    supervisionHours: this.supervisionHours ? this.supervisionHours.value.trim() : '',
+                    foreignLanguages: this.foreignLanguages ? this.foreignLanguages.value.trim() : ''
                 };
 
                 this.formData.step3.questions = {};
