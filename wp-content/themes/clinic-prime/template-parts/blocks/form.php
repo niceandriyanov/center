@@ -154,24 +154,26 @@ if (!defined('ABSPATH')) {
                             </div>
                         </div>
 
-                        <h2>Укажите ФИО супервизора, подход — при наличии</h2>
-                        <div class="psi-form-group">
-                        <textarea
-                                id="supervisorName"
-                                name="supervisorName"
-                                placeholder="Например: Иванова Анна Сергеевна, КПТ"
-                        ></textarea>
-                        </div>
+                        <div class="psi-supervision-extra" style="display: none;">
+                            <h2>Укажите ФИО супервизора, подход — при наличии</h2>
+                            <div class="psi-form-group">
+                            <textarea
+                                    id="supervisorName"
+                                    name="supervisorName"
+                                    placeholder="Например: Иванова Анна Сергеевна, КПТ"
+                            ></textarea>
+                            </div>
 
-                        <h2>Количество пройденных часов супервизии</h2>
-                        <div class="psi-form-group">
-                            <input
-                                    type="text"
-                                    id="supervisionHours"
-                                    name="supervisionHours"
-                                    placeholder="Например: 50"
-                                    class="psi-input"
-                            >
+                            <h2>Количество пройденных часов супервизии</h2>
+                            <div class="psi-form-group">
+                                <input
+                                        type="text"
+                                        id="supervisionHours"
+                                        name="supervisionHours"
+                                        placeholder="Например: 50"
+                                        class="psi-input"
+                                >
+                            </div>
                         </div>
 
                         <h2>Иностранные языки (язык и уровень владения)</h2>

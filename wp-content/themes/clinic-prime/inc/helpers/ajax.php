@@ -237,8 +237,10 @@ function clinic_ajax_submit_psi_form() {
     if ($supervision === 'yes' || $supervision_details !== '') {
         $message .= clinic_psi_mail_row('С какого года и в каком подходе', $supervision_details);
     }
-    $message .= clinic_psi_mail_row('ФИО супервизора, подход', $supervisor_name);
-    $message .= clinic_psi_mail_row('Количество часов супервизии', $supervision_hours);
+    if ($supervision === 'yes' || $supervisor_name !== '' || $supervision_hours !== '') {
+        $message .= clinic_psi_mail_row('ФИО супервизора, подход', $supervisor_name);
+        $message .= clinic_psi_mail_row('Количество часов супервизии', $supervision_hours);
+    }
     $message .= clinic_psi_mail_row('Иностранные языки', $foreign_languages);
     $message .= '</table>';
 

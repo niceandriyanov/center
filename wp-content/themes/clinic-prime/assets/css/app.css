@@ -4822,6 +4822,10 @@ body {
 	animation: fadeIn 0.3s ease;
 }
 
+.psi-supervision-extra {
+	animation: fadeIn 0.3s ease;
+}
+
 .psi-supervision-details label {
 	display: block;
 	margin-bottom: 8px;

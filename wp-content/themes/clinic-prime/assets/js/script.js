@@ -960,6 +960,7 @@ function initScript() {
                 this.avoidWork = this.form.querySelector('#avoidWork');
                 this.supervisionDetails = this.form.querySelector('#supervisionDetails');
                 this.supervisionDetailsContainer = this.form.querySelector('.psi-supervision-details');
+                this.supervisionExtraContainer = this.form.querySelector('.psi-supervision-extra');
                 this.supervisorName = this.form.querySelector('#supervisorName');
                 this.supervisionHours = this.form.querySelector('#supervisionHours');
                 this.foreignLanguages = this.form.querySelector('#foreignLanguages');
@@ -1096,15 +1097,28 @@ function initScript() {
             toggleSupervisionDetails() {
                 const selected = this.form.querySelector('input[name="supervision"]:checked');
                 const isYes = selected && selected.value === 'yes';
+                const display = isYes ? 'block' : 'none';
 
-                if (!this.supervisionDetailsContainer) {
-                    return;
+                if (this.supervisionDetailsContainer) {
+                    this.supervisionDetailsContainer.style.display = display;
+                }
+                if (this.supervisionExtraContainer) {
+                    this.supervisionExtraContainer.style.display = display;
                 }
 
-                this.supervisionDetailsContainer.style.display = isYes ? 'block' : 'none';
-                if (!isYes && this.supervisionDetails) {
-                    this.supervisionDetails.value = '';
+                if (!isYes) {
+                    if (this.supervisionDetails) {
+                        this.supervisionDetails.value = '';
+                    }
+                    if (this.supervisorName) {
+                        this.supervisorName.value = '';
+                    }
+                    if (this.supervisionHours) {
+                        this.supervisionHours.value = '';
+                    }
                 }
+
+                this.saveStepData();
             }
 
             toggleRecommendationDetails() {
