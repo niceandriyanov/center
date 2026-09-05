@@ -145,6 +145,7 @@ function clinic_ajax_submit_psi_form() {
     $basic_education = sanitize_textarea_field($step1['basicEducation'] ?? '');
     $cbt_education = sanitize_textarea_field($step1['cbtEducation'] ?? '');
     $other_education = sanitize_textarea_field($step1['otherEducation'] ?? '');
+    $foreign_languages = sanitize_textarea_field($step1['foreignLanguages'] ?? '');
 
     $psychologist_experience = sanitize_textarea_field($step2['psychologistExperience'] ?? '');
     $clients_count = sanitize_text_field($step2['clientsCount'] ?? '');
@@ -155,7 +156,6 @@ function clinic_ajax_submit_psi_form() {
     $supervision_details = sanitize_textarea_field($step2['supervisionDetails'] ?? '');
     $supervisor_name = sanitize_textarea_field($step2['supervisorName'] ?? '');
     $supervision_hours = sanitize_text_field($step2['supervisionHours'] ?? '');
-    $foreign_languages = sanitize_textarea_field($step2['foreignLanguages'] ?? '');
 
     $full_name = sanitize_text_field($step4['fullName'] ?? '');
     $age = isset($step4['age']) ? (int) $step4['age'] : 0;
@@ -224,6 +224,7 @@ function clinic_ajax_submit_psi_form() {
     $message .= clinic_psi_mail_row('Основное образование', $basic_education);
     $message .= clinic_psi_mail_row('Доп. образование по КПТ', $cbt_education);
     $message .= clinic_psi_mail_row('Доп. образование в других подходах', $other_education);
+    $message .= clinic_psi_mail_row('Иностранные языки', $foreign_languages);
     $message .= '</table>';
 
     $message .= '<h3 style="margin:24px 0 8px 0;">Опыт работы</h3>';
@@ -241,7 +242,6 @@ function clinic_ajax_submit_psi_form() {
         $message .= clinic_psi_mail_row('ФИО супервизора, подход', $supervisor_name);
         $message .= clinic_psi_mail_row('Количество часов супервизии', $supervision_hours);
     }
-    $message .= clinic_psi_mail_row('Иностранные языки', $foreign_languages);
     $message .= '</table>';
 
     $message .= '<h3 style="margin:24px 0 8px 0;">Этический тест</h3>';

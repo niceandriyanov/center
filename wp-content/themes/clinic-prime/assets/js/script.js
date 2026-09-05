@@ -1182,7 +1182,8 @@ function initScript() {
                 this.formData.step1 = {
                     basicEducation: this.basicEducation ? this.basicEducation.value.trim() : '',
                     cbtEducation: this.cbtEducation ? this.cbtEducation.value.trim() : '',
-                    otherEducation: this.otherEducation ? this.otherEducation.value.trim() : ''
+                    otherEducation: this.otherEducation ? this.otherEducation.value.trim() : '',
+                    foreignLanguages: this.foreignLanguages ? this.foreignLanguages.value.trim() : ''
                 };
 
                 const supervisionChecked = this.form.querySelector('input[name="supervision"]:checked');
@@ -1195,8 +1196,7 @@ function initScript() {
                     supervision: supervisionChecked ? supervisionChecked.value : 'no',
                     supervisionDetails: this.supervisionDetails ? this.supervisionDetails.value.trim() : '',
                     supervisorName: this.supervisorName ? this.supervisorName.value.trim() : '',
-                    supervisionHours: this.supervisionHours ? this.supervisionHours.value.trim() : '',
-                    foreignLanguages: this.foreignLanguages ? this.foreignLanguages.value.trim() : ''
+                    supervisionHours: this.supervisionHours ? this.supervisionHours.value.trim() : ''
                 };
 
                 this.formData.step3.questions = {};

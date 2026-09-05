@@ -73,6 +73,15 @@ if (!defined('ABSPATH')) {
                                     placeholder="Если есть, укажите их. Если нет, оставьте поле пустым"
                             ></textarea>
                         </div>
+
+                        <h2>Иностранные языки (язык и уровень владения)</h2>
+                        <div class="psi-form-group">
+                            <textarea
+                                    id="foreignLanguages"
+                                    name="foreignLanguages"
+                                    placeholder="Например: английский — B2, немецкий — A2"
+                            ></textarea>
+                        </div>
                     </div>
 
                     <!-- Шаг 2 Опыт работы  -->
@@ -174,15 +183,6 @@ if (!defined('ABSPATH')) {
                                         class="psi-input"
                                 >
                             </div>
-                        </div>
-
-                        <h2>Иностранные языки (язык и уровень владения)</h2>
-                        <div class="psi-form-group">
-                        <textarea
-                                id="foreignLanguages"
-                                name="foreignLanguages"
-                                placeholder="Например: английский — B2, немецкий — A2"
-                        ></textarea>
                         </div>
                     </div>
 
