@@ -3089,38 +3089,22 @@ body {
 
 .butTelegram {
 	display: flex;
-	align-items: center;
-	gap: 16px;
-	padding: 16px 24px;
-	border-radius: 28px;
-	border: 2px solid #366159;
-	justify-content: center;
-	transition: all .4s;
+    align-items: center;
+    width: 44px;
+    height: 44px;
+    border-radius: 40px;
+    background: #366159;
+    text-align: center;
+    justify-content: center;
+    margin-right: 8px;
+    margin-bottom: 8px;
+    margin-left: 8px;
 }
 
-.butTelegram .butText {
-	color: #1E1E1E;
-	font-size: 16px;
-	font-weight: 500;
-	line-height: 140%;
-	transition: all .4s;
-}
-
-.butTelegram svg path {
-	fill: #1E1E1E;
-	transition: all .4s;
-}
-
-.butTelegram:hover svg path {
-	fill: #fff
-}
-
-.butTelegram:hover .butText {
-	color: #fff;
-}
-
-.butTelegram:hover {
-	background: #366159;
+.specLablesWrap {
+	display: flex;
+	justify-content: space-between;
+	align-items: baseline;	
 }
 
 .specInnerWrap {
@@ -3285,6 +3269,58 @@ body {
 	position: sticky;
 	top: 95px;
 	bottom: 20px;
+}
+
+.content-container {
+    position: relative;
+    margin: 20px 0;
+}
+
+.content-wrapper {
+    position: relative;
+    overflow: hidden;
+    max-height: 700px;
+}
+
+.content-wrapper.expanded {
+    max-height: none;
+    overflow: visible;
+}
+
+/* Градиент для обрезанного контента */
+.content-wrapper::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 80px;
+    background: linear-gradient(0deg, #F2F4F7 0%, rgba(242, 244, 247, 0.00) 100%);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.content-wrapper.has-gradient::after {
+    opacity: 1;
+}
+
+/* Кнопка вне обертки */
+.toggle-btn {
+    display: block;
+    margin: 15px auto 0;
+    color: #366159;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.3s ease;
+    position: relative;
+    z-index: 2;
+    background: none;
+}
+
+.toggle-btn:active {
+    transform: translateY(0);
 }
 
 .specInnerSliderTopWrap {

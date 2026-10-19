@@ -8,6 +8,7 @@ function initScript() {
     phoneMask();
     onlineModal();
     psiForm();
+    initContentToggler();
     gradeFilters();
     mobileFilters();
     filterScroll();
@@ -1514,6 +1515,84 @@ function initScript() {
                 return;
             }
             new PsiMultiStepForm(container);
+        });
+    }
+    
+    function initContentToggler() {
+        document.querySelectorAll('.content-container').forEach(container => {
+            const wrapper = container.querySelector('.content-wrapper');
+            const btn = container.querySelector('.toggle-btn');
+            
+            if (!wrapper || !btn) return;
+            
+            const MAX_HEIGHT = 700;
+            let isExpanded = false;
+            
+            function checkHeight() {
+                // Убираем ограничения для измерения
+                wrapper.style.maxHeight = 'none';
+                wrapper.style.overflow = 'visible';
+                
+                const fullHeight = wrapper.scrollHeight;
+                
+                if (fullHeight > MAX_HEIGHT) {
+                    btn.style.display = 'block';
+                    if (!isExpanded) {
+                        wrapper.style.maxHeight = MAX_HEIGHT + 'px';
+                        wrapper.style.overflow = 'hidden';
+                        wrapper.classList.add('has-gradient');
+                    }
+                } else {
+                    btn.style.display = 'none';
+                    wrapper.classList.remove('has-gradient');
+                    wrapper.classList.remove('expanded');
+                    wrapper.style.maxHeight = 'none';
+                    wrapper.style.overflow = 'visible';
+                    btn.textContent = 'Показать еще ↓';
+                    isExpanded = false;
+                }
+            }
+            
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                isExpanded = !isExpanded;
+                
+                if (isExpanded) {
+                    // Разворачиваем
+                    wrapper.style.maxHeight = 'none';
+                    wrapper.style.overflow = 'visible';
+                    wrapper.classList.add('expanded');
+                    wrapper.classList.remove('has-gradient');
+                    this.textContent = 'Скрыть ↑';
+                } else {
+                    // Сворачиваем
+                    wrapper.style.maxHeight = MAX_HEIGHT + 'px';
+                    wrapper.style.overflow = 'hidden';
+                    wrapper.classList.remove('expanded');
+                    // Проверяем нужно ли градиент
+                    setTimeout(() => {
+                        const fullHeight = wrapper.scrollHeight;
+                        if (fullHeight > MAX_HEIGHT) {
+                            wrapper.classList.add('has-gradient');
+                        }
+                    }, 50);
+                    this.textContent = 'Показать еще ↓';
+                }
+            });
+            
+            // Запускаем после загрузки
+            setTimeout(checkHeight, 200);
+            
+            // Обновляем при ресайзе
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(() => {
+                    if (!isExpanded) {
+                        checkHeight();
+                    }
+                }, 300);
+            });
         });
     }
 
