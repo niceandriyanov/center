@@ -1790,6 +1790,54 @@ span.flatpickr-weekday {
     border-color: #e53935;
 }
 
+.online-promo-row {
+    display: flex;
+    gap: 10px;
+}
+
+.online-promo-row .field {
+    flex: 1 1 auto;
+}
+
+.online-promo-apply {
+    flex: 0 0 auto;
+    padding: 12px 22px;
+    border: 1px solid #366159;
+    border-radius: 16px;
+    background: #fff;
+    color: #366159;
+    cursor: pointer;
+}
+
+.online-promo-msg {
+    margin-top: 6px;
+    font-size: 14px;
+    line-height: 140%;
+}
+
+.online-promo-msg:empty {
+    display: none;
+}
+
+.online-promo-msg.is-good {
+    color: #2a7a4b;
+}
+
+.online-promo-msg.is-bad {
+    color: #e53935;
+}
+
+.online-promo-field.is-checking .online-promo-apply {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.selected-specialist-price-old {
+    margin-right: 8px;
+    color: #7D7C7F;
+    text-decoration: line-through;
+}
+
 /* Информационные блоки */
 .online-info-block {
     padding: 32px;
@@ -2385,6 +2433,15 @@ span.flatpickr-weekday {
 
     .online-form-main-choice {
         height: 200px;
+    }
+
+    #mainScreen .online-form-main-choice-wrap {
+       flex-wrap: wrap;
+    }
+    
+    #mainScreen .online-form-main-choice {
+        flex-basis: 100%;
+        max-width: 100%;
     }
 
     .online-form-main-choice-text {

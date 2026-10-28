@@ -307,7 +307,9 @@ class Renovatio_Task_Service {
 		}
 
 		$form_type = isset( $payload['formType'] ) ? sanitize_text_field( (string) $payload['formType'] ) : 'self';
-		$name       = isset( $booking['first_name'] ) ? sanitize_text_field( (string) $booking['first_name'] ) : '';
+		$name       = function_exists( 'center_med_renovatio_booking_person_name' )
+			? center_med_renovatio_booking_person_name( $booking )
+			: '';
 		$phone      = isset( $booking['phone'] ) ? sanitize_text_field( (string) $booking['phone'] ) : '';
 		$email      = isset( $booking['email'] ) ? sanitize_email( (string) $booking['email'] ) : '';
 		$telegram   = isset( $booking['telegram'] ) ? sanitize_text_field( (string) $booking['telegram'] ) : '';

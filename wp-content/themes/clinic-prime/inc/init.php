@@ -32,6 +32,7 @@ require_once THEME_DIR . '/inc/helpers/ajax.php';
 require_once THEME_DIR . '/inc/helpers/seo.php';
 require_once THEME_DIR . '/inc/helpers/shortcodes.php';
 require_once THEME_DIR . '/inc/helpers/hooks.php';
+require_once THEME_DIR . '/inc/online-promo.php';
 require_once THEME_DIR . '/inc/helpers/color-helpers.php';
 
 // Подключение админских функций

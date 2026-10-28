@@ -317,10 +317,15 @@
                     <!-- Блок контактных данных (одинаковый для обоих вариантов) -->
                     <div class="online-form-group last">
                         <div class="contact-fields-container">
-                            <!-- Имя и фамилия -->
-                            <div class="contact-field-group full-width">
-                                <label for="clientName">Имя и фамилия <span class="required"></span></label>
-                                <input type="text" id="clientName" name="clientName" class="field" placeholder="Например: Анна Смирнова">
+                            <div class="contact-field-group">
+                                <label for="clientFirstName">Имя <span class="required"></span></label>
+                                <input type="text" id="clientFirstName" name="clientFirstName" class="field" placeholder="Например: Анна" autocomplete="given-name">
+                                <div class="online-error-message">Это поле обязательно для заполнения</div>
+                            </div>
+
+                            <div class="contact-field-group">
+                                <label for="clientLastName">Фамилия <span class="required"></span></label>
+                                <input type="text" id="clientLastName" name="clientLastName" class="field" placeholder="Например: Смирнова" autocomplete="family-name">
                                 <div class="online-error-message">Это поле обязательно для заполнения</div>
                             </div>
 
@@ -350,6 +355,15 @@
                                 <label for="clientEmail">Email <span class="required"></span></label>
                                 <input type="email" id="clientEmail" name="clientEmail" class="field" placeholder="example@mail.ru">
                                 <div class="online-error-message">Пожалуйста, укажите корректный email</div>
+                            </div>
+
+                            <div class="contact-field-group full-width online-promo-field" data-field="promo">
+                                <label for="clientPromo">Промокод</label>
+                                <div class="online-promo-row">
+                                    <input type="text" id="clientPromo" name="clientPromo" class="field" placeholder="Введите промокод" autocomplete="off">
+                                    <button type="button" class="but butBorder online-promo-apply" id="clientPromoApply">Применить</button>
+                                </div>
+                                <div class="online-promo-msg" id="clientPromoMsg"></div>
                             </div>
                         </div>
                     </div>
@@ -539,9 +553,15 @@
 
                     <div class="online-form-group last">
                         <div class="contact-fields-container">
-                            <div class="contact-field-group full-width">
-                                <label for="manyClient1Name">Имя и фамилия <span class="required"></span></label>
-                                <input type="text" id="manyClient1Name" name="manyClient1Name" class="field" placeholder="Например: Анна Смирнова">
+                            <div class="contact-field-group">
+                                <label for="manyClientFirstName">Имя <span class="required"></span></label>
+                                <input type="text" id="manyClientFirstName" name="manyClientFirstName" class="field" placeholder="Например: Анна" autocomplete="given-name">
+                                <div class="online-error-message">Это поле обязательно для заполнения</div>
+                            </div>
+
+                            <div class="contact-field-group">
+                                <label for="manyClientLastName">Фамилия <span class="required"></span></label>
+                                <input type="text" id="manyClientLastName" name="manyClientLastName" class="field" placeholder="Например: Смирнова" autocomplete="family-name">
                                 <div class="online-error-message">Это поле обязательно для заполнения</div>
                             </div>
 
@@ -568,6 +588,15 @@
                                 <label for="manyClient1Email">Email <span class="required"></span></label>
                                 <input type="email" id="manyClient1Email" name="manyClient1Email" class="field" placeholder="example@mail.ru">
                                 <div class="online-error-message">Пожалуйста, укажите корректный email</div>
+                            </div>
+
+                            <div class="contact-field-group full-width online-promo-field" data-field="promo">
+                                <label for="manyClientPromo">Промокод</label>
+                                <div class="online-promo-row">
+                                    <input type="text" id="manyClientPromo" name="manyClientPromo" class="field" placeholder="Введите промокод" autocomplete="off">
+                                    <button type="button" class="but butBorder online-promo-apply" id="manyClientPromoApply">Применить</button>
+                                </div>
+                                <div class="online-promo-msg" id="manyClientPromoMsg"></div>
                             </div>
                         </div>
                     </div>

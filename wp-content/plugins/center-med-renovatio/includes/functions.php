@@ -199,7 +199,7 @@ function center_med_renovatio_build_admin_email_payload_from_booking( array $boo
 		'appointment_id'    => ! empty( $booking['appointment_id'] ) ? absint( $booking['appointment_id'] ) : 0,
 		'clinic_id'         => ! empty( $booking['clinic_id'] ) ? absint( $booking['clinic_id'] ) : 0,
 		'doctor_id'         => ! empty( $booking['doctor_id'] ) ? absint( $booking['doctor_id'] ) : 0,
-		'name'              => isset( $booking['first_name'] ) ? sanitize_text_field( (string) $booking['first_name'] ) : '',
+		'name'              => center_med_renovatio_booking_person_name( $booking ),
 		'phone'             => isset( $booking['phone'] ) ? sanitize_text_field( (string) $booking['phone'] ) : '',
 		'email'             => isset( $booking['email'] ) ? sanitize_email( (string) $booking['email'] ) : '',
 		'service'           => $service,
@@ -208,6 +208,19 @@ function center_med_renovatio_build_admin_email_payload_from_booking( array $boo
 		'payment_url'       => '' !== $payment_url ? esc_url_raw( (string) $payment_url ) : '',
 		'payment_id'        => sanitize_text_field( (string) $payment_id ),
 	];
+}
+
+/**
+ * Имя и фамилия из строки брони.
+ *
+ * @param array $booking Строка брони.
+ * @return string
+ */
+function center_med_renovatio_booking_person_name( array $booking ) {
+	$first_name = isset( $booking['first_name'] ) ? sanitize_text_field( (string) $booking['first_name'] ) : '';
+	$last_name  = isset( $booking['last_name'] ) ? sanitize_text_field( (string) $booking['last_name'] ) : '';
+
+	return trim( $first_name . ' ' . $last_name );
 }
 
 /**
@@ -1316,6 +1329,7 @@ function center_med_renovatio_ajax_filter_online_doctors() {
 			$doctor_step = (int) get_post_meta( $doctor_id, $current_type, true );
 			$shedule = [];
 			$nearestSlot = '';
+			$nearest_ts  = 0;
 			if( !empty( $doctor_api_id ) ) {
 				$shedule = $api_doctors->get_schedule( [
 					'user_ids' => [ $doctor_api_id ],
@@ -1352,6 +1366,10 @@ function center_med_renovatio_ajax_filter_online_doctors() {
 								if ( '' !== $day && '' !== $month ) {
 									$nearestSlot = sprintf( '%s %s, %s', $day, $month, $slot_time );
 								}
+								$slot_datetime = date_create_immutable_from_format( 'Y-m-d H:i', $slot_day . ' ' . $slot_time, wp_timezone() );
+								if ( $slot_datetime instanceof DateTimeImmutable ) {
+									$nearest_ts = $slot_datetime->getTimestamp();
+								}
 							}
 							elseif ( ! empty( $slot['time_start'] ) ) {
 								$slot_datetime = DateTimeImmutable::createFromFormat( 'd.m.Y H:i', sanitize_text_field( (string) $slot['time_start'] ), wp_timezone() );
@@ -1359,6 +1377,7 @@ function center_med_renovatio_ajax_filter_online_doctors() {
 									$month_num = (int) $slot_datetime->format( 'n' );
 									$month     = isset( $months[ $month_num ] ) ? $months[ $month_num ] : '';
 									$nearestSlot = sprintf( '%s %s, %s', $slot_datetime->format( 'j' ), $month, $slot_datetime->format( 'H:i' ) );
+									$nearest_ts  = $slot_datetime->getTimestamp();
 								}
 							}
 							break;
@@ -1407,6 +1426,7 @@ function center_med_renovatio_ajax_filter_online_doctors() {
 					'avatar'       => $avatar,
 					'price'        => $price,
 					'nearestSlot'  => '',
+					'nearestTs'    => 0,
 					'description'  => wp_strip_all_tags( get_field( 'specialist_description', $doctor_id ) ),
 				];
 			}
@@ -1420,12 +1440,26 @@ function center_med_renovatio_ajax_filter_online_doctors() {
 					'avatar'       => $avatar,
 					'price'        => $price,
 					'nearestSlot'  => $nearestSlot,
+					'nearestTs'    => $nearest_ts,
 					'description'  => wp_strip_all_tags( get_field( 'specialist_description', $doctor_id ) ),
 				];
 			}
 			
 		}
 	}
+
+	usort(
+		$available,
+		static function( $left, $right ) {
+			$left_ts  = isset( $left['nearestTs'] ) ? (int) $left['nearestTs'] : 0;
+			$right_ts = isset( $right['nearestTs'] ) ? (int) $right['nearestTs'] : 0;
+			if ( $left_ts === $right_ts ) {
+				return 0;
+			}
+
+			return $left_ts < $right_ts ? -1 : 1;
+		}
+	);
 
 	wp_send_json_success(
 		[
@@ -1626,10 +1660,10 @@ function center_med_renovatio_ajax_create_appointment_request() {
 		$message           = json_decode( $message_unescaped, true );
 	}
 
-	if ( '' === $name || '' === $phone ) {
+	if ( '' === $phone ) {
 		wp_send_json_error(
 			[
-				'message' => __( 'Не заполнены обязательные поля: имя и телефон.', 'center-med-renovatio' ),
+				'message' => __( 'Не заполнены обязательные поля: имя, фамилия и телефон.', 'center-med-renovatio' ),
 			],
 			400
 		);
@@ -1646,6 +1680,30 @@ function center_med_renovatio_ajax_create_appointment_request() {
 
 	if ( ! is_array( $message ) ) {
 		$message = [];
+	}
+
+	$client_first_name = isset( $message['clientFirstName'] ) ? sanitize_text_field( (string) $message['clientFirstName'] ) : '';
+	$client_last_name  = isset( $message['clientLastName'] ) ? sanitize_text_field( (string) $message['clientLastName'] ) : '';
+	if ( '' === $client_first_name || '' === $client_last_name ) {
+		$name_parts = preg_split( '/\s+/u', trim( $name ) );
+		$name_parts = is_array( $name_parts ) ? array_values( array_filter( $name_parts ) ) : [];
+		if ( '' === $client_first_name && ! empty( $name_parts[0] ) ) {
+			$client_first_name = sanitize_text_field( (string) $name_parts[0] );
+		}
+		if ( '' === $client_last_name && count( $name_parts ) > 1 ) {
+			$client_last_name = sanitize_text_field( implode( ' ', array_slice( $name_parts, 1 ) ) );
+		}
+	}
+	if ( '' !== $client_first_name || '' !== $client_last_name ) {
+		$name = trim( $client_first_name . ' ' . $client_last_name );
+	}
+	if ( '' === $client_first_name || '' === $client_last_name ) {
+		wp_send_json_error(
+			[
+				'message' => __( 'Укажите имя и фамилию.', 'center-med-renovatio' ),
+			],
+			400
+		);
 	}
 
 	$form_type          = isset( $message['formType'] ) ? sanitize_text_field( (string) $message['formType'] ) : 'self';
@@ -1710,12 +1768,40 @@ function center_med_renovatio_ajax_create_appointment_request() {
 
 	$specialist_price_normalized = str_replace( [ ' ', ',' ], [ '', '.' ], $specialist_price_raw );
 	$booking_amount = is_numeric( $specialist_price_normalized ) ? (float) $specialist_price_normalized : 0.0;
-	if ( $booking_amount <= 0 && $specialist_post_id > 0 ) {
-		$doctor_price_raw = (string) get_field( 'cost_1', $specialist_post_id );
-		$doctor_price_raw = str_replace( [ ' ', ',' ], [ '', '.' ], $doctor_price_raw );
-		if ( is_numeric( $doctor_price_raw ) ) {
-			$booking_amount = (float) $doctor_price_raw;
+	if ( $specialist_post_id > 0 && function_exists( 'center_online_promo_base_price' ) ) {
+		$server_price = (float) center_online_promo_base_price( $specialist_post_id, $form_type );
+		if ( $server_price > 0 ) {
+			$booking_amount = $server_price;
 		}
+	}
+
+	$promo_code_raw = isset( $message['promo'] ) ? sanitize_text_field( (string) $message['promo'] ) : '';
+	$promo          = null;
+	$promo_code     = '';
+	$promo_off      = 0;
+	if ( '' !== $promo_code_raw ) {
+		if ( ! function_exists( 'booking_validate_promo' ) ) {
+			wp_send_json_error(
+				[
+					'message' => __( 'Промокод сейчас проверить нельзя.', 'center-med-renovatio' ),
+				],
+				500
+			);
+		}
+
+		$promo = booking_validate_promo( $promo_code_raw, (int) round( $booking_amount ) );
+		if ( is_wp_error( $promo ) ) {
+			wp_send_json_error(
+				[
+					'message' => $promo->get_error_message(),
+				],
+				400
+			);
+		}
+
+		$promo_code     = $promo['code'];
+		$promo_off      = (int) $promo['off'];
+		$booking_amount = (float) max( 0, (int) round( $booking_amount ) - $promo_off );
 	}
 
 	$booking_public_id = wp_generate_uuid4();
@@ -1836,9 +1922,8 @@ function center_med_renovatio_ajax_create_appointment_request() {
 		$slot_start_mysql = $start_date->format( 'Y-m-d H:i:s' );
 		$slot_end_mysql   = $end_date->format( 'Y-m-d H:i:s' );
 
-		$name_parts = preg_split( '/\s+/', $name );
-		$first_name = ! empty( $name_parts[0] ) ? sanitize_text_field( $name_parts[0] ) : '';
-		$last_name  = ! empty( $name_parts[1] ) ? sanitize_text_field( $name_parts[1] ) : '';
+		$first_name = $client_first_name;
+		$last_name  = $client_last_name;
 
 		$request_params = [
 			'doctor_id'  			=> $doctor_api_id,
@@ -1889,6 +1974,13 @@ function center_med_renovatio_ajax_create_appointment_request() {
 		$comment_lines = [
 			sprintf( 'Форма: %s', $form_label ),
 			sprintf( 'Клиент: %s', '' !== $name ? $name : '-' ),
+			sprintf(
+				'Промокод: %s',
+				'' !== $promo_code
+					? $promo_code . ( $promo_off > 0 ? ' (−' . number_format( $promo_off, 0, '.', ' ' ) . ' ₽)' : '' )
+					: '-'
+			),
+			sprintf( 'Стоимость: %s ₽', number_format( $booking_amount, 0, '.', ' ' ) ),
 			sprintf(
 				'Дата рождения: %s',
 				'' !== $client_birth_date ? $client_birth_date : ( '' !== $client_age ? $client_age : '-' )
@@ -1997,6 +2089,8 @@ function center_med_renovatio_ajax_create_appointment_request() {
 		'service'         => $service,
 		'dateString'      => $date_string,
 		'amount'          => $booking_amount,
+		'promoCode'       => $promo_code,
+		'promoOff'        => $promo_off,
 		'utm_source'      => isset( $utm['utm_source'] ) ? $utm['utm_source'] : '',
 		'utm_medium'      => isset( $utm['utm_medium'] ) ? $utm['utm_medium'] : '',
 		'utm_campaign'    => isset( $utm['utm_campaign'] ) ? $utm['utm_campaign'] : '',
@@ -2021,8 +2115,8 @@ function center_med_renovatio_ajax_create_appointment_request() {
 		'doctor_id'             => $doctor_api_id,
 		'slot_start'            => $slot_start_mysql,
 		'slot_end'              => $slot_end_mysql,
-		'first_name'            => $name,
-		'last_name'             => $last_name,
+		'first_name'            => $client_first_name,
+		'last_name'             => $client_last_name,
 		'phone'                 => $phone,
 		'email'                 => $email,
 		'telegram'              => $telegram,
@@ -2051,6 +2145,9 @@ function center_med_renovatio_ajax_create_appointment_request() {
 	}
 
 	$inserted = $wpdb->insert( $tables['bookings'], $insert_data, $insert_format );
+	if ( false !== $inserted && is_array( $promo ) && ! empty( $promo['id'] ) && ! $is_waiting_list && function_exists( 'booking_promo_consume' ) ) {
+		booking_promo_consume( (int) $promo['id'] );
+	}
 	if ( false === $inserted ) {
 		wp_send_json_error(
 			[

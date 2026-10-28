@@ -333,6 +333,8 @@ class BookingSystem {
         this.pendingPaymentStorageKey = 'clinic_pending_payment_snapshot_v1';
         this.bookingModalActionHandler = null;
         this.birthDatePickers = [];
+        this.promo = { self: null, many: null };
+        this.promoBusy = { self: false, many: false };
         this.init();
     }
 
@@ -706,7 +708,8 @@ class BookingSystem {
             selectedSpecialistPrice: null,
 
             // Шаг 4
-            clientName: '',
+            clientFirstName: '',
+            clientLastName: '',
             clientBirthDate: '',
             clientPhone: '',
             clientEmail: '',
@@ -730,7 +733,8 @@ class BookingSystem {
             selectedSpecialistPrice: null,
 
             // Шаг 3
-            client1Name: '',
+            clientFirstName: '',
+            clientLastName: '',
             client1BirthDate: '',
             client1Phone: '',
             client1Email: '',
@@ -845,7 +849,12 @@ class BookingSystem {
 
     initStep4Elements(e, d) {
         e.step4Container = d.getElementById('step4');
-        e.clientName = d.getElementById('clientName');
+        e.clientFirstName = d.getElementById('clientFirstName');
+        e.clientLastName = d.getElementById('clientLastName');
+        e.clientPromo = d.getElementById('clientPromo');
+        e.clientPromoApply = d.getElementById('clientPromoApply');
+        e.clientPromoMsg = d.getElementById('clientPromoMsg');
+        e.clientPromoField = e.clientPromo ? e.clientPromo.closest('.online-promo-field') : null;
         e.clientBirthDate = d.getElementById('clientBirthDate');
         e.clientPhone = d.getElementById('clientPhone');
         e.clientEmail = d.getElementById('clientEmail');
@@ -881,7 +890,12 @@ class BookingSystem {
         e.manyWaitingListGrid = d.getElementById('manyWaitingListGrid');
 
         // Шаг 3
-        e.manyClient1Name = d.getElementById('manyClient1Name');
+        e.manyClientFirstName = d.getElementById('manyClientFirstName');
+        e.manyClientLastName = d.getElementById('manyClientLastName');
+        e.manyClientPromo = d.getElementById('manyClientPromo');
+        e.manyClientPromoApply = d.getElementById('manyClientPromoApply');
+        e.manyClientPromoMsg = d.getElementById('manyClientPromoMsg');
+        e.manyClientPromoField = e.manyClientPromo ? e.manyClientPromo.closest('.online-promo-field') : null;
         e.manyClient1BirthDate = d.getElementById('manyClient1BirthDate');
         e.manyClient1Phone = d.getElementById('manyClient1Phone');
         e.manyClient1Email = d.getElementById('manyClient1Email');
@@ -1066,7 +1080,9 @@ class BookingSystem {
         const e = this.elements;
 
         // Контактные поля
-        this.bindDebouncedInput(e.clientName, 'clientName', () => this.validateClientName(), 'self');
+        this.bindDebouncedInput(e.clientFirstName, 'clientFirstName', () => this.validateClientFirstName(), 'self');
+        this.bindDebouncedInput(e.clientLastName, 'clientLastName', () => this.validateClientLastName(), 'self');
+        this.bindPromoEvents('self');
         this.bindDebouncedInput(e.clientBirthDate, 'clientBirthDate', () => this.validateClientBirthDate(), 'self');
         this.bindDebouncedInput(e.clientEmail, 'clientEmail', () => this.validateEmail(), 'self');
         this.bindDebouncedInput(e.clientTelegram, 'clientTelegram', () => this.validateTelegram(), 'self');
@@ -1107,7 +1123,9 @@ class BookingSystem {
         this.bindDebouncedInput(e.manyWorkMain, 'workMain', () => this.validateManyWorkMain(), 'many');
 
         // Шаг 3 формы "Для пары" - поля только для первого клиента
-        this.bindDebouncedInput(e.manyClient1Name, 'client1Name', () => this.validateManyClientName(), 'many');
+        this.bindDebouncedInput(e.manyClientFirstName, 'clientFirstName', () => this.validatePersonName(e.manyClientFirstName), 'many');
+        this.bindDebouncedInput(e.manyClientLastName, 'clientLastName', () => this.validatePersonName(e.manyClientLastName), 'many');
+        this.bindPromoEvents('many');
         this.bindDebouncedInput(e.manyClient1BirthDate, 'client1BirthDate', () => this.validateManyClientBirthDate(), 'many');
         this.bindDebouncedInput(e.manyClient1Email, 'client1Email', () => this.validateManyEmail(), 'many');
         this.bindDebouncedInput(e.manyClientTelegram, 'ClientTelegram', () => this.validateManyTelegram(), 'many');
@@ -1626,7 +1644,8 @@ class BookingSystem {
 
     validateSelfStep4() {
         return [
-            this.validateClientName(),
+            this.validateClientFirstName(),
+            this.validateClientLastName(),
             this.validateClientBirthDate(),
             this.validatePhone(),
             this.validateEmail(),
@@ -1635,27 +1654,31 @@ class BookingSystem {
         ].every(Boolean);
     }
 
-    validateClientName() {
-        const value = this.elements.clientName.value.trim();
-        const field = this.elements.clientName;
+    validateClientFirstName() {
+        return this.validatePersonName(this.elements.clientFirstName);
+    }
 
+    validateClientLastName() {
+        return this.validatePersonName(this.elements.clientLastName);
+    }
+
+    /**
+     * Имя или фамилия: обязательное поле, минимум 2 символа.
+     *
+     * @param {HTMLInputElement|null} field
+     * @returns {boolean}
+     */
+    validatePersonName(field) {
+        if (!field) return false;
+
+        const value = field.value.trim();
         if (!Utils.isNotEmpty(value)) {
             this.showFieldError(field, false, 'Это поле обязательно для заполнения');
             return false;
         }
 
-        let isValid = true;
-        let message = '';
-
-        if (value.length < 2) {
-            isValid = false;
-            message = 'Пожалуйста, введите корректное имя';
-        } else if (!value.includes(' ')) {
-            isValid = false;
-            message = 'Пожалуйста, введите имя и фамилию';
-        }
-
-        this.showFieldError(field, isValid, message);
+        const isValid = value.length >= 2;
+        this.showFieldError(field, isValid, 'Пожалуйста, введите корректное значение');
         return isValid;
     }
 
@@ -1832,37 +1855,14 @@ class BookingSystem {
 
     validateManyStep3() {
         return [
-            this.validateManyClientName(),
+            this.validatePersonName(this.elements.manyClientFirstName),
+            this.validatePersonName(this.elements.manyClientLastName),
             this.validateManyClientBirthDate(),
             this.validateManyPhone(),
             this.validateManyEmail(),
             this.validateManyTelegram(),
             this.validateManyAgreements()
         ].every(Boolean);
-    }
-
-    validateManyClientName() {
-        const value = this.elements.manyClient1Name.value.trim();
-        const field = this.elements.manyClient1Name;
-
-        if (!Utils.isNotEmpty(value)) {
-            this.showFieldError(field, false, 'Это поле обязательно для заполнения');
-            return false;
-        }
-
-        let isValid = true;
-        let message = '';
-
-        if (value.length < 2) {
-            isValid = false;
-            message = 'Пожалуйста, введите корректное имя';
-        } else if (!value.includes(' ')) {
-            isValid = false;
-            message = 'Пожалуйста, введите имя и фамилию';
-        }
-
-        this.showFieldError(field, isValid, message);
-        return isValid;
     }
 
     validateManyClientBirthDate() {
@@ -2172,14 +2172,22 @@ class BookingSystem {
                         avatar: String(item?.avatar || ''),
                         price: Number(item?.price || 0),
                         nearestSlot: String(item?.nearestSlot || ''),
+                        nearestTs: Number(item?.nearestTs || 0),
                         description: String(item?.description || '')
                     };
                 })
                 .filter(Boolean);
         };
 
+        const available = normalizeArray(data.available).sort((left, right) => {
+            const leftTs = Number(left.nearestTs || 0);
+            const rightTs = Number(right.nearestTs || 0);
+            if (leftTs === rightTs) return 0;
+            return leftTs < rightTs ? -1 : 1;
+        });
+
         return {
-            available: normalizeArray(data.available),
+            available,
             waitingList: normalizeArray(data.waitingList)
         };
     }
@@ -2449,6 +2457,7 @@ class BookingSystem {
         selfData.selectedSpecialistIsWaitingList = isWaitingList;
         selfData.selectedSpecialistName = specialist.name;
         selfData.selectedSpecialistPrice = specialist.price;
+        this.clearPromo('self');
 
         this.state.selfForm.appointment = null;
 
@@ -2474,6 +2483,7 @@ class BookingSystem {
         manyData.selectedSpecialistIsWaitingList = isWaitingList;
         manyData.selectedSpecialistName = specialist.name;
         manyData.selectedSpecialistPrice = specialist.price;
+        this.clearPromo('many');
 
         this.state.manyForm.appointment = null;
 
@@ -2558,7 +2568,7 @@ class BookingSystem {
 
     hideStep4Errors(formType = 'self') {
         if (formType === 'self') {
-            const fields = ['clientName', 'clientBirthDate', 'clientPhone', 'clientEmail'];
+            const fields = ['clientFirstName', 'clientLastName', 'clientBirthDate', 'clientPhone', 'clientEmail'];
             fields.forEach(fieldId => {
                 const field = document.getElementById(fieldId);
                 const error = field?.parentNode.querySelector('.online-error-message');
@@ -2572,7 +2582,7 @@ class BookingSystem {
             Utils.hide(this.elements.informedConsentError);
         } else {
             const fields = [
-                'manyClient1Name', 'manyClient1BirthDate', 'manyClient1Phone', 'manyClient1Email', 'manyClientTelegram'
+                'manyClientFirstName', 'manyClientLastName', 'manyClient1BirthDate', 'manyClient1Phone', 'manyClient1Email', 'manyClientTelegram'
             ];
             fields.forEach(fieldId => {
                 const field = document.getElementById(fieldId);
@@ -2617,7 +2627,7 @@ class BookingSystem {
                         <span>${specialist.positionTitle}</span>
                     </div>
                     ${appointmentText}
-                    <div class="selected-specialist-price">${specialist.price.toLocaleString()} ₽</div>
+                    <div class="selected-specialist-price">${this.formatPriceHtml(specialist.price, 'self')}</div>
                 </div>
             </div>
         `;
@@ -2652,7 +2662,7 @@ class BookingSystem {
                         <span>${specialist.positionTitle}</span>
                     </div>
                     ${appointmentText}
-                    <div class="selected-specialist-price">${specialist.price.toLocaleString()} ₽</div>
+                    <div class="selected-specialist-price">${this.formatPriceHtml(specialist.price, 'many')}</div>
                 </div>
             </div>
         `;
@@ -3208,7 +3218,10 @@ class BookingSystem {
         const appointment = this.state.selfForm?.appointment || {};
         const specialist = this.getSelectedSelfSpecialist();
         const returnUrl = window.location?.href ? String(window.location.href) : '';
-        const name = String(this.elements.clientName?.value || step1.clientName || '').trim();
+        const firstName = String(this.elements.clientFirstName?.value || step1.clientFirstName || '').trim();
+        const lastName = String(this.elements.clientLastName?.value || step1.clientLastName || '').trim();
+        const name = [firstName, lastName].filter(Boolean).join(' ');
+        const promo = this.promo.self?.code || '';
         const phone = String(this.elements.clientPhone?.value || step1.clientPhone || '').trim();
         const email = String(this.elements.clientEmail?.value || step1.clientEmail || '').trim();
         const telegram = String(this.elements.clientTelegram?.value || step1.clientTelegram || '').trim();
@@ -3243,7 +3256,10 @@ class BookingSystem {
                 dateString: appointment?.formattedDate && appointment?.time
                     ? `${appointment.formattedDate}, ${appointment.time}`
                     : '',
+                clientFirstName: firstName,
+                clientLastName: lastName,
                 clientName: name,
+                promo: promo,
                 clientPhone: phone,
                 clientEmail: email,
                 clientBirthDate: birthDate,
@@ -3301,7 +3317,10 @@ class BookingSystem {
         const appointment = this.state.manyForm?.appointment || {};
         const specialist = this.getSelectedManySpecialist();
         const returnUrl = window.location?.href ? String(window.location.href) : '';
-        const name = String(this.elements.manyClient1Name?.value || step1.client1Name || '').trim();
+        const firstName = String(this.elements.manyClientFirstName?.value || step1.clientFirstName || '').trim();
+        const lastName = String(this.elements.manyClientLastName?.value || step1.clientLastName || '').trim();
+        const name = [firstName, lastName].filter(Boolean).join(' ');
+        const promo = this.promo.many?.code || '';
         const phone = String(this.elements.manyClient1Phone?.value || step1.client1Phone || '').trim();
         const email = String(this.elements.manyClient1Email?.value || step1.client1Email || '').trim();
         const telegram = String(this.elements.manyClientTelegram?.value || step1.clientTelegram || '').trim();
@@ -3329,7 +3348,10 @@ class BookingSystem {
                 dateString: appointment?.formattedDate && appointment?.time
                     ? `${appointment.formattedDate}, ${appointment.time}`
                     : '',
+                clientFirstName: firstName,
+                clientLastName: lastName,
                 clientName: name,
+                promo: promo,
                 clientPhone: phone,
                 clientEmail: email,
                 clientBirthDate: birthDate,
@@ -3382,6 +3404,216 @@ class BookingSystem {
         return result;
     }
 
+    formatPriceHtml(basePrice, formType) {
+        const price = Number(basePrice || 0);
+        const off = Number(this.promo[formType]?.off || 0);
+        const current = Math.max(0, price - off);
+        const currentText = `${current.toLocaleString('ru-RU')} ₽`;
+        if (off <= 0) return currentText;
+        return `<span class="selected-specialist-price-old">${price.toLocaleString('ru-RU')} ₽</span>${currentText}`;
+    }
+
+    bindPromoEvents(formType) {
+        const apply = formType === 'many' ? this.elements.manyClientPromoApply : this.elements.clientPromoApply;
+        const input = formType === 'many' ? this.elements.manyClientPromo : this.elements.clientPromo;
+        if (apply) {
+            Utils.on(apply, 'click', () => this.onPromoClick(formType));
+        }
+        if (input) {
+            Utils.on(input, 'input', () => {
+                const applied = this.promo[formType];
+                if (applied && input.value.trim() !== applied.code) {
+                    this.clearPromo(formType);
+                }
+            });
+        }
+    }
+
+    onPromoClick(formType) {
+        if (this.promo[formType]) {
+            const input = formType === 'many' ? this.elements.manyClientPromo : this.elements.clientPromo;
+            if (input) input.value = '';
+            this.clearPromo(formType);
+            return;
+        }
+        this.applyPromo(formType);
+    }
+
+    clearPromo(formType, message = '') {
+        this.promo[formType] = null;
+        const field = formType === 'many' ? this.elements.manyClientPromoField : this.elements.clientPromoField;
+        if (field) field.classList.remove('is-checking');
+        this.setPromoMessage(formType, message, false);
+        this.syncPromoButton(formType);
+        if (formType === 'many') {
+            this.renderSelectedManySpecialistSummary();
+        } else {
+            this.renderSelectedSelfSpecialistSummary();
+        }
+    }
+
+    syncPromoButton(formType) {
+        const button = formType === 'many' ? this.elements.manyClientPromoApply : this.elements.clientPromoApply;
+        if (!button) return;
+        button.textContent = this.promo[formType] ? 'Сбросить' : 'Применить';
+    }
+
+    setPromoMessage(formType, text, good) {
+        const message = formType === 'many' ? this.elements.manyClientPromoMsg : this.elements.clientPromoMsg;
+        if (!message) return;
+        message.textContent = text || '';
+        message.classList.toggle('is-good', !!good && !!text);
+        message.classList.toggle('is-bad', !good && !!text);
+    }
+
+    async applyPromo(formType) {
+        if (this.promoBusy[formType]) return;
+
+        const input = formType === 'many' ? this.elements.manyClientPromo : this.elements.clientPromo;
+        const field = formType === 'many' ? this.elements.manyClientPromoField : this.elements.clientPromoField;
+        const button = formType === 'many' ? this.elements.manyClientPromoApply : this.elements.clientPromoApply;
+        const code = String(input?.value || '').trim();
+        const step = formType === 'many' ? this.state.manyForm.data : this.state.selfForm.data;
+
+        if (!code) {
+            this.clearPromo(formType, 'Введите промокод');
+            return;
+        }
+
+        const ajaxUrl = window.clinic_ajax?.ajax_url;
+        const nonce = window.clinic_ajax?.nonce;
+        if (!ajaxUrl || !nonce) {
+            this.setPromoMessage(formType, 'Не удалось проверить промокод', false);
+            return;
+        }
+
+        this.promoBusy[formType] = true;
+        if (field) field.classList.add('is-checking');
+        if (button) button.disabled = true;
+        this.setPromoMessage(formType, 'Проверяем промокод', true);
+
+        try {
+            const body = new URLSearchParams();
+            body.append('action', 'center_online_promo');
+            body.append('nonce', nonce);
+            body.append('code', code);
+            body.append('doctor_id', String(step.selectedSpecialistId || ''));
+            body.append('form_type', formType);
+
+            const response = await fetch(ajaxUrl, {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+                body: body.toString()
+            });
+            const result = await response.json();
+            if (!result?.success) {
+                throw new Error(result?.data?.message || 'Промокод не найден');
+            }
+
+            this.promo[formType] = {
+                code: String(result.data?.code || code),
+                off: Number(result.data?.off || 0)
+            };
+            if (input) input.value = this.promo[formType].code;
+            this.setPromoMessage(formType, `Промокод применен, скидка ${this.promo[formType].off.toLocaleString('ru-RU')} ₽`, true);
+            this.syncPromoButton(formType);
+            if (formType === 'many') {
+                this.renderSelectedManySpecialistSummary();
+            } else {
+                this.renderSelectedSelfSpecialistSummary();
+            }
+        } catch (error) {
+            this.promo[formType] = null;
+            this.syncPromoButton(formType);
+            this.setPromoMessage(formType, error?.message || 'Промокод не найден', false);
+        } finally {
+            this.promoBusy[formType] = false;
+            if (field) field.classList.remove('is-checking');
+            if (button) button.disabled = false;
+        }
+    }
+
+    buildCalltouchPayload(formType) {
+        const isMany = formType === 'many';
+        const step = isMany ? this.state.manyForm.data : this.state.selfForm.data;
+        const appointment = isMany ? this.state.manyForm.appointment : this.state.selfForm.appointment;
+        const firstName = String((isMany ? this.elements.manyClientFirstName?.value : this.elements.clientFirstName?.value) || '').trim();
+        const lastName = String((isMany ? this.elements.manyClientLastName?.value : this.elements.clientLastName?.value) || '').trim();
+        const phone = String((isMany ? this.elements.manyClient1Phone?.value : this.elements.clientPhone?.value) || '').trim();
+        const email = String((isMany ? this.elements.manyClient1Email?.value : this.elements.clientEmail?.value) || '').trim();
+        const telegram = String((isMany ? this.elements.manyClientTelegram?.value : this.elements.clientTelegram?.value) || '').trim();
+        const birthDate = String((isMany ? this.elements.manyClient1BirthDate?.value : this.elements.clientBirthDate?.value) || '').trim();
+
+        return {
+            firstName,
+            lastName,
+            phone,
+            email,
+            telegram,
+            birthDate,
+            doctor: step.selectedSpecialistName || '',
+            date: appointment?.formattedDate || '',
+            time: appointment?.time || '',
+            promo: this.promo[formType]?.code || '',
+            waiting: !!step.selectedSpecialistIsWaitingList,
+            formType
+        };
+    }
+
+    sendCalltouchLead(payload) {
+        const CT_SITE_ID = '86009';
+        const CT_MOD_ID = 'dz3cf7q3';
+        const registerUrl = `https://api.calltouch.ru/calls-service/RestAPI/requests/${CT_SITE_ID}/register/`;
+        let sessionId = '';
+
+        if (typeof window.ct === 'function') {
+            try {
+                const ctParams = window.ct('calltracking_params', CT_MOD_ID);
+                sessionId = ctParams && ctParams.sessionId ? ctParams.sessionId : '';
+            } catch (error) {
+                console.error('Ошибка sessionId Calltouch:', error);
+            }
+        }
+
+        const phone = String(payload.phone || '').replace(/\D/g, '');
+        if (!phone && !sessionId) return;
+
+        const fio = [payload.lastName, payload.firstName].filter(Boolean).join(' ').trim();
+        const commentParts = [];
+        if (payload.birthDate) commentParts.push(`Дата рождения: ${payload.birthDate}`);
+        if (payload.doctor) commentParts.push(`Специалист: ${payload.doctor}`);
+        if (payload.date || payload.time) commentParts.push(`Дата приема: ${[payload.date, payload.time].filter(Boolean).join(' ')}`);
+        if (payload.telegram) commentParts.push(`Telegram: ${payload.telegram}`);
+        if (payload.promo) commentParts.push(`Промокод: ${payload.promo}`);
+        commentParts.push(payload.waiting ? 'Лист ожидания' : 'Онлайн-запись');
+        commentParts.push(payload.formType === 'many' ? 'Для пары' : 'Для себя');
+
+        const ctData = {
+            fio,
+            phoneNumber: phone,
+            email: payload.email || '',
+            subject: 'Запись на прием',
+            comment: commentParts.join('. '),
+            tags: 'online-appointment',
+            requestUrl: window.location.href
+        };
+        if (sessionId) ctData.sessionId = sessionId;
+
+        const formBody = new URLSearchParams();
+        Object.keys(ctData).forEach((key) => {
+            if (ctData[key]) formBody.append(key, ctData[key]);
+        });
+
+        fetch(registerUrl, {
+            method: 'POST',
+            body: formBody,
+            keepalive: true
+        }).catch((error) => {
+            console.error('Ошибка при отправке заявки в Calltouch:', error);
+        });
+    }
+
     async submitSelfForm() {
         const originalText = this.elements.nextBtn.textContent;
         this.elements.nextBtn.disabled = true;
@@ -3390,6 +3622,8 @@ class BookingSystem {
         try {
             const isWaitingList = this.state.selfForm.data.selectedSpecialistIsWaitingList;
             const result = await this.sendSelfFormAjax();
+
+            this.sendCalltouchLead(this.buildCalltouchPayload('self'));
 
             if (isWaitingList) {
                 this.showWaitingListSuccessModal('self');
@@ -3438,6 +3672,7 @@ class BookingSystem {
         try {
             const isWaitingList = this.state.manyForm.data.selectedSpecialistIsWaitingList;
             const result = await this.sendManyFormAjax();
+            this.sendCalltouchLead(this.buildCalltouchPayload('many'));
 
             if (isWaitingList) {
                 this.showWaitingListSuccessModal('many');
@@ -4157,6 +4392,7 @@ class BookingSystem {
 
     // ==================== СБРОС И ОЧИСТКА ====================
     reset() {
+        this.promo = { self: null, many: null };
         this.state = this.getInitialState();
         this.stepManager.reset();
         this.manyStepManager.reset();
@@ -4209,13 +4445,17 @@ class BookingSystem {
             [this.elements.experienceDetails, ''],
             [this.elements.specialistNameInput, ''],
             [this.elements.recommendationFreeInput, ''],
-            [this.elements.clientName, ''],
+            [this.elements.clientFirstName, ''],
+            [this.elements.clientLastName, ''],
+            [this.elements.clientPromo, ''],
             [this.elements.clientBirthDate, ''],
             [this.elements.clientPhone, ''],
             [this.elements.clientEmail, ''],
             [this.elements.clientTelegram, ''],
             [this.elements.manyWorkMain, ''],
-            [this.elements.manyClient1Name, ''],
+            [this.elements.manyClientFirstName, ''],
+            [this.elements.manyClientLastName, ''],
+            [this.elements.manyClientPromo, ''],
             [this.elements.manyClient1BirthDate, ''],
             [this.elements.manyClient1Phone, ''],
             [this.elements.manyClient1Email, ''],

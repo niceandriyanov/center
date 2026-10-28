@@ -175,7 +175,9 @@ class Renovatio_Appointment_Notifier {
 			return;
 		}
 
-		$user_name            = isset( $booking['first_name'] ) ? sanitize_text_field( (string) $booking['first_name'] ) : '';
+		$user_name            = function_exists( 'center_med_renovatio_booking_person_name' )
+			? center_med_renovatio_booking_person_name( $booking )
+			: '';
 		$specialist_name      = isset( $message['specialistName'] ) ? sanitize_text_field( (string) $message['specialistName'] ) : '';
 		$appointment_datetime = isset( $message['dateString'] ) ? sanitize_text_field( (string) $message['dateString'] ) : '';
 		$appointment_date     = isset( $message['appointmentDate'] ) ? sanitize_text_field( (string) $message['appointmentDate'] ) : '';
@@ -448,6 +450,12 @@ class Renovatio_Appointment_Notifier {
 		$rows .= self::build_row( __( 'Специалист', 'center-med-renovatio' ), $specialist_name );
 		$rows .= self::build_row( __( 'Дата', 'center-med-renovatio' ), $appointment_date );
 		$rows .= self::build_row( __( 'Время', 'center-med-renovatio' ), $appointment_time );
+		$promo_code = isset( $message['promoCode'] ) ? sanitize_text_field( (string) $message['promoCode'] ) : '';
+		$promo_off  = isset( $message['promoOff'] ) ? (int) $message['promoOff'] : 0;
+		$promo_text = '' !== $promo_code
+			? $promo_code . ( $promo_off > 0 ? ' (−' . number_format( $promo_off, 0, '.', ' ' ) . ' ₽)' : '' )
+			: '';
+		$rows .= self::build_row( __( 'Промокод', 'center-med-renovatio' ), $promo_text );
 		$rows .= self::build_row( __( 'Услуга', 'center-med-renovatio' ), $service );
 		$rows .= self::build_row( __( 'Темы запроса', 'center-med-renovatio' ), $concerns_html, true );
 		$rows .= self::build_row( __( 'Booking ID', 'center-med-renovatio' ), $booking_id );
