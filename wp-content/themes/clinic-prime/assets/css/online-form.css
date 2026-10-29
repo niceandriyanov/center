@@ -2443,15 +2443,8 @@ span.flatpickr-weekday {
         font-size: 22px;
         margin-bottom: 16px;
     }
-
-    #mainScreen .online-form-main-choice-wrap {
-       flex-wrap: wrap;
-    }
     
-    #mainScreen .online-form-main-choice {
-        flex-basis: 100%;
-        max-width: 100%;
-    }
+
 
     .online-form-main-choice-text {
         font-size: 14px;
@@ -2544,6 +2537,10 @@ span.flatpickr-weekday {
 
     .online-form-container {
         margin: 16px 0 64px;
+    }
+
+    .online-form-main-choice-title {
+        font-size: 18px;
     }
 
 }
