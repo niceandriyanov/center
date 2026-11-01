@@ -1631,6 +1631,168 @@ function initScript() {
 initScript();
 
 
+/**
+ * Главный блок: «Ближайшее окно» записи.
+ *
+ * Фото врачей в блоке статичные (лежат в разметке main.php).
+ * Скрипт подставляет только дату ближайшего окна из МИС.
+ * Данные отдаёт AJAX-действие clinic_main_nearest_slot (inc/helpers/ajax.php):
+ * { ts: время окна в секундах, slot: то же строкой «1 ноя, 17:30» }.
+ *
+ * Блок в разметке скрыт атрибутом hidden и показывается, только когда пришла дата.
+ * Ошибки пишутся в консоль с пометкой [Ближайшее окно].
+ */
+(function () {
+    'use strict';
 
+    var LOG = '[Ближайшее окно]';
+    var CACHE_KEY = 'clinicMainNearestDate';
+    var CACHE_TTL = 5 * 60 * 1000;       // 5 минут — чтобы не дёргать МИС на каждом переходе
+    var TIME_ZONE = 'Europe/Moscow';
 
+    function init() {
+        var block = document.querySelector('[data-main-nearest]');
+        if (!block) return;
 
+        var cached = readCache();
+        if (cached) {
+            show(block, cached);
+            return;
+        }
+
+        loadFromMis()
+            .then(function (data) {
+                if (!data) {
+                    console.warn(LOG, 'МИС не вернула ни одного врача со свободным окном');
+                    return;
+                }
+                writeCache(data);
+                show(block, data);
+            })
+            .catch(function (error) {
+                console.warn(LOG, 'Не удалось получить данные из МИС:', error);
+            });
+    }
+
+    /* ---------- Запрос к серверу ---------- */
+
+    function loadFromMis() {
+        var ajax = window.clinic_ajax;
+        if (!ajax || !ajax.ajax_url || !ajax.nonce) {
+            return Promise.reject(new Error('Нет настроек clinic_ajax'));
+        }
+
+        var body = new URLSearchParams();
+        body.append('action', 'clinic_main_nearest_slot');
+        body.append('nonce', ajax.nonce);
+
+        return fetch(ajax.ajax_url, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+            body: body.toString()
+        })
+            .then(function (response) {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.text();
+            })
+            .then(function (text) {
+                var result;
+                try {
+                    result = JSON.parse(text);
+                } catch (e) {
+                    // admin-ajax вернул не JSON (например «0» — действие не зарегистрировано)
+                    throw new Error('Сервер вернул не JSON: ' + text.slice(0, 200));
+                }
+
+                if (!result || !result.success || !result.data) {
+                    var message = result && result.data && result.data.message;
+                    throw new Error(message || 'Некорректный ответ сервера');
+                }
+                var ts = Number(result.data.ts || 0);
+                var slot = String(result.data.slot || '');
+                return (ts > 0 || slot) ? { ts: ts, slot: slot } : null;
+            });
+    }
+
+    /* ---------- Вывод ---------- */
+
+    function show(block, data) {
+        var dateText = formatDate(data.ts) || data.slot;
+        if (!dateText) {
+            console.warn(LOG, 'Не удалось разобрать дату окна:', data);
+            return;
+        }
+
+        block.querySelector('[data-main-nearest-date]').textContent = dateText;
+        block.hidden = false;
+    }
+
+    function toMs(ts) {
+        return ts < 1e12 ? ts * 1000 : ts; // сервер может отдать секунды или миллисекунды
+    }
+
+    // «Сегодня, 17:30» / «Завтра, 10:00» / «5 ноября, 12:00» — по московскому времени
+    function formatDate(ts) {
+        if (!ts) return '';
+        var date = new Date(toMs(ts));
+        if (isNaN(date.getTime())) return '';
+
+        try {
+            var dayKey = function (d) {
+                return new Intl.DateTimeFormat('ru-RU', {
+                    timeZone: TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit'
+                }).format(d);
+            };
+            var time = new Intl.DateTimeFormat('ru-RU', {
+                timeZone: TIME_ZONE, hour: '2-digit', minute: '2-digit'
+            }).format(date);
+
+            var now = new Date();
+            var tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+            var day;
+
+            if (dayKey(date) === dayKey(now)) {
+                day = 'Сегодня';
+            } else if (dayKey(date) === dayKey(tomorrow)) {
+                day = 'Завтра';
+            } else {
+                day = new Intl.DateTimeFormat('ru-RU', {
+                    timeZone: TIME_ZONE, day: 'numeric', month: 'long'
+                }).format(date);
+            }
+
+            return day + ', ' + time;
+        } catch (e) {
+            return '';
+        }
+    }
+
+    /* ---------- Кэш в рамках вкладки ---------- */
+
+    function readCache() {
+        try {
+            var raw = sessionStorage.getItem(CACHE_KEY);
+            if (!raw) return null;
+            var cached = JSON.parse(raw);
+            if (!cached || Date.now() - cached.savedAt > CACHE_TTL) return null;
+            // если ближайшее окно уже прошло — берём свежие данные
+            if (cached.data.ts && toMs(cached.data.ts) < Date.now()) return null;
+            return cached.data;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function writeCache(data) {
+        try {
+            sessionStorage.setItem(CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data: data }));
+        } catch (e) { /* хранилище недоступно — работаем без кэша */ }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();

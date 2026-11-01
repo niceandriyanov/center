@@ -1981,6 +1981,100 @@ body {
 	margin-top: 24px;
 }
 
+.mainBut .but {
+	height: 56px;
+    display: flex;
+    align-items: center;
+}
+
+
+/* ===== Главный блок: «Ближайшее окно» рядом с кнопкой ===== */
+.mainActions {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 16px;
+	margin-top: 24px;
+}
+
+.mainActions .mainBut {
+	margin-top: 0;
+}
+
+.mainNearest {
+	display: inline-flex;
+	align-items: center;
+	gap: 16px;
+	padding: 6px;
+	border-radius: 32px;
+	background: rgba(24, 24, 24, 0.32);
+	-webkit-backdrop-filter: blur(8px);
+	backdrop-filter: blur(8px);
+	color: #fff;
+	text-decoration: none;
+	transition: background .3s;
+}
+
+.mainNearest[hidden] {
+	display: none;
+}
+
+.mainNearest:hover {
+	background: rgba(0, 0, 0, 0.4);
+	color: #fff;
+}
+
+.mainNearestAvatars {
+	display: flex;
+}
+
+.mainNearestAvatars img {
+	display: block;
+	width: 44px;
+	height: 44px;
+	border-radius: 50%;
+	object-fit: cover;
+}
+
+.mainNearestAvatars img + img {
+	margin-left: -10px;
+}
+
+.mainNearestInfo {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+
+.mainNearestLabel {
+	font-size: 12px;
+	line-height: 130%;
+	opacity: .85;
+}
+
+.mainNearestDate {
+	font-size: 14px;
+	font-weight: 600;
+	line-height: 130%;
+	white-space: nowrap;
+}
+
+.mainNearestArrow {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	width: 44px;
+	height: 44px;
+	border-radius: 50%;
+	background: #366159;
+	transition: background .3s;
+}
+
+.mainNearest:hover .mainNearestArrow {
+	background: #2A4C45;
+}
+
 .aboutSection {
 	padding: 64px 0;
 	background: #F2F4F7;
@@ -6780,12 +6874,34 @@ body {
 		padding-bottom: 0;
 	}
 
+	/* Кнопка больше не закреплена — закреплён блок «Ближайшее окно» */
 	.mainSection .mainBut {
+		width: 100%;
+		display: none;
+	}
+
+	.mainActions {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.mainNearest {
 		position: fixed;
 		z-index: 99;
 		bottom: 10px;
 		left: 10px;
 		right: 10px;
+		padding: 4px;
+		gap: 12px;
+	}
+
+	.mainNearestAvatars img {
+		width: 40px;
+		height: 40px;
+	}
+
+	.mainNearestArrow {
+		margin-left: auto;
 	}
 
 	.mainSection .mainBut .but {

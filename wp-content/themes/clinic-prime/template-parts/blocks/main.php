@@ -20,11 +20,40 @@ if (!defined('ABSPATH')) {
             <div class="mainSubTitle"><?= $args['mainSubTitle']; ?></div>
             <h1 class="mainTitle"><?= $args['title']; ?></h1>
             <div class="mainText"><?= $args['desc']; ?></div>
-            <?php if( !empty($args['link']) ) { ?>
-            <div class="mainBut">
-                <a href="<?= $args['link']; ?>" class="but butPrimary">Подобрать психолога от 2500 ₽</a>
+            <div class="mainActions">
+                <?php if( !empty($args['link']) ) { ?>
+                <div class="mainBut">
+                    <a href="<?= $args['link']; ?>" class="but butPrimary">Посмотреть специалистов</a>
+                </div>
+                <?php } ?>
+
+                <?php
+                // Ссылка на страницу онлайн-записи (страница с шаблоном «Онлайн форма»)
+                $nearest_pages = get_pages(array(
+                    'meta_key'   => '_wp_page_template',
+                    'meta_value' => 'template-parts/online-form.php',
+                    'number'     => 1,
+                ));
+                $nearest_link = !empty($nearest_pages) ? get_permalink($nearest_pages[0]->ID) : home_url('/appointment/');
+                ?>
+                <!-- Ближайшее окно записи. Дату подставляет assets/js/main-nearest.js из МИС; пока их нет — блок скрыт -->
+                <a href="<?= esc_url($nearest_link); ?>" class="mainNearest" data-main-nearest hidden>
+                    <span class="mainNearestAvatars">
+                        <img src="<?= THEME_URI; ?>/assets/img/main/doc1.png" alt="">
+                        <img src="<?= THEME_URI; ?>/assets/img/main/doc2.png" alt="">
+                        <img src="<?= THEME_URI; ?>/assets/img/main/doc3.png" alt="">
+                    </span>
+                    <span class="mainNearestInfo">
+                        <span class="mainNearestLabel">Ближайшее окно</span>
+                        <span class="mainNearestDate" data-main-nearest-date></span>
+                    </span>
+                    <span class="mainNearestArrow" aria-hidden="true">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M4 10H16M16 10L11 5M16 10L11 15" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </span>
+                </a>
             </div>
-            <?php } ?>
         </div>
         <?php if( !empty($args['img']) ) { ?>
         <div class="mainItemsWrapRight">

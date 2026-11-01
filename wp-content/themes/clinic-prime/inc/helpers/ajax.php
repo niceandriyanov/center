@@ -292,3 +292,170 @@ function clinic_ajax_submit_psi_form() {
 }
 add_action('wp_ajax_clinic_submit_psi_form', 'clinic_ajax_submit_psi_form');
 add_action('wp_ajax_nopriv_clinic_submit_psi_form', 'clinic_ajax_submit_psi_form');
+
+/**
+ * ==================== Главный блок: «Ближайшее окно» записи ====================
+ *
+ * AJAX-обработчик для блока в template-parts/blocks/main.php (JS — в конце assets/js/script.js).
+ * Ищет самый ранний свободный слот среди ВСЕХ врачей, привязанных к МИС.
+ *
+ * Обработчик формы (center_med_renovatio_filter_online_doctors в плагине) тут не подходит:
+ * без выбранных запросов клиента он возвращает пустой список.
+ * Поэтому ходим в МИС сами, через API-клиент плагина center-med-renovatio,
+ * и отбираем слоты по тем же правилам, что и форма.
+ */
+
+// Ключи и значения — те же, что использует плагин center-med-renovatio
+define( 'CLINIC_NEAREST_META_DOCTOR_ID', '_cmr_renovatio_doctor_id' );   // ID врача в МИС
+define( 'CLINIC_NEAREST_META_STEP', '_cmr_doctor_step_personal' );        // шаг слотов для личной консультации
+define( 'CLINIC_NEAREST_CATEGORY_ID', 2910 );                             // категория слотов онлайн-приёма
+define( 'CLINIC_NEAREST_CACHE_KEY', 'clinic_main_nearest_slot' );
+define( 'CLINIC_NEAREST_CACHE_TTL', 5 * MINUTE_IN_SECONDS );
+
+/**
+ * AJAX: ближайшее свободное окно.
+ * Ответ: { success: true, data: { ts: 1762004400, slot: "1 ноя, 17:30" } }
+ * Если окон нет: { success: true, data: { ts: 0, slot: "" } }
+ */
+function clinic_ajax_main_nearest_slot() {
+	check_ajax_referer( 'clinic_nonce', 'nonce' );
+
+	$cached = get_transient( CLINIC_NEAREST_CACHE_KEY );
+	// Окно из кэша отдаём, только если оно ещё не прошло
+	if ( is_array( $cached ) && ( empty( $cached['ts'] ) || $cached['ts'] > time() ) ) {
+		wp_send_json_success( $cached );
+	}
+
+	$result = clinic_find_nearest_slot();
+
+	if ( is_wp_error( $result ) ) {
+		wp_send_json_error( array( 'message' => $result->get_error_message() ) );
+	}
+
+	set_transient( CLINIC_NEAREST_CACHE_KEY, $result, CLINIC_NEAREST_CACHE_TTL );
+	wp_send_json_success( $result );
+}
+add_action( 'wp_ajax_clinic_main_nearest_slot', 'clinic_ajax_main_nearest_slot' );
+add_action( 'wp_ajax_nopriv_clinic_main_nearest_slot', 'clinic_ajax_main_nearest_slot' );
+
+/**
+ * Поиск самого раннего свободного слота среди всех врачей.
+ *
+ * @return array|WP_Error { ts: int, slot: string }
+ */
+function clinic_find_nearest_slot() {
+	if ( ! function_exists( 'center_med_renovatio_api_client' ) || ! class_exists( 'Renovatio_Doctor_Service' ) ) {
+		return new WP_Error( 'no_plugin', 'Плагин center-med-renovatio не активен' );
+	}
+
+	// Все опубликованные врачи, у которых указан ID в МИС
+	$doctor_posts = get_posts( array(
+		'post_type'      => 'doctors',
+		'post_status'    => 'publish',
+		'posts_per_page' => -1,
+		'fields'         => 'ids',
+		'meta_query'     => array(
+			array(
+				'key'     => CLINIC_NEAREST_META_DOCTOR_ID,
+				'value'   => '',
+				'compare' => '!=',
+			),
+		),
+	) );
+
+	// Группируем врачей по шагу слотов: врачей с одинаковым шагом спрашиваем у МИС одним запросом
+	$groups = array();
+	foreach ( $doctor_posts as $post_id ) {
+		$api_id = (int) get_post_meta( $post_id, CLINIC_NEAREST_META_DOCTOR_ID, true );
+		if ( $api_id <= 0 ) {
+			continue;
+		}
+		$step = (int) get_post_meta( $post_id, CLINIC_NEAREST_META_STEP, true );
+		$groups[ $step ][] = $api_id;
+	}
+
+	$empty = array( 'ts' => 0, 'slot' => '' );
+	if ( empty( $groups ) ) {
+		return $empty;
+	}
+
+	$service   = new Renovatio_Doctor_Service( center_med_renovatio_api_client() );
+	$best_ts   = 0;
+	$now       = time();
+	$had_error = null;
+
+	foreach ( $groups as $step => $api_ids ) {
+		$schedule = $service->get_schedule( array(
+			'user_ids' => $api_ids,
+			'time_end' => wp_date( 'd.m.Y H:i', strtotime( '+30 day' ) ),
+			'step'     => $step,
+			'show_all' => 1,
+		) );
+
+		if ( is_wp_error( $schedule ) ) {
+			$had_error = $schedule;
+			continue;
+		}
+		if ( ! is_array( $schedule ) ) {
+			continue;
+		}
+
+		foreach ( $schedule as $doctor_slots ) {
+			if ( ! is_array( $doctor_slots ) ) {
+				continue;
+			}
+			foreach ( $doctor_slots as $slot ) {
+				if ( ! empty( $slot['is_busy'] ) ) {
+					continue;
+				}
+				if ( empty( $slot['category_id'] ) || (int) $slot['category_id'] !== CLINIC_NEAREST_CATEGORY_ID ) {
+					continue;
+				}
+
+				$ts = clinic_nearest_slot_timestamp( $slot );
+				if ( $ts > $now && ( 0 === $best_ts || $ts < $best_ts ) ) {
+					$best_ts = $ts;
+				}
+			}
+		}
+	}
+
+	// Если МИС не ответила ни на один запрос — это ошибка, а не «нет окон»
+	if ( 0 === $best_ts && $had_error ) {
+		return $had_error;
+	}
+
+	if ( 0 === $best_ts ) {
+		return $empty;
+	}
+
+	$months = array( 1 => 'янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек' );
+
+	return array(
+		'ts'   => $best_ts,
+		'slot' => wp_date( 'j', $best_ts ) . ' ' . $months[ (int) wp_date( 'n', $best_ts ) ] . ', ' . wp_date( 'H:i', $best_ts ),
+	);
+}
+
+/**
+ * Время начала слота (timestamp) — разбирается так же, как в плагине.
+ *
+ * @param array $slot Слот из ответа getSchedule.
+ * @return int
+ */
+function clinic_nearest_slot_timestamp( $slot ) {
+	$day  = isset( $slot['_date'] ) ? (string) $slot['_date'] : '';
+	$time = isset( $slot['time_start_short'] ) ? (string) $slot['time_start_short'] : '';
+
+	if ( preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) && preg_match( '/^\d{2}:\d{2}$/', $time ) ) {
+		$date = date_create_immutable_from_format( 'Y-m-d H:i', $day . ' ' . $time, wp_timezone() );
+		return $date ? $date->getTimestamp() : 0;
+	}
+
+	if ( ! empty( $slot['time_start'] ) ) {
+		$date = DateTimeImmutable::createFromFormat( 'd.m.Y H:i', (string) $slot['time_start'], wp_timezone() );
+		return $date ? $date->getTimestamp() : 0;
+	}
+
+	return 0;
+}
