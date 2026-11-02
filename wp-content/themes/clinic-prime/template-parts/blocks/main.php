@@ -39,9 +39,9 @@ if (!defined('ABSPATH')) {
                 <!-- Ближайшее окно записи. Дату подставляет assets/js/main-nearest.js из МИС; пока их нет — блок скрыт -->
                 <a href="<?= esc_url($nearest_link); ?>" class="mainNearest" data-main-nearest hidden>
                     <span class="mainNearestAvatars">
-                        <img src="<?= THEME_URI; ?>/assets/img/main/doc1.png" alt="">
-                        <img src="<?= THEME_URI; ?>/assets/img/main/doc2.png" alt="">
-                        <img src="<?= THEME_URI; ?>/assets/img/main/doc3.png" alt="">
+                        <img src="<?= THEME_URI; ?>/assets/img/main/doc1_1.png" alt="">
+                        <img src="<?= THEME_URI; ?>/assets/img/main/doc2_2.png" alt="">
+                        <img src="<?= THEME_URI; ?>/assets/img/main/doc3_3.png" alt="">
                     </span>
                     <span class="mainNearestInfo">
                         <span class="mainNearestLabel">Ближайшее окно</span>

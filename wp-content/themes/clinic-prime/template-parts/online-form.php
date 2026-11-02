@@ -87,6 +87,23 @@ get_header(); ?>
     </div>
 </div>
 
+<!-- Фиксированные элементы -->
+
+<div class="fixed-vidjet-open">
+    <div class="fixed-vidjet-close">
+        <img src="<?= THEME_URI; ?>/assets/img/onlineForm/close.svg" alt="">
+    </div>
+    <div class="fixed-vidjet-img">
+        <img src="<?= THEME_URI; ?>/assets/img/onlineForm/img2.jpg" alt="">
+    </div>
+    <div class="fixed-vidjet-text">
+        Если в процессе возникнут вопросы, вы можете обратиться к <a href="https://t.me/handlingbetter" target="_blank">менеджеру Центра</a>
+    </div>
+</div>
+<div class="fixed-vidjet-mini active">
+    <img src="<?= THEME_URI; ?>/assets/img/onlineForm/ico8.svg" alt="">
+</div>
+
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         const formContainer = document.querySelector('.online-form-container');
