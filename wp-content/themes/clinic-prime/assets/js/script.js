@@ -1796,3 +1796,225 @@ initScript();
         init();
     }
 })();
+
+
+/**
+ * Главный блок на мобилке: панель с кнопками закреплена снизу.
+ * Вверху страницы видны обе кнопки; как только начинаем прокручивать вниз —
+ * зелёная кнопка сворачивается (класс is-scrolled, стили в app.css), у самого верха — возвращается.
+ * Высоту панели пишем в CSS-переменную --mainActionsH, чтобы виджет в углу (front-page.php) не перекрывался панелью.
+ */
+(function () {
+    'use strict';
+
+    var TOP_OFFSET = 10; // сколько пикселей прокрутки ещё считается «самым началом страницы»
+
+    function init() {
+        var panel = document.querySelector('.mainSection .mainActions');
+        if (!panel) return;
+
+        var ticking = false;
+
+        function update() {
+            ticking = false;
+            panel.classList.toggle('is-scrolled', window.scrollY > TOP_OFFSET);
+        }
+
+        function saveHeight() {
+            document.documentElement.style.setProperty('--mainActionsH', panel.offsetHeight + 'px');
+        }
+
+        window.addEventListener('scroll', function () {
+            if (!ticking) {
+                ticking = true;
+                window.requestAnimationFrame(update);
+            }
+        }, { passive: true });
+
+        // высота панели меняется: сворачивается кнопка, появляется плашка с окном
+        if ('ResizeObserver' in window) {
+            new ResizeObserver(saveHeight).observe(panel);
+        }
+
+        update();
+        saveHeight();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+})();
+
+/**
+ * Каталог врачей (template-parts/doctors.php): сортировка «Ближайший прием» / «По цене».
+ *
+ * Сортирует карточки прямо на странице (каталог выводит всех врачей сразу).
+ * «Ближайший прием» — по времени ближайшего окна из МИС (data-nearest карточки,
+ * выводит template-parts/parts/doctor.php), врачи без свободных окон — в конце.
+ * «По цене» — по цене первичного приёма (data-price карточки), без цены — в конце.
+ * При одинаковом значении сохраняется порядок из админки.
+ * После ajax-фильтра (новые карточки) сортировка применяется заново.
+ * Выбор «По цене» сохраняется в адресе страницы (?sort=price).
+ */
+function catalogSort() {
+    var box = document.querySelector('[data-catalog-sort]');
+    if (!box) { return; }
+
+    var button = box.querySelector('.specSortBut');
+    var current = box.querySelector('.specSortCurrent');
+    var options = Array.prototype.slice.call(box.querySelectorAll('.specSortOption'));
+    var observer = null;
+
+    function mode() {
+        return box.getAttribute('data-value') === 'price' ? 'price' : 'nearest';
+    }
+
+    function getWrap() {
+        return document.querySelector('.specItems_wrap');
+    }
+
+    // Запоминаем исходный порядок карточек (так их отдал сервер)
+    function rememberOrder(wrap) {
+        Array.prototype.forEach.call(wrap.querySelectorAll(':scope > .specItem'), function (item, i) {
+            if (!item.hasAttribute('data-order')) {
+                item.setAttribute('data-order', i);
+            }
+        });
+    }
+
+    function sortCards() {
+        var wrap = getWrap();
+        if (!wrap) { return; }
+
+        rememberOrder(wrap);
+
+        var items = Array.prototype.slice.call(wrap.querySelectorAll(':scope > .specItem'));
+        if (items.length < 2) { return; }
+
+        var sortMode = mode();
+
+        function key(item) {
+            if (sortMode === 'price') {
+                var price = parseInt(item.getAttribute('data-price'), 10);
+                return price > 0 ? price : Infinity;
+            }
+            var ts = parseInt(item.getAttribute('data-nearest'), 10);
+            return ts > 0 ? ts : Infinity;
+        }
+
+        items.sort(function (a, b) {
+            var ka = key(a);
+            var kb = key(b);
+            if (ka !== kb) { return ka < kb ? -1 : 1; }
+            return parseInt(a.getAttribute('data-order'), 10) - parseInt(b.getAttribute('data-order'), 10);
+        });
+
+        // Переставляем карточки, не реагируя на собственные изменения
+        if (observer) { observer.disconnect(); }
+        items.forEach(function (item) { wrap.appendChild(item); });
+        if (observer) {
+            observer.takeRecords();
+            observer.observe(wrap, { childList: true });
+        }
+    }
+
+    function updateUrl() {
+        var url = new URL(window.location);
+        if (mode() === 'price') {
+            url.searchParams.set('sort', 'price');
+        } else {
+            url.searchParams.delete('sort');
+        }
+        window.history.replaceState({}, '', url);
+    }
+
+    function setValue(value) {
+        options.forEach(function (option) {
+            var on = option.getAttribute('data-value') === value;
+            option.classList.toggle('isActive', on);
+            option.setAttribute('aria-selected', on ? 'true' : 'false');
+            if (on) { current.textContent = option.textContent.trim(); }
+        });
+        box.setAttribute('data-value', value);
+        updateUrl();
+        sortCards();
+    }
+
+    /* Выпадающий список */
+    function isOpen() {
+        return box.classList.contains('opened');
+    }
+
+    function open() {
+        box.classList.add('opened');
+        button.setAttribute('aria-expanded', 'true');
+        (box.querySelector('.specSortOption.isActive') || options[0]).focus();
+    }
+
+    function close(returnFocus) {
+        box.classList.remove('opened');
+        button.setAttribute('aria-expanded', 'false');
+        if (returnFocus) { button.focus(); }
+    }
+
+    button.addEventListener('click', function () {
+        if (isOpen()) { close(); } else { open(); }
+    });
+
+    options.forEach(function (option, i) {
+        option.addEventListener('click', function () {
+            setValue(option.getAttribute('data-value'));
+            close(true);
+        });
+        option.addEventListener('keydown', function (event) {
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                options[Math.min(i + 1, options.length - 1)].focus();
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                options[Math.max(i - 1, 0)].focus();
+            } else if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setValue(option.getAttribute('data-value'));
+                close(true);
+            } else if (event.key === 'Tab') {
+                close();
+            }
+        });
+    });
+
+    box.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && isOpen()) { close(true); }
+    });
+
+    document.addEventListener('click', function (event) {
+        if (isOpen() && !box.contains(event.target)) { close(); }
+    });
+
+    // «Сбросить фильтр» возвращает сортировку по ближайшему приёму
+    document.querySelectorAll('.filterResetLink').forEach(function (link) {
+        link.addEventListener('click', function () {
+            close();
+            setValue('nearest');
+        });
+    });
+
+    // Ajax-фильтр заменил карточки — отсортировать новые
+    var wrap = getWrap();
+    if (wrap && 'MutationObserver' in window) {
+        observer = new MutationObserver(function () {
+            sortCards();
+        });
+        observer.observe(wrap, { childList: true });
+    }
+
+    sortCards();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', catalogSort);
+} else {
+    catalogSort();
+}

@@ -11,7 +11,13 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-if( empty($args['doctors']) ) return;
+// 6 врачей с ближайшей свободной записью — подбираются автоматически (clinic_nearest_doctor_ids() в inc/helpers/ajax.php).
+// Заголовок и описание блока по-прежнему из админки; выбранные там врачи используются, только если подбор недоступен.
+$doctors = function_exists('clinic_nearest_doctor_ids') ? clinic_nearest_doctor_ids() : array();
+if( empty($doctors) && !empty($args['doctors']) ) {
+    $doctors = $args['doctors'];
+}
+if( empty($doctors) ) return;
 
 ?>
 
@@ -25,7 +31,7 @@ if( empty($args['doctors']) ) return;
             <div class="swiper-container specSlider">
                 <div class="swiper-wrapper">
 
-                <?php foreach( $args['doctors'] as $doctor ) { ?>
+                <?php foreach( $doctors as $doctor ) { ?>
                     <div class="swiper-slide">
                         <?php get_template_part('template-parts/parts/doctor', '', array('id' => $doctor)); ?>  
                     </div>
@@ -35,7 +41,7 @@ if( empty($args['doctors']) ) return;
 
             </div>
 
-            <?php if( count($args['doctors']) > 3 ) { ?>
+            <?php if( count($doctors) > 3 ) { ?>
             <div class="swiper-pagination"></div>
             <div class="navArrow specSliderPrev">
                 <svg width="20" height="14" viewBox="0 0 20 14" fill="none" xmlns="http://www.w3.org/2000/svg">

@@ -224,6 +224,28 @@ $bottom_text = !empty($catalog['bottom_text']) ? $catalog['bottom_text'] : '';
                                     </div>
                                 </div>
 
+                                <?php
+                                // Сортировка списка врачей (работает на странице, скрипт catalogSort() в конце assets/js/script.js)
+                                $sort_value   = (isset($_GET['sort']) && $_GET['sort'] === 'price') ? 'price' : 'nearest';
+                                $sort_options = array(
+                                    'nearest' => 'Ближайший прием',
+                                    'price'   => 'По цене',
+                                );
+                                ?>
+                                <div class="specItemsFilterSort" data-catalog-sort data-value="<?= esc_attr($sort_value); ?>">
+                                    <button type="button" class="specSortBut" aria-haspopup="listbox" aria-expanded="false" aria-label="Сортировка врачей">
+                                        <span class="specSortCurrent"><?= esc_html($sort_options[$sort_value]); ?></span>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 15.5002C11.744 15.5002 11.488 15.4023 11.293 15.2073L7.29301 11.2072C6.90201 10.8162 6.90201 10.1842 7.29301 9.79325C7.68401 9.40225 8.31601 9.40225 8.70701 9.79325L12.012 13.0982L15.305 9.91825C15.704 9.53525 16.335 9.54625 16.719 9.94325C17.103 10.3403 17.092 10.9742 16.695 11.3572L12.695 15.2193C12.5 15.4073 12.25 15.5002 12 15.5002Z" fill="#333333"/>
+                                        </svg>
+                                    </button>
+                                    <ul class="specSortList" role="listbox" aria-label="Сортировка врачей">
+                                        <?php foreach ($sort_options as $value => $label) { ?>
+                                        <li class="specSortOption<?= $value === $sort_value ? ' isActive' : ''; ?>" role="option" tabindex="-1" data-value="<?= esc_attr($value); ?>" aria-selected="<?= $value === $sort_value ? 'true' : 'false'; ?>"><?= esc_html($label); ?></li>
+                                        <?php } ?>
+                                    </ul>
+                                </div>
+
                                 <div class="filterReset">
                                     <a href="#" class="filterResetLink">
                                         <span class="withLine">Сбросить фильтр</span>

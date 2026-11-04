@@ -1464,16 +1464,13 @@ button.swiper-pagination-bullet {
 }
 
 .fieldSearch {
-	padding: 9px 12px;
-	border-radius: 24px;
-	border: 1px solid #EEECEA;
-
-	backdrop-filter: blur(16px);
-	background: #fff;
-
-	color: #B1B1B2;
-	font-size: 16px;
-	line-height: 140%;
+	padding: 12px;
+    border-radius: 16px;
+    border: 1px solid #D8D9DC;
+    background: #fff;
+    color: #B1B1B2;
+    font-size: 16px;
+    line-height: 140%;
 }
 
 .specSearch {
@@ -2525,6 +2522,61 @@ body {
 	line-height: 136%;
 	letter-spacing: 0.18px;
 }
+
+/* Карточка врача: ближайшее окно / лист ожидания + цена */
+.specItemBooking {
+	display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: #F0FDFA;
+}
+
+.specItemBooking .specItemPrice {
+	margin-left: auto;
+	white-space: nowrap;
+}
+
+.specItemNearest {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+	min-width: 0;
+}
+
+.specItemNearestIco {
+	flex-shrink: 0;
+	color: #366159;
+}
+
+.specItemNearestInfo {
+	display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.specItemNearestLabel {
+	color: #7D7C7F;
+    font-size: 12px;
+    line-height: 135%;
+}
+
+.specItemNearestDate {
+	color: #366159;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 140%;
+    white-space: nowrap;
+}
+
+.specItemWaiting {
+	color: #7D7C7F;
+	font-size: 14px;
+	line-height: 130%;
+}
+
 
 .specItemImg {
 	position: relative;
@@ -6879,19 +6931,48 @@ body {
 		width: 100%;		
 	}
 
+	/* Обе кнопки закреплены снизу одной панелью.
+	   При прокрутке вниз script.js ставит класс is-scrolled — зелёная кнопка сворачивается */
 	.mainActions {
+		position: fixed;
+		z-index: 99;
+		left: 0;
+		right: 0;
+		bottom: 0;
 		flex-direction: column;
 		align-items: stretch;
-		margin-top: 0;
-		margin-bottom: 24px;
+		flex-wrap: nowrap;
+		gap: 0;
+		margin: 0;
+		padding: 10px;
+		background: #fff;
+	}
+
+	.mainActions .mainBut {
+		max-height: 56px;
+		margin-bottom: 8px;
+		overflow: hidden;
+		transition: max-height .3s ease, margin .3s ease, opacity .3s ease;
+	}
+
+	/* если плашки с окном нет — у кнопки не нужен нижний отступ */
+	.mainActions .mainBut:has(+ .mainNearest[hidden]) {
+		margin-bottom: 0;
+	}
+
+	.mainActions.is-scrolled .mainBut {
+		max-height: 0;
+		margin-bottom: 0;
+		opacity: 0;
+		pointer-events: none;
+	}
+
+	/* после прокрутки и без плашки с окном панель не показываем совсем */
+	.mainActions.is-scrolled:not(:has(.mainNearest:not([hidden]))) {
+		display: none;
 	}
 
 	.mainNearest {
-		position: fixed;
-		z-index: 99;
-		bottom: 10px;
-		left: 10px;
-		right: 10px;
 		padding: 4px;
 		gap: 12px;
 	}
@@ -7287,5 +7368,109 @@ body {
 
 	.mobileItems {
 		top: 58px;
+	}
+}
+
+
+/* ============================================================
+   Каталог врачей — сортировка «Ближайший прием» / «По цене»
+   Разметка: template-parts/doctors.php (.specItemsFilterSort)
+   Скрипт: catalogSort() в конце assets/js/script.js
+   Вид повторяет соседний список «Что вас беспокоит?» (.page_filters__filter--main)
+   ============================================================ */
+
+.specItemsFilterSort {
+	position: relative;
+	flex: 1 auto;
+}
+
+.specSortBut {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 16px;
+	width: 100%;
+	padding: 12px;
+	border: 1px solid #D8D9DC;
+	border-radius: 16px;
+	background-color: #fff;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.specSortCurrent {
+	color: #333;
+	font-size: 16px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.specSortBut svg {
+	flex: 0 0 24px;
+	width: 24px;
+	height: 24px;
+	transition: 0.2s ease-in-out;
+	pointer-events: none;
+}
+
+.specItemsFilterSort.opened .specSortBut svg {
+	transform: rotate(180deg);
+}
+
+.specSortBut:focus-visible {
+	outline: none;
+	border-color: #366159;
+}
+
+.specSortList {
+	position: absolute;
+	top: calc(100% + 8px);
+	left: 0;
+	right: 0;
+	z-index: 10;
+	display: none;
+	flex-direction: column;
+	gap: 8px;
+	margin: 0;
+	padding: 16px;
+	list-style: none;
+	border: 1px solid #D8D9DC;
+	border-radius: 16px;
+	background-color: #fff;
+	box-shadow: 0px 125px 50px 0px rgba(0, 0, 0, 0.01), 0px 71px 42px 0px rgba(0, 0, 0, 0.02), 0px 31px 31px 0px rgba(0, 0, 0, 0.03), 0px 8px 17px 0px rgba(0, 0, 0, 0.04);
+}
+
+.specItemsFilterSort.opened .specSortList {
+	display: flex;
+}
+
+.specSortOption {
+	padding: 4px;
+	color: #7F8395;
+	font-size: 16px;
+	line-height: 1.28;
+	letter-spacing: 0.16px;
+	cursor: pointer;
+	transition: 0.2s ease-in-out;
+}
+
+.specSortOption:hover,
+.specSortOption:focus {
+	outline: none;
+	color: #366159;
+}
+
+.specSortOption.isActive {
+	color: #366159;
+	font-weight: 500;
+}
+
+@media (max-width: 1069px) {
+	.specItemsFilterSort {
+		flex-basis: 100%;
+		max-width: 100%;
+		width: 100%;
 	}
 }

@@ -5,7 +5,8 @@
 	}
 	@media (max-width: 569px){
 		.fixed-vidjet-mini, .fixed-vidjet-open {
-	        bottom: 70px;
+	        bottom: calc(var(--mainActionsH, 60px) + 10px); /* над закреплённой панелью главного блока */
+	        transition: bottom .3s ease, opacity .3s ease, visibility .3s ease;
 	    }		
 	}
 </style>
