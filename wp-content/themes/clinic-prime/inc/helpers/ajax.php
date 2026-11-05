@@ -535,6 +535,37 @@ function clinic_format_nearest_date( $ts ) {
 }
 
 /**
+ * Грейд «Стажер» (таксономия doctor_grade).
+ *
+ * @return WP_Term|null
+ */
+function clinic_get_intern_grade_term() {
+	static $term = false; // ищем один раз за страницу
+	if ( false !== $term ) {
+		return $term;
+	}
+
+	$found = get_term_by( 'slug', 'intern', 'doctor_grade' );
+	if ( ! $found ) {
+		$found = get_term_by( 'name', 'Стажер', 'doctor_grade' );
+	}
+	$term = ( $found && ! is_wp_error( $found ) ) ? $found : null;
+
+	return $term;
+}
+
+/**
+ * Стажёр ли врач. Стажёров нет в МИС — запись к ним через администратора.
+ *
+ * @param int $post_id ID записи врача.
+ * @return bool
+ */
+function clinic_is_intern_doctor( $post_id ) {
+	$intern = clinic_get_intern_grade_term();
+	return $intern ? has_term( (int) $intern->term_id, 'doctor_grade', (int) $post_id ) : false;
+}
+
+/**
  * Врачи для слайдера «Психологи центра» на главной (template-parts/blocks/spec.php).
  *
  * Берутся все опубликованные врачи, кроме стажёров (грейд «Стажер»).
@@ -558,11 +589,8 @@ function clinic_nearest_doctor_ids( $limit = CLINIC_NEAREST_SLIDER_LIMIT ) {
 	);
 
 	// Стажёры не участвуют
-	$intern = get_term_by( 'slug', 'intern', 'doctor_grade' );
-	if ( ! $intern ) {
-		$intern = get_term_by( 'name', 'Стажер', 'doctor_grade' );
-	}
-	if ( $intern && ! is_wp_error( $intern ) ) {
+	$intern = clinic_get_intern_grade_term();
+	if ( $intern ) {
 		$args['tax_query'] = array(
 			array(
 				'taxonomy' => 'doctor_grade',

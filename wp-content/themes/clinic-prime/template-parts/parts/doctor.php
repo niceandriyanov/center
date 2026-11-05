@@ -69,8 +69,10 @@ $sort_nearest = function_exists('clinic_get_doctor_nearest_ts') ? (int) clinic_g
             $cost = get_field('cost_1', $doctor_id);
             // Ближайшее окно из МИС (inc/helpers/ajax.php): timestamp; 0 — окон нет; null — МИС сейчас недоступна
             $nearest_ts = function_exists('clinic_get_doctor_nearest_ts') ? clinic_get_doctor_nearest_ts($doctor_id) : null;
+            // Стажёров нет в МИС — у них вместо листа ожидания запись через администратора
+            $is_intern = function_exists('clinic_is_intern_doctor') && clinic_is_intern_doctor($doctor_id);
             ?>
-            <?php if( !empty($cost) || $nearest_ts !== null ) { ?>
+            <?php if( !empty($cost) || $nearest_ts !== null || $is_intern ) { ?>
             <div class="specItemBooking">
                 <?php if( $nearest_ts > 0 ) { ?>
                 <div class="specItemNearest">
@@ -81,6 +83,8 @@ $sort_nearest = function_exists('clinic_get_doctor_nearest_ts') ? (int) clinic_g
                         <span class="specItemNearestDate"><?= esc_html(clinic_format_nearest_date($nearest_ts)); ?></span>
                     </div>
                 </div>
+                <?php } elseif( $is_intern ) { ?>
+                <div class="specItemWaiting">Запись через администратора</div>
                 <?php } elseif( $nearest_ts === 0 ) { ?>
                 <div class="specItemWaiting">Запись в лист ожидания</div>
                 <?php } ?>
